@@ -4,17 +4,17 @@ import { nanoid } from "nanoid";
 import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "motion/react";
 import { Tool, BrushStyle, DrawingData, ChatMessage, UserPresence, CursorUpdate, Layer, CustomPalette, PlacedText, PlacedShape } from "./types";
-import { 
-  Palette, 
-  Eraser, 
-  Pencil, 
-  Brush, 
-  CloudRain, 
-  Send, 
-  Trash2, 
+import {
+  Palette,
+  Eraser,
+  Pencil,
+  Brush,
+  CloudRain,
+  Send,
+  Trash2,
   Fingerprint,
-  Users, 
-  Copy, 
+  Users,
+  Copy,
   Check,
   Smile,
   LogOut,
@@ -59,18 +59,21 @@ import {
   Hexagon,
   ArrowUp,
   Keyboard,
-  HelpCircle
+  HelpCircle,
+  Github,
+  Linkedin,
+  MessageCircleHeart,
+  Minimize,
+  Grid
 } from "lucide-react";
 import { cn } from "./lib/utils";
 import logo from "./assets/logo.jpg";
 
 const COLORS = [
-  "#000000", "#FF0000", "#00FF00", "#0000FF", 
-  "#FFFF00", "#FF00FF", "#00FFFF", "#FFA500",
-  "#8B4513", "#808080", "#FFFFFF", "#FF69B4"
+  "#000000", "#FF0000", "#00FF00", "#0000FF"
 ];
 
-const EMOJIS = ["😀", "😍", "🎉", "🔥", "🎨", "✍️", "🌈", "✨", "🚀", "💡", "😂", "🤔", "😮", "😢", "💯", "✅", "❌", "👏", "🙌", "👋", "💖", "👀", "⭐", "🎈", "💎"];
+const EMOJIS = ["😂", "😢", "💖", "⭐", "💎", "🔥", "👍", "👎", "🎉", "👏", "😡", "🤔", "😮", "💯", "✨", "🚀", "💡", "🎨", "👀", "🙌"];
 
 interface TooltipProps {
   children: ReactNode;
@@ -86,7 +89,7 @@ function Tooltip({ children, label, side = "right" }: TooltipProps) {
   const handleTouchStart = () => {
     // Clear any existing timer
     if (timerRef.current) clearTimeout(timerRef.current);
-    
+
     timerRef.current = setTimeout(() => {
       setShow(true);
       if (window.navigator?.vibrate) window.navigator.vibrate(15);
@@ -116,9 +119,9 @@ function Tooltip({ children, label, side = "right" }: TooltipProps) {
   };
 
   return (
-    <div 
-      className="relative inline-flex items-center" 
-      onMouseEnter={() => setShow(true)} 
+    <div
+      className="relative inline-flex items-center"
+      onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
@@ -152,13 +155,31 @@ function Tooltip({ children, label, side = "right" }: TooltipProps) {
   );
 }
 
+
 export default function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState<string>(() => {
+    return localStorage.getItem("draw_together_username") || "";
+  });
   const [isEntered, setIsEntered] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [createCustomName, setCreateCustomName] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => { });
+    } else {
+      document.exitFullscreen().catch(() => { });
+    }
+  };
 
   useEffect(() => {
     // 1. Get or generate user nickname automatically
@@ -225,194 +246,336 @@ export default function App() {
 
   if (!isEntered || !roomId) {
     return (
-      <LandingPage
-        username={username}
-        setUsername={(newVal: string) => {
-          setUsername(newVal);
-          localStorage.setItem("draw_together_username", newVal);
-        }}
-        createCustomName={createCustomName}
-        setCreateCustomName={setCreateCustomName}
-        joinCode={joinCode}
-        setJoinCode={setJoinCode}
-        isJoining={isJoining}
-        setIsJoining={setIsJoining}
-        onCreate={() => {
-          let target = createCustomName.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
-          if (!target) {
-            target = nanoid(6).toUpperCase();
-          }
-          navigateToRoom(target);
-        }}
-        onJoin={() => {
-          if (joinCode.trim()) {
-            navigateToRoom(joinCode);
-          }
-        }}
-      />
+      <>
+        <LandingPage
+          username={username}
+          setUsername={(newVal: string) => {
+            setUsername(newVal);
+            localStorage.setItem("draw_together_username", newVal);
+          }}
+          roomId={roomId}
+          setRoomId={setRoomId}
+          onEnter={() => setIsEntered(true)}
+          isFullscreen={isFullscreen}
+          toggleFullscreen={toggleFullscreen}
+          createCustomName={createCustomName}
+          setCreateCustomName={setCreateCustomName}
+          joinCode={joinCode}
+          setJoinCode={setJoinCode}
+          isJoining={isJoining}
+          setIsJoining={setIsJoining}
+          onCreate={() => {
+            let target = createCustomName.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+            if (!target) {
+              target = nanoid(6).toUpperCase();
+            }
+            navigateToRoom(target);
+          }}
+          onJoin={() => {
+            if (joinCode.trim()) {
+              navigateToRoom(joinCode);
+            }
+          }}
+        />
+      </>
     );
   }
 
   return (
-    <DrawingRoom 
-      roomId={roomId} 
-      username={username} 
-      setUsername={(newUsername: string) => {
-        setUsername(newUsername);
-        localStorage.setItem("draw_together_username", newUsername);
-      }}
-      onLeave={handleLeaveRoom} 
-    />
+    <>
+      <DrawingRoom
+        roomId={roomId}
+        username={username}
+        setUsername={(newUsername: string) => {
+          setUsername(newUsername);
+          localStorage.setItem("draw_together_username", newUsername);
+        }}
+        onLeave={handleLeaveRoom}
+        onEnter={() => setIsEntered(true)}
+        isFullscreen={isFullscreen}
+        toggleFullscreen={toggleFullscreen}
+      />
+    </>
   );
 }
 
-function LandingPage({ 
-  username, 
-  setUsername, 
-  createCustomName, 
-  setCreateCustomName, 
-  joinCode, 
-  setJoinCode, 
-  isJoining, 
-  setIsJoining, 
-  onCreate, 
-  onJoin 
+export function LandingPage({
+  username,
+  setUsername,
+  joinCode,
+  setJoinCode,
+  createCustomName,
+  setCreateCustomName,
+  isJoining,
+  setIsJoining,
+  onCreate,
+  onJoin,
+  isFullscreen,
+  toggleFullscreen
 }: any) {
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 font-sans">
-      <motion.div 
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50"
+    <div
+      className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden"
+      onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
+    >
+      <button
+        onClick={toggleFullscreen}
+        className="absolute top-4 left-4 z-[9999] w-10 h-10 rounded-xl bg-white/70 backdrop-blur-md border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-white hover:text-indigo-600 shadow-sm transition-all active:scale-95"
+        title="Toggle Fullscreen"
       >
-        <div className="flex items-center gap-3.5 mb-8">
-          <img src={logo} alt="Draw Together logo" className="h-12 w-12" />
-          <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Draw Together</h1>
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Collaborative Real-time Canvas</p>
-          </div>
-        </div>
+        {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+      </button>
 
-        <div className="space-y-6">
-          {/* User Nickname */}
-          <div className="space-y-2">
-            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Your Nickname</label>
-            <input 
-              type="text" 
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="e.g. Picasso"
-              className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all text-sm"
-            />
-          </div>
+      {/* Colorful Animated Background Blobs */}
+      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+        <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-pink-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob"></div>
+        <div className="absolute top-[20%] -right-[10%] w-[60%] h-[60%] bg-purple-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] bg-yellow-300 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-4000"></div>
+        <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-cyan-400 rounded-full mix-blend-multiply filter blur-[120px] opacity-40 animate-blob animation-delay-2000"></div>
+      </div>
 
-          {/* Action Tabs Selector */}
-          <div className="flex bg-slate-100 p-1 rounded-2xl">
-            <button
-              onClick={() => setIsJoining(false)}
-              className={cn(
-                "flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2",
-                !isJoining ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
-              )}
+      {/* Colorful Interactive Spotlight Grid */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-300"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(139, 92, 246, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(236, 72, 153, 0.3) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+          opacity: 1,
+          maskImage: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, black, transparent)`,
+          WebkitMaskImage: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, black, transparent)`
+        }}
+      ></div>
+
+      <div className="flex-1 flex items-center justify-center w-full z-10 mt-8 sm:mt-12">
+        <motion.div
+          initial={{ opacity: 0, y: 30, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.6, type: "spring", bounce: 0.5 }}
+          className="w-full max-w-md bg-white/40 backdrop-blur-2xl border border-white/60 p-8 sm:p-10 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.15)] relative overflow-hidden"
+        >
+          {/* Subtle shine inside the glass card */}
+          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none"></div>
+
+          <div className="flex flex-col items-center justify-center text-center gap-4 mb-10 relative z-10">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.1, duration: 0.5 }}
+              className="flex-shrink-0 h-16 w-16 rounded-xl flex items-center justify-center text-logo-container cursor-default"
             >
-              <Plus size={14} />
-              Create Room
-            </button>
-            <button
-              onClick={() => setIsJoining(true)}
-              className={cn(
-                "flex-1 py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2",
-                isJoining ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
-              )}
-            >
-              <Users size={14} />
-              Join Room
-            </button>
-          </div>
-
-          <AnimatePresence mode="wait">
-            {!isJoining ? (
-              <motion.div 
-                key="create"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                transition={{ duration: 0.15 }}
-                className="space-y-5"
+              <span className="font-bold text-3xl tracking-tighter text-logo-text select-none">
+                DT
+              </span>
+            </motion.div>
+            <div>
+              <motion.h1
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="text-4xl font-black tracking-tight title-interactive drop-shadow-sm"
               >
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Custom Room Code / Name</label>
-                    <span className="text-[8px] text-slate-400 font-extrabold uppercase bg-slate-100 px-2 py-0.5 rounded-md">Optional</span>
+                Draw Together
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="text-slate-600 text-sm font-semibold mt-2 mix-blend-color-burn"
+              >
+                A vibrant real-time collaborative canvas.
+              </motion.p>
+            </div>
+          </div>
+
+          <div className="space-y-6">
+            {/* User Nickname */}
+            <div className="space-y-2">
+              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Your Nickname</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="e.g. Picasso"
+                className="w-full bg-white/70 backdrop-blur-sm border-2 border-white/80 rounded-2xl px-4 py-4 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-purple-500/30 focus:border-purple-400 transition-all text-sm shadow-inner placeholder:text-slate-400"
+              />
+            </div>
+
+            {/* Action Tabs Selector */}
+            <div className="flex bg-slate-100 p-1 rounded-2xl">
+              <button
+                onClick={() => setIsJoining(false)}
+                className={cn(
+                  "flex-1 py-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2",
+                  !isJoining ? "bg-white text-purple-700 shadow-md scale-105" : "text-slate-500 hover:text-purple-600"
+                )}
+              >
+                <Plus size={14} />
+                Create Room
+              </button>
+              <button
+                onClick={() => setIsJoining(true)}
+                className={cn(
+                  "flex-1 py-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2",
+                  isJoining ? "bg-white text-pink-700 shadow-md scale-105" : "text-slate-500 hover:text-pink-600"
+                )}
+              >
+                <Users size={14} />
+                Join Room
+              </button>
+            </div>
+
+            <AnimatePresence mode="wait">
+              {!isJoining ? (
+                <motion.div
+                  key="create"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 10 }}
+                  transition={{ duration: 0.15 }}
+                  className="space-y-5"
+                >
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Custom Room Code / Name</label>
+                      <span className="text-[8px] text-slate-400 font-extrabold uppercase bg-slate-100 px-2 py-0.5 rounded-md">Optional</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={createCustomName}
+                      onChange={(e) => setCreateCustomName(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && username.trim()) {
+                          onCreate();
+                        }
+                      }}
+                      placeholder="e.g. PIXEL-PARTY"
+                      className="w-full bg-white/70 backdrop-blur-sm border-2 border-white/80 rounded-2xl px-4 py-4 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-purple-500/30 focus:border-purple-400 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400"
+                    />
+                    <p className="text-[10px] text-slate-500 font-bold pl-1 leading-relaxed">
+                      Leave blank to automatically generate a random, unique 6-character room code.
+                    </p>
                   </div>
-                  <input 
-                    type="text" 
-                    value={createCustomName}
-                    onChange={(e) => setCreateCustomName(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && username.trim()) {
-                        onCreate();
-                      }
-                    }}
-                    placeholder="e.g. PIXEL-PARTY"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all text-sm uppercase placeholder:normal-case placeholder:font-normal"
-                  />
-                  <p className="text-[10px] text-slate-400 font-medium pl-1 leading-relaxed">
-                    Leave blank to automatically generate a random, unique 6-character room code.
-                  </p>
-                </div>
 
-                <button 
-                  onClick={onCreate}
-                  disabled={!username.trim()}
-                  className="w-full bg-indigo-600 text-white p-4.5 rounded-2xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-100 active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                  <button
+                    onClick={onCreate}
+                    disabled={!username.trim()}
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4.5 rounded-2xl font-bold hover:from-purple-500 hover:to-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_20px_-10px_rgba(124,58,237,0.8)] hover:shadow-[0_15px_30px_-10px_rgba(124,58,237,0.9)] active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                  >
+                    <Sparkles size={16} />
+                    Create & Enter Room
+                  </button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="join"
+                  initial={{ opacity: 0, x: 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={{ duration: 0.15 }}
+                  className="space-y-5"
                 >
-                  <Sparkles size={16} />
-                  Create & Enter Room
-                </button>
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="join"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.15 }}
-                className="space-y-5"
-              >
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Enter Room Code / Name</label>
-                  <input 
-                    type="text" 
-                    value={joinCode}
-                    onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && username.trim() && joinCode.trim()) {
-                        onJoin();
-                      }
-                    }}
-                    placeholder="ENTER CODE / CUSTOM NAME"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 transition-all text-sm uppercase placeholder:normal-case placeholder:font-normal"
-                  />
-                </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Enter Room Code / Name</label>
+                      <span className="text-[8px] text-slate-400 font-extrabold uppercase bg-slate-100 px-2 py-0.5 rounded-md">Required</span>
+                    </div>
+                    <input
+                      type="text"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && username.trim() && joinCode.trim()) {
+                          onJoin();
+                        }
+                      }}
+                      placeholder="e.g. PIXEL-PARTY"
+                      className="w-full bg-white/70 backdrop-blur-sm border-2 border-white/80 rounded-2xl px-4 py-4 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-pink-500/30 focus:border-pink-400 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400"
+                    />
+                  </div>
 
-                <button 
-                  onClick={onJoin}
-                  disabled={!username.trim() || !joinCode.trim()}
-                  className="w-full bg-indigo-600 text-white p-4.5 rounded-2xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-100 active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
-                >
-                  Join & Enter Room
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  <button
+                    onClick={onJoin}
+                    disabled={!username.trim() || !joinCode.trim()}
+                    className="w-full bg-gradient-to-r from-pink-600 to-rose-500 text-white p-4.5 rounded-2xl font-bold hover:from-pink-500 hover:to-rose-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_20px_-10px_rgba(236,72,153,0.8)] hover:shadow-[0_15px_30px_-10px_rgba(236,72,153,0.9)] active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                  >
+                    Join & Enter Room
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </div>
+
+      <motion.footer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className="w-full max-w-4xl mt-12 mb-6 z-10 flex flex-col gap-6"
+      >
+        {/* Interactive Review Section */}
+        <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border border-white/80 dark:border-slate-700/80 rounded-3xl p-6 shadow-xl shadow-purple-500/10 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:shadow-2xl hover:shadow-pink-500/20 hover:-translate-y-1 hover:bg-white/80 dark:hover:bg-slate-800/80">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center">
+              <MessageCircleHeart size={20} />
+            </div>
+            <div>
+              <h3 className="text-slate-800 dark:text-slate-200 font-semibold text-sm">Enjoying Draw Together?</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-xs">Share your feedback directly via email.</p>
+            </div>
+          </div>
+          <a
+            href="mailto:piyush.ch407@gmail.com?subject=Draw%20Together%20Review"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-sm font-bold rounded-2xl hover:from-purple-500 hover:to-pink-400 transition-all flex items-center gap-2 shadow-lg shadow-pink-500/30 hover:scale-105 active:scale-95 whitespace-nowrap"
+          >
+            Give me your review
+          </a>
         </div>
-      </motion.div>
+
+        {/* Footer Links & Copyright */}
+        <div className="flex flex-col sm:flex-row items-center justify-between text-slate-500 dark:text-slate-400 text-xs px-2 gap-4 mt-2 border-t border-slate-200/50 dark:border-slate-700/50 pt-6">
+          <p className="font-medium">
+            &copy; {new Date().getFullYear()} Piyush Chauhan. All rights reserved.
+          </p>
+          <div className="flex items-center gap-5">
+            <a
+              href="https://github.com/piyushch08"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition-colors"
+            >
+              <Github size={14} />
+              <span className="font-semibold">GitHub</span>
+            </a>
+            <a
+              href="https://www.linkedin.com/in/piyush-chauhan-353822385/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            >
+              <Linkedin size={14} />
+              <span className="font-semibold">LinkedIn</span>
+            </a>
+          </div>
+        </div>
+      </motion.footer>
     </div>
   );
 }
 
-function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: string; username: string; setUsername: (v: string) => void; onLeave: () => void }) {
+function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullscreen, toggleFullscreen }: {
+  roomId: string;
+  username: string;
+  setUsername: (v: string) => void;
+  onLeave: () => void;
+  onEnter: () => void;
+  isFullscreen: boolean;
+  toggleFullscreen: () => void;
+}) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
 
@@ -501,7 +664,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const [jitter, setJitter] = useState(0);
   const [symmetryMode, setSymmetryMode] = useState<"none" | "horizontal" | "vertical" | "both">("none");
   const [tool, setTool] = useState<Tool>("pencil");
-  const [smoothing, setSmoothing] = useState(0.8); // Default to a bit more smooth
+  const [smoothing, setSmoothing] = useState(0.8); // Ultra smooth drawing tracking!
+  const [showGrid, setShowGrid] = useState(false);
   const [isSmoothingEnabled, setIsSmoothingEnabled] = useState(true);
   const cursorRef = useRef<HTMLDivElement>(null);
   const mousePosRef = useRef({ x: 0, y: 0 });
@@ -510,7 +674,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const [transform, _setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionTimeoutRef = useRef<any>(null);
-  
+
   const setTransform = (update: any) => {
     if (typeof update === 'function') {
       _setTransform((prev: any) => {
@@ -549,7 +713,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const [textAlign, setTextAlign] = useState<"left" | "center" | "right">("center");
   const [placedTexts, setPlacedTexts] = useState<PlacedText[]>([]);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
-  
+
   const placedTextsRef = useRef<PlacedText[]>([]);
   placedTextsRef.current = placedTexts;
 
@@ -578,11 +742,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const isTransformModified = transform.x !== 0 || transform.y !== 0 || transform.scale !== 1;
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  
+
   const historyIndexRef = useRef(-1);
   const historyRef = useRef<string[]>([]);
-  const undoRef = useRef<() => void>(() => {});
-  const redoRef = useRef<() => void>(() => {});
+  const undoRef = useRef<() => void>(() => { });
+  const redoRef = useRef<() => void>(() => { });
 
   historyIndexRef.current = historyIndex;
   historyRef.current = history;
@@ -612,12 +776,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingQueue = useRef<DrawingData[]>([]);
   const rafId = useRef<number | null>(null);
-  
+
   const processDrawingQueue = () => {
     if (drawingQueue.current.length > 0) {
       const segments = [...drawingQueue.current];
       drawingQueue.current = [];
-      
+
       if (segments.length > 0) {
         // Use a single requestAnimationFrame batch
         segments.forEach(data => drawOnCanvas(data));
@@ -691,10 +855,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     ctx.save();
     ctx.translate(t.x, t.y);
     ctx.rotate((t.rotation || 0) * Math.PI / 180);
-    
+
     const style = `${t.isItalic ? 'italic ' : ''}${t.isBold ? 'bold ' : ''}`;
     ctx.font = `${style}${t.size * 3}px ${t.fontFamily || "sans-serif"}`;
-    
+
     ctx.textAlign = t.align || "center";
     ctx.textBaseline = "middle";
 
@@ -723,7 +887,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     ctx.beginPath();
     const w = s.width * 3;
     const h = s.height * 3;
-    
+
     if (s.type === "square" || s.type === "rectangle") {
       if (s.isFilled) {
         ctx.fillRect(-w / 2, -h / 2, w, h);
@@ -801,7 +965,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
     masterCtx.save();
     masterCtx.clearRect(0, 0, masterCanvas.width, masterCanvas.height);
-    
+
     // Draw base white background first
     masterCtx.fillStyle = "#FFFFFF";
     masterCtx.fillRect(0, 0, masterCanvas.width, masterCanvas.height);
@@ -935,14 +1099,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (layersRef.current.length <= 1) return;
     const nextLayers = layersRef.current.filter(l => l.id !== id);
     setLayers(nextLayers);
-    
+
     if (layerCanvasesRef.current[id]) {
       delete layerCanvasesRef.current[id];
     }
 
     const nextActiveId = activeLayerIdRef.current === id ? nextLayers[0].id : activeLayerIdRef.current;
     setActiveLayerId(nextActiveId);
-    
+
     vibrate(12);
     setTimeout(() => {
       saveToHistoryStack(nextLayers, nextActiveId);
@@ -980,12 +1144,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const handleMoveLayer = (index: number, direction: 'up' | 'down') => {
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= layersRef.current.length) return;
-    
+
     const nextLayers = [...layersRef.current];
     const temp = nextLayers[index];
     nextLayers[index] = nextLayers[targetIndex];
     nextLayers[targetIndex] = temp;
-    
+
     setLayers(nextLayers);
     vibrate(8);
     setTimeout(() => {
@@ -1050,7 +1214,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (newHistory.length > 50) {
       newHistory.shift();
     }
-    
+
     // Synchronously update the refs to avoid concurrent transaction race conditions
     historyRef.current = newHistory;
     historyIndexRef.current = newHistory.length - 1;
@@ -1094,10 +1258,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
           offCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
         }
-        
+
         compositeLayers();
         saveToHistory();
-        
+
         socket.emit("clear-canvas", { roomId });
       };
       img.src = event.target?.result as string;
@@ -1147,22 +1311,22 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const lastCursorEmitTime = useRef(0);
   const emitCursorUpdateThrottled = (x?: number, y?: number, drawingOverride?: boolean) => {
     const now = Date.now();
-    if (now - lastCursorEmitTime.current < 24 && drawingOverride === undefined) return; // ~40fps for cursor moves
+    if (now - lastCursorEmitTime.current < 12 && drawingOverride === undefined) return; // ~80fps for ultra-smooth cursor sharing
     lastCursorEmitTime.current = now;
     emitCursorUpdate(x, y, drawingOverride);
   };
 
   const emitCursorUpdate = (x?: number, y?: number, drawingOverride?: boolean) => {
     if (!socket || !roomId) return;
-    
+
     let targetX = x;
     let targetY = y;
 
     if (targetX === undefined || targetY === undefined) {
-       // We need current mouse pos for relative coordinates
-       // Since we removed mousePos state, we'll fetch them from the event or a ref if available
-       // But usually this is called within move handlers which have the data.
-       return; 
+      // We need current mouse pos for relative coordinates
+      // Since we removed mousePos state, we'll fetch them from the event or a ref if available
+      // But usually this is called within move handlers which have the data.
+      return;
     }
 
     socket.emit("cursor-move", {
@@ -1199,7 +1363,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       if (e.code === "Space" && !e.repeat && document.activeElement?.tagName !== "INPUT") {
         setIsHandTool(true);
       }
-      
+
       // Undo/Redo shortcuts
       if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
         if (e.shiftKey) {
@@ -1224,7 +1388,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         e.preventDefault();
       }
     };
-    
+
     if (canvas) {
       canvas.addEventListener('touchstart', preventDefault, { passive: false });
       canvas.addEventListener('touchmove', preventDefault, { passive: false });
@@ -1438,9 +1602,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
             offCtx.drawImage(img, 0, 0);
           }
-          
+
           compositeLayers();
-          
+
           const state: LayerHistoryState = {
             layers: JSON.parse(JSON.stringify(layersRef.current)),
             activeLayerId: activeLayerIdRef.current,
@@ -1541,33 +1705,33 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       const eraserRadius = (data.size || 20) / 2;
       const nextShapes = shapes.filter(s => {
         if (s.layerId !== targetLayerId) return true;
-        
+
         // Continuous collision detection: test 7 intermediate points along the eraser stroke segment
         const steps = 7;
         const pX = data.prevX ?? data.x;
         const pY = data.prevY ?? data.y;
-        
+
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
           const currX = pX + (data.x - pX) * t;
           const currY = pY + (data.y - pY) * t;
-          
+
           const dx = currX - s.x;
           const dy = currY - s.y;
           const halfW = s.width / 2;
           const halfH = s.height / 2;
-          
+
           const angleRad = -(s.rotation || 0) * Math.PI / 180;
           const rx = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
           const ry = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
-          
+
           if (rx >= -halfW - eraserRadius && rx <= halfW + eraserRadius && ry >= -halfH - eraserRadius && ry <= halfH + eraserRadius) {
             return false; // Point intersects shape, erase the shape!
           }
         }
         return true;
       });
-      
+
       if (nextShapes.length !== shapes.length) {
         placedShapesRef.current = nextShapes;
         setPlacedShapes(nextShapes);
@@ -1587,7 +1751,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     const render = (x: number, y: number, px: number, py: number) => {
       let finalX = x;
       let finalY = y;
-      
+
       const jitterVal = data.jitter;
       if (jitterVal && jitterVal > 0) {
         const jitterAmount = jitterVal * data.size * 2;
@@ -1596,31 +1760,31 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       }
 
       ctx.beginPath();
-      
+
       const toolVal = data.tool;
       const isEraser = toolVal === "eraser";
-      
+
       if (isEraser) {
         ctx.globalCompositeOperation = "destination-out";
-        ctx.strokeStyle = "rgba(0,0,0,1)"; 
+        ctx.strokeStyle = "rgba(0,0,0,1)";
       } else {
         ctx.globalCompositeOperation = "source-over";
         ctx.strokeStyle = data.color;
       }
-      
+
       const hardnessVal = data.hardness ?? 1.0;
       ctx.lineWidth = data.size;
       const effectiveFlow = data.flow ?? 1.0;
       ctx.globalAlpha = data.opacity * effectiveFlow;
-      
+
       if (data.tool === "text" && data.text) {
         ctx.save();
         ctx.translate(finalX, finalY);
         ctx.rotate((data.rotation || 0) * Math.PI / 180);
-        
+
         const style = `${data.isItalic ? 'italic ' : ''}${data.isBold ? 'bold ' : ''}`;
         ctx.font = `${style}${data.size * 3}px ${data.fontFamily || "sans-serif"}`;
-        
+
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
 
@@ -1635,7 +1799,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         ctx.restore();
         return;
       }
-      
+
       if (data.tool === "stamp" && data.stamp) {
         ctx.save();
         ctx.translate(finalX, finalY);
@@ -1669,7 +1833,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           ctx.translate(centerX, centerY);
           ctx.beginPath();
           ctx.fillStyle = isEraser ? "rgba(0,0,0,1)" : data.color;
-          
+
           if (data.brushStyle === "star") {
             const spikes = 5;
             const outerRadius = data.size / 2;
@@ -1703,7 +1867,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             ctx.rect(-w, -t, data.size, t * 2);
             ctx.rect(-t, -w, t * 2, data.size);
           }
-          
+
           ctx.closePath();
           ctx.fill();
           ctx.restore();
@@ -1728,7 +1892,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         ctx.save();
         const intensity = data.smudgeIntensity || 0.5;
         const s = data.size;
-        
+
         // Sync offscreen if needed
         const off = offscreenCanvasRef.current;
         if (off) {
@@ -1749,14 +1913,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         } else if (data.brushStyle === "square") {
           ctx.rect(finalX - s, finalY - s, s * 2, s * 2);
         } else if (data.brushStyle === "soft") {
-            const gradient = ctx.createRadialGradient(finalX, finalY, 0, finalX, finalY, s);
-            gradient.addColorStop(0, `rgba(255,255,255,${intensity})`);
-            gradient.addColorStop(1, "rgba(255,255,255,0)");
-            ctx.fillStyle = gradient;
-            ctx.arc(finalX, finalY, s, 0, Math.PI * 2);
+          const gradient = ctx.createRadialGradient(finalX, finalY, 0, finalX, finalY, s);
+          gradient.addColorStop(0, `rgba(255,255,255,${intensity})`);
+          gradient.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = gradient;
+          ctx.arc(finalX, finalY, s, 0, Math.PI * 2);
         } else {
-            // For complex shapes, just use a rect clip for now or implement per-shape
-            ctx.rect(finalX - s, finalY - s, s * 2, s * 2);
+          // For complex shapes, just use a rect clip for now or implement per-shape
+          ctx.rect(finalX - s, finalY - s, s * 2, s * 2);
         }
         ctx.clip();
 
@@ -1789,7 +1953,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       render(data.x, data.y, data.prevX, data.prevY);
       ctx.restore();
     }
-    
+
     if (symmetryModeVal === "vertical" || symmetryModeVal === "both") {
       ctx.save();
       ctx.translate(0, height);
@@ -1815,27 +1979,27 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      
+
       const containerRect = container.getBoundingClientRect();
       const relativeMouseX = e.clientX - containerRect.left;
       const relativeMouseY = e.clientY - containerRect.top;
 
       const isZoom = e.ctrlKey || e.metaKey || e.altKey;
-      
+
       if (isZoom) {
         // Zooming centered on context of mouse pos
         const zoomFactor = Math.exp(-e.deltaY * 0.003);
         const prevScale = transformRef.current.scale;
         const newScale = Math.min(Math.max(prevScale * zoomFactor, 0.1), 15);
-        
+
         // Find world coordinate currently under mouse using stable ref
         const worldX = (relativeMouseX - transformRef.current.x) / prevScale;
         const worldY = (relativeMouseY - transformRef.current.y) / prevScale;
-        
+
         // Compute new translation such that worldX, worldY lands at relativeMouseX, relativeMouseY
         const newX = relativeMouseX - worldX * newScale;
         const newY = relativeMouseY - worldY * newScale;
-        
+
         setTransform({ x: newX, y: newY, scale: newScale });
       } else {
         // Panning with smooth scroll
@@ -1887,14 +2051,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
   function getCoordinates(e: any) {
     if (!containerRectRef.current) return { x: 0, y: 0 };
-    
+
     const clientX = e.clientX ?? (e.touches?.[0]?.clientX) ?? 0;
     const clientY = e.clientY ?? (e.touches?.[0]?.clientY) ?? 0;
 
     // Get position relative to container
     const mouseX = clientX - containerRectRef.current.left;
     const mouseY = clientY - containerRectRef.current.top;
-    
+
     // Convert to world coordinates (Undo the transform)
     return {
       x: (mouseX - transformRef.current.x) / transformRef.current.scale,
@@ -1907,7 +2071,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    
+
     const roundedX = Math.round(x);
     const roundedY = Math.round(y);
     if (roundedX >= 0 && roundedX < canvas.width && roundedY >= 0 && roundedY < canvas.height) {
@@ -1917,7 +2081,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         const g = pixel[1];
         const b = pixel[2];
         const a = pixel[3];
-        
+
         const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
         setColor(hex);
         vibrate(5);
@@ -1948,32 +2112,32 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (tool === "shape") {
       drawingState.current.isDrawing = false;
       const { x, y } = getCoordinates(e);
-      
+
       // Let's check if the user clicked on an existing shape to select / drag it
       let matchedShape: PlacedShape | null = null;
       for (let i = placedShapesRef.current.length - 1; i >= 0; i--) {
         const s = placedShapesRef.current[i];
         if (s.layerId !== activeLayerId) continue;
-        
+
         const dx = x - s.x;
         const dy = y - s.y;
         const halfW = s.width / 2;
         const halfH = s.height / 2;
-        
+
         const angleRad = -(s.rotation || 0) * Math.PI / 180;
         const rx = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
         const ry = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
-        
+
         if (rx >= -halfW - 15 && rx <= halfW + 15 && ry >= -halfH - 15 && ry <= halfH + 15) {
           matchedShape = s;
           break;
         }
       }
-      
+
       if (matchedShape) {
         const isShift = e.shiftKey;
         const exists = selectedShapeIdsRef.current.includes(matchedShape.id);
-        
+
         let nextSelected: string[];
         if (isShift || isMultiSelectMode) {
           if (exists) {
@@ -1984,10 +2148,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         } else {
           nextSelected = [matchedShape.id];
         }
-        
+
         setSelectedShapeIds(nextSelected);
         selectedShapeIdsRef.current = nextSelected;
-        
+
         if (nextSelected.length > 0) {
           const primaryId = nextSelected[nextSelected.length - 1];
           if (editingShapeId !== primaryId) {
@@ -2009,7 +2173,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           saveToHistory();
           setEditingShapeId(null);
         }
-        
+
         // Setup drag-reposition for all selected shapes
         drawingState.current.isDraggingShape = true;
         drawingState.current.dragShapeId = matchedShape.id;
@@ -2043,19 +2207,19 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             fillColor: shapeFillColor,
             layerId: activeLayerId
           };
-          
+
           const nextPlacedShapes = [...placedShapesRef.current, newShape];
           setPlacedShapes(nextPlacedShapes);
           placedShapesRef.current = nextPlacedShapes;
           setEditingShapeId(newShapeId);
           setSelectedShapeIds([newShapeId]);
           selectedShapeIdsRef.current = [newShapeId];
-          
+
           drawingState.current.isCreatingShape = true;
           drawingState.current.dragShapeId = newShapeId;
           drawingState.current.dragStartX = x;
           drawingState.current.dragStartY = y;
-          
+
           vibrate(15);
           setTimeout(() => {
             compositeLayers();
@@ -2068,18 +2232,18 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (tool === "text") {
       drawingState.current.isDrawing = false;
       const { x, y } = getCoordinates(e);
-      
+
       // Let's check if the user clicked on an existing text to edit it
       let matchedText: PlacedText | null = null;
-      
+
       // Look from front to back (top-most first)
       for (let i = placedTextsRef.current.length - 1; i >= 0; i--) {
         const t = placedTextsRef.current[i];
         if (t.layerId !== activeLayerId) continue;
-        
+
         const dx = x - t.x;
         const dy = y - t.y;
-        
+
         const textLength = t.text.length;
         const height = t.size * 3;
         const width = textLength * t.size * 1.6;
@@ -2107,7 +2271,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           break;
         }
       }
-      
+
       if (matchedText) {
         // Selection!
         if (editingTextId && editingTextId !== matchedText.id) {
@@ -2117,7 +2281,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           // If we weren't editing, save the current state before we start editing this text!
           saveToHistory();
         }
-        
+
         setEditingTextId(matchedText.id);
         setTextValue(matchedText.text);
         setFontFamily(matchedText.fontFamily);
@@ -2155,7 +2319,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             outlineWidth: textOutlineWidth,
             layerId: activeLayerId
           };
-          
+
           const nextPlacedTexts = [...placedTextsRef.current, newText];
           setPlacedTexts(nextPlacedTexts);
           placedTextsRef.current = nextPlacedTexts; // immediate sync
@@ -2204,7 +2368,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
     if (tool === "shape") {
       const { x, y } = getCoordinates(e);
-      
+
       if ((drawingState.current as any).isResizingShape && drawingState.current.dragShapeId) {
         // Corner resize dragging!
         const s = placedShapesRef.current.find(shape => shape.id === drawingState.current.dragShapeId);
@@ -2214,22 +2378,22 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           const startHeight = (drawingState.current as any).dragStartHeight;
           const startCenterX = (drawingState.current as any).dragStartCenterX;
           const startCenterY = (drawingState.current as any).dragStartCenterY;
-          
+
           // Get diff in world space
           const dx = x - drawingState.current.dragStartX;
           const dy = y - drawingState.current.dragStartY;
-          
+
           // Rotate into shape local space to find stretch along local axes
           const theta = (s.rotation || 0) * Math.PI / 180;
           const angleRad = -theta;
           const localDx = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
           const localDy = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
-          
+
           let newWidth = startWidth;
           let newHeight = startHeight;
           let shiftX = 0;
           let shiftY = 0;
-          
+
           if (corner === "br") {
             newWidth = Math.max(10, startWidth + localDx);
             newHeight = Math.max(10, startHeight + localDy);
@@ -2251,11 +2415,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             shiftX = -(newWidth - startWidth) / 2;
             shiftY = -(newHeight - startHeight) / 2;
           }
-          
+
           // Convert center shift back from local to world coordinates
           const worldShiftX = shiftX * Math.cos(theta) - shiftY * Math.sin(theta);
           const worldShiftY = shiftX * Math.sin(theta) + shiftY * Math.cos(theta);
-          
+
           const nextShapes = placedShapesRef.current.map(sh => {
             if (sh.id === s.id) {
               return {
@@ -2268,12 +2432,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             }
             return sh;
           });
-          
+
           setPlacedShapes(nextShapes);
           placedShapesRef.current = nextShapes;
           setShapeWidth(Math.round(newWidth));
           setShapeHeight(Math.round(newHeight));
-          
+
           socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
           setTimeout(() => compositeLayers(), 5);
         }
@@ -2282,7 +2446,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         const dx = x - drawingState.current.dragStartX;
         const dy = y - drawingState.current.dragStartY;
         const startPositions = (drawingState.current as any).dragStartPositions || [];
-        
+
         const nextShapes = placedShapesRef.current.map(s => {
           const startPos = startPositions.find((sp: any) => sp.id === s.id);
           if (startPos) {
@@ -2302,12 +2466,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         // Drag-resize shape during creation
         const startX = drawingState.current.dragStartX;
         const startY = drawingState.current.dragStartY;
-        
+
         const width = Math.abs(x - startX);
         const height = Math.abs(y - startY);
         const centerX = (startX + x) / 2;
         const centerY = (startY + y) / 2;
-        
+
         const nextShapes = placedShapesRef.current.map(s => {
           if (s.id === drawingState.current.dragShapeId) {
             return {
@@ -2324,7 +2488,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         placedShapesRef.current = nextShapes;
         setShapeWidth(Math.round(width));
         setShapeHeight(Math.round(height));
-        
+
         socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
         setTimeout(() => compositeLayers(), 5);
       }
@@ -2334,7 +2498,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (!drawingState.current.isDrawing) return;
     if (tool === "text") return;
     const { x: rawX, y: rawY } = getCoordinates(e);
-    
+
     let x = rawX;
     let y = rawY;
 
@@ -2345,7 +2509,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       x = drawingState.current.lastX + (rawX - drawingState.current.lastX) * factor;
       y = drawingState.current.lastY + (rawY - drawingState.current.lastY) * factor;
     }
-    
+
     let currentColor = color;
     if (isRainbowMode) {
       hueRef.current = (hueRef.current + 5) % 360;
@@ -2382,7 +2546,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     };
 
     drawingQueue.current.push(data);
-    
+
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
   }
@@ -2451,12 +2615,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     };
 
     const newHistory = [...historyRef.current.slice(0, historyIndexRef.current + 1), JSON.stringify(state)];
-    
+
     // Limit history to 50 states
     if (newHistory.length > 50) {
       newHistory.shift();
     }
-    
+
     // Synchronously update the refs to avoid concurrent transaction race conditions
     historyRef.current = newHistory;
     historyIndexRef.current = newHistory.length - 1;
@@ -2469,7 +2633,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (!editingTextId) return;
     const selectedText = placedTexts.find(t => t.id === editingTextId);
     if (!selectedText) return;
-    
+
     // Check if any property actually changed to avoid infinite loops
     if (
       selectedText.text !== textValue ||
@@ -2505,7 +2669,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       });
       setPlacedTexts(next);
       socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
-      
+
       // Request redraw after update
       setTimeout(() => compositeLayers(), 10);
     }
@@ -2531,7 +2695,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     if (!editingShapeId) return;
     const selectedShape = placedShapes.find(s => s.id === editingShapeId);
     if (!selectedShape) return;
-    
+
     // Check if any property actually changed to avoid infinite loops
     if (
       selectedShape.type !== shapeType ||
@@ -2562,7 +2726,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       setPlacedShapes(next);
       placedShapesRef.current = next;
       socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
-      
+
       // Request redraw after update
       setTimeout(() => compositeLayers(), 10);
     }
@@ -2584,14 +2748,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const handleAlignShapes = (direction: "left" | "right" | "top" | "bottom" | "centerX" | "centerY") => {
     const selectedIds = selectedShapeIdsRef.current;
     if (selectedIds.length <= 1) return;
-    
+
     saveToHistory();
     const shapes = [...placedShapesRef.current];
     const selectedShapes = shapes.filter(s => selectedIds.includes(s.id));
     if (selectedShapes.length === 0) return;
-    
+
     let nextShapes = [...shapes];
-    
+
     if (direction === "left") {
       const minLeft = Math.min(...selectedShapes.map(s => s.x - s.width / 2));
       nextShapes = shapes.map(s => {
@@ -2641,7 +2805,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         return s;
       });
     }
-    
+
     setPlacedShapes(nextShapes);
     placedShapesRef.current = nextShapes;
     socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
@@ -2652,9 +2816,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
   const startResize = (e: any, corner: "tl" | "tr" | "bl" | "br", shape: PlacedShape) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const coords = getCoordinates(e.nativeEvent || e);
-    
+
     (drawingState.current as any).isResizingShape = true;
     (drawingState.current as any).resizeCorner = corner;
     drawingState.current.dragShapeId = shape.id;
@@ -2664,7 +2828,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     (drawingState.current as any).dragStartHeight = shape.height;
     (drawingState.current as any).dragStartCenterX = shape.x;
     (drawingState.current as any).dragStartCenterY = shape.y;
-    
+
     vibrate(10);
   };
 
@@ -2692,7 +2856,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
     try {
       const state = JSON.parse(history[index]);
-      
+
       const loadPromises = state.layers.map((layerState: any) => {
         return new Promise<void>((resolve) => {
           const dataUrl = state.layerData[layerState.id];
@@ -2700,7 +2864,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             resolve();
             return;
           }
-          
+
           const img = new Image();
           img.src = dataUrl;
           img.onload = () => {
@@ -2724,7 +2888,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         layersRef.current = state.layers;
         setActiveLayerId(state.activeLayerId);
         activeLayerIdRef.current = state.activeLayerId;
-        
+
         const nextTexts = state.placedTexts || [];
         setPlacedTexts(nextTexts);
         placedTextsRef.current = nextTexts;
@@ -2767,18 +2931,18 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       const t1 = e.touches[0];
       const t2 = e.touches[1];
       const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
-      
+
       touchState.current.initialDist = Math.max(dist, 10); // Prevent div by zero
       touchState.current.initialScale = transformRef.current.scale;
-      
+
       const centerX = (t1.clientX + t2.clientX) / 2;
       const centerY = (t1.clientY + t2.clientY) / 2;
-      
+
       const containerRect = containerRef.current?.getBoundingClientRect();
       if (containerRect) {
         const mouseX = centerX - containerRect.left;
         const mouseY = centerY - containerRect.top;
-        
+
         // Store the world position of the center point at the start of the gesture
         touchState.current.initialCenter = {
           x: (mouseX - transformRef.current.x) / transformRef.current.scale,
@@ -2795,7 +2959,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             (touchState.current as any).shapeInitialDist = Math.max(dist, 10);
             (touchState.current as any).shapeInitialWidth = s.width;
             (touchState.current as any).shapeInitialHeight = s.height;
-            
+
             const worldCenterX = (mouseX - transformRef.current.x) / transformRef.current.scale;
             const worldCenterY = (mouseY - transformRef.current.y) / transformRef.current.scale;
             (touchState.current as any).shapeInitialCenter = { x: worldCenterX, y: worldCenterY };
@@ -2826,14 +2990,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           const initialAngle = (touchState.current as any).shapeInitialAngle ?? currentAngle;
           const dAngleRad = currentAngle - initialAngle;
           const dAngleDeg = dAngleRad * 180 / Math.PI;
-          
+
           let newRotation = ((touchState.current as any).shapeInitialRotation ?? s.rotation ?? 0) + dAngleDeg;
           newRotation = (newRotation % 360 + 360) % 360;
 
           // Scale calculation
           const initialDist = (touchState.current as any).shapeInitialDist ?? dist;
           const scaleFactor = dist / Math.max(initialDist, 10);
-          
+
           const startWidth = (touchState.current as any).shapeInitialWidth ?? s.width;
           const startHeight = (touchState.current as any).shapeInitialHeight ?? s.height;
           const newWidth = Math.max(10, startWidth * scaleFactor);
@@ -2845,16 +3009,16 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           const containerRect = containerRef.current?.getBoundingClientRect();
           let newX = s.x;
           let newY = s.y;
-          
+
           if (containerRect && (touchState.current as any).shapeInitialCenter) {
             const mouseX = centerX - containerRect.left;
             const mouseY = centerY - containerRect.top;
             const worldCenterX = (mouseX - transformRef.current.x) / transformRef.current.scale;
             const worldCenterY = (mouseY - transformRef.current.y) / transformRef.current.scale;
-            
+
             const dx = worldCenterX - (touchState.current as any).shapeInitialCenter.x;
             const dy = worldCenterY - (touchState.current as any).shapeInitialCenter.y;
-            
+
             newX = ((touchState.current as any).shapeInitialShapePos?.x ?? s.x) + dx;
             newY = ((touchState.current as any).shapeInitialShapePos?.y ?? s.y) + dy;
           }
@@ -2895,21 +3059,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       if (containerRect) {
         const mouseX = centerX - containerRect.left;
         const mouseY = centerY - containerRect.top;
-        
+
         // Calculate the new transform so that the world point remains under the center point
         // and accounts for any panning of the fingers themselves
         const newX = mouseX - touchState.current.initialCenter.x * newScale;
         const newY = mouseY - touchState.current.initialCenter.y * newScale;
-        
+
         setTransform({ x: newX, y: newY, scale: newScale });
       }
     } else if (e.touches.length === 1 && isHandTool) {
       const touch = e.touches[0];
       const dx = touch.clientX - drawingState.current.lastScreenX;
       const dy = touch.clientY - drawingState.current.lastScreenY;
-      
+
       setTransform(prev => ({ ...prev, x: prev.x + dx, y: prev.y + dy }));
-      
+
       drawingState.current.lastScreenX = touch.clientX;
       drawingState.current.lastScreenY = touch.clientY;
     }
@@ -2922,7 +3086,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       drawingState.current.isDrawing = false;
     }
   };
-  
+
   const handleMouseMove = (e: React.MouseEvent) => {
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     // Direct DOM update for custom cursor for 60fps performance without React overhead
@@ -2932,7 +3096,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     }
 
     draw(e.nativeEvent);
-    
+
     // Emit cursor position to others - throttled
     if (socket && roomId) {
       const { x, y } = getCoordinates(e.nativeEvent);
@@ -2954,19 +3118,19 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     };
 
     return (
-      <div 
+      <div
         ref={cursorRef}
         className="fixed pointer-events-none z-[9999] flex items-center justify-center -translate-x-1/2 -translate-y-1/2 will-change-[left,top]"
         style={{ left: -100, top: -100 }} // Start offscreen
       >
         {/* Brush Area Preview */}
-        <div 
+        <div
           className={cn(
             "rounded-full border border-slate-400/50 flex items-center justify-center",
             tool === "eraser" ? "bg-white/20" : "bg-transparent"
           )}
-          style={{ 
-            width: cursorSize, 
+          style={{
+            width: cursorSize,
             height: cursorSize,
           }}
         >
@@ -3001,12 +3165,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     const TRAIL_LIFETIME = 500; // Trail fades completely after 500ms
 
     return (
-      <div 
+      <div
         className={cn(
           "absolute inset-0 pointer-events-none z-10 overflow-hidden",
           isTransitioning && "transition-transform duration-300 ease-out"
         )}
-        style={{ 
+        style={{
           transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
           transformOrigin: '0 0'
         }}
@@ -3041,64 +3205,65 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                 animate={{ x: u.cursorX, y: u.cursorY }}
                 transition={{ type: "spring", stiffness: 800, damping: 60, mass: 0.2 }}
                 className="absolute flex flex-col items-start gap-1"
-                style={{ 
+                style={{
                   zIndex: u.isDrawing ? 20 : 10,
                 }}
               >
-            {/* The cursor pointer itself */}
-            <div className="relative">
-              <svg 
-                width="24" height="24" viewBox="0 0 24 24" fill="none" 
-                className="drop-shadow-2xl -translate-x-[2px] -translate-y-[2px]"
-                style={{ color: u.color }}
-              >
-                <path 
-                  d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z" 
-                  fill="currentColor" 
-                  stroke="white" 
-                  strokeWidth="2" 
-                  strokeLinejoin="round" 
-                />
-              </svg>
-              
-              {/* Drawing Ping Pulse */}
-              {u.isDrawing && (
-                <motion.div 
-                  initial={{ scale: 0, opacity: 1 }}
-                  animate={{ scale: 4, opacity: 0 }}
-                  transition={{ duration: 1, repeat: Infinity }}
-                  className="absolute left-0 top-0 w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2"
-                  style={{ backgroundColor: u.color }}
-                />
-              )}
-            </div>
+                {/* The cursor pointer itself */}
+                <div className="relative">
+                  <svg
+                    width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    className="drop-shadow-2xl -translate-x-[2px] -translate-y-[2px]"
+                    style={{ color: u.color }}
+                  >
+                    <path
+                      d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z"
+                      fill="currentColor"
+                      stroke="white"
+                      strokeWidth="2"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
 
-            {/* Tool indicator & Name tag */}
-            <div className="flex items-center gap-1.5 -translate-x-1 mt-1">
-               <motion.div 
-                  animate={u.isDrawing ? { scale: [1, 1.2, 1], rotate: [-10, 10, -10] } : { scale: 1, rotate: 0 }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className={cn(
-                    "w-6 h-6 rounded-lg border-2 border-white shadow-xl flex items-center justify-center transition-all bg-white overflow-hidden",
+                  {/* Drawing Ping Pulse */}
+                  {u.isDrawing && (
+                    <motion.div
+                      initial={{ scale: 0, opacity: 1 }}
+                      animate={{ scale: 4, opacity: 0 }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                      className="absolute left-0 top-0 w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2"
+                      style={{ backgroundColor: u.color }}
+                    />
                   )}
-                >
-                  <div className="absolute inset-0 opacity-20" style={{ backgroundColor: u.color }} />
-                  <div className="relative">
-                    {u.tool === "pencil" && <Pencil size={12} style={{ color: u.color }} />}
-                    {u.tool === "brush" && <Brush size={12} style={{ color: u.color }} />}
-                    {u.tool === "spray" && <CloudRain size={12} style={{ color: u.color }} />}
-                    {u.tool === "smudge" && <Fingerprint size={12} style={{ color: u.color }} />}
-                    {u.tool === "eraser" && <Eraser size={12} className="text-slate-400" />}
-                  </div>
-                </motion.div>
-                
-                <div className="bg-slate-900/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg whitespace-nowrap shadow-2xl border border-slate-700/50 uppercase tracking-tighter shadow-indigo-500/10">
-                  {u.username}
                 </div>
-            </div>
-          </motion.div>
-        </React.Fragment>
-        )})}
+
+                {/* Tool indicator & Name tag */}
+                <div className="flex items-center gap-1.5 -translate-x-1 mt-1">
+                  <motion.div
+                    animate={u.isDrawing ? { scale: [1, 1.2, 1], rotate: [-10, 10, -10] } : { scale: 1, rotate: 0 }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className={cn(
+                      "w-6 h-6 rounded-lg border-2 border-white shadow-xl flex items-center justify-center transition-all bg-white overflow-hidden",
+                    )}
+                  >
+                    <div className="absolute inset-0 opacity-20" style={{ backgroundColor: u.color }} />
+                    <div className="relative">
+                      {u.tool === "pencil" && <Pencil size={12} style={{ color: u.color }} />}
+                      {u.tool === "brush" && <Brush size={12} style={{ color: u.color }} />}
+                      {u.tool === "spray" && <CloudRain size={12} style={{ color: u.color }} />}
+                      {u.tool === "smudge" && <Fingerprint size={12} style={{ color: u.color }} />}
+                      {u.tool === "eraser" && <Eraser size={12} className="text-slate-400" />}
+                    </div>
+                  </motion.div>
+
+                  <div className="bg-slate-900/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg whitespace-nowrap shadow-2xl border border-slate-700/50 uppercase tracking-tighter shadow-indigo-500/10">
+                    {u.username}
+                  </div>
+                </div>
+              </motion.div>
+            </React.Fragment>
+          )
+        })}
       </div>
     );
   };
@@ -3107,14 +3272,18 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     <div className="h-screen bg-slate-50 flex flex-col font-sans overflow-hidden cursor-default">
       <CustomCursor />
       <RemoteCursors />
-      {/* Header */}
-      <header className="h-16 border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 bg-white shrink-0 z-20">
-        <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm">D</div>
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 hidden xs:block">Draw Together</h2>
-          </div>
-          <div className="hidden lg:flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-1 border border-slate-200">
+      {/* Floating Header */}
+      <header className="absolute top-4 left-4 right-4 z-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pointer-events-none">
+        <div className="flex items-center gap-3 sm:gap-4 md:gap-6 pointer-events-auto">
+          <button
+            onClick={toggleFullscreen}
+            className="w-10 h-10 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm flex items-center justify-center text-slate-700 hover:text-indigo-600 hover:bg-white transition-all active:scale-95 shrink-0"
+            title="Toggle Fullscreen"
+          >
+            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+          </button>
+          {/* Logo container removed per user request */}
+          <div className="hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3 py-1 border border-slate-200 shadow-sm">
             <div className="flex flex-col items-start leading-none shrink-0">
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-widest leading-none mb-0.5">Room Code / Name</span>
               <input
@@ -3137,8 +3306,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               />
             </div>
             <Tooltip label="Copy Invite Link" side="bottom">
-              <button 
-                onClick={handleCopyCode} 
+              <button
+                onClick={handleCopyCode}
                 className="p-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500 transition-colors shadow-sm active:scale-90"
               >
                 {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
@@ -3147,7 +3316,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           </div>
 
           {/* Inline editable Nickname capsule */}
-          <div className="flex items-center gap-2 bg-indigo-50/50 border border-indigo-100/80 rounded-xl px-3 py-1.5 shrink-0">
+          <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-3 py-1.5 shrink-0 pointer-events-auto">
             <div className="flex flex-col items-start leading-none">
               <span className="text-[9px] uppercase font-bold text-indigo-400 tracking-widest leading-none mb-0.5">My Badge</span>
               <input
@@ -3169,10 +3338,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-0.5 bg-slate-50 border border-slate-200 rounded-xl p-1 shrink-0">
+        <div className="flex items-center gap-2 sm:gap-4 pointer-events-auto">
+          <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl p-1 shrink-0">
             <Tooltip label="Undo" side="bottom">
-              <button 
+              <button
                 onClick={() => {
                   undo();
                   vibrate(5);
@@ -3184,7 +3353,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               </button>
             </Tooltip>
             <Tooltip label="Redo" side="bottom">
-              <button 
+              <button
                 onClick={() => {
                   redo();
                   vibrate(5);
@@ -3197,32 +3366,17 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             </Tooltip>
           </div>
 
-          <Tooltip label="Keyboard Shortcuts" side="bottom">
-            <button 
-              onClick={() => {
-                setShowHotkeysModal(prev => !prev);
-                vibrate(8);
-              }}
-              className={cn(
-                "p-2 sm:p-2.5 rounded-xl border transition-all active:scale-95 shadow-sm shrink-0 flex items-center justify-center",
-                showHotkeysModal 
-                  ? "bg-indigo-600 border-indigo-500 text-white" 
-                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300"
-              )}
-            >
-              <Keyboard size={16} />
-            </button>
-          </Tooltip>
+          {/* Keyboard shortcuts button removed per user request */}
 
           <div className="h-8 w-[1px] bg-slate-200 mx-0.5 hidden xs:block" />
 
           <Tooltip label={showInvite ? "Close" : "Tools"} side="bottom">
-            <button 
+            <button
               onClick={toggleTools}
               className={cn(
                 "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold transition-all border active:scale-95 shadow-sm shrink-0",
-                showInvite 
-                  ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100" 
+                showInvite
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
                   : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
               )}
             >
@@ -3231,55 +3385,37 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             </button>
           </Tooltip>
 
-          <div className="hidden lg:flex items-center -space-x-1.5">
-            {(Object.values(users) as UserPresence[]).filter(u => u.id !== socket?.id).slice(0, 5).map((u, i) => {
-              const isIdle = currentTime - (u.lastActiveAt || 0) > 60000;
-              let tooltipText = `${u.username}`;
-              let indicatorColor = "bg-sky-500";
-              let animatePulse = false;
+          <Tooltip label="Live Artists" side="bottom">
+            <div className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-slate-200 shadow-sm shrink-0 cursor-default">
+              <Users size={14} className="text-indigo-500" />
+              <span className="text-[10px] font-black tracking-widest text-slate-600">
+                {Object.keys(users).length} <span className="hidden sm:inline">Artists</span>
+              </span>
+            </div>
+          </Tooltip>
 
-              if (u.isDrawing) {
-                tooltipText += ` • Drawing${u.tool ? ` with ${u.tool}` : ""}`;
-                indicatorColor = "bg-green-500";
-                animatePulse = true;
-              } else if (isIdle) {
-                tooltipText += ` • Idle`;
-                indicatorColor = "bg-amber-500";
-              } else {
-                tooltipText += ` • Active${u.tool ? ` with ${u.tool}` : ""}`;
-              }
+          {/* Grid Toggle */}
+          <Tooltip label="Toggle Grid" side="bottom">
+            <button
+              onClick={() => {
+                setShowGrid(!showGrid);
+                vibrate(5);
+              }}
+              className={cn(
+                "p-2 sm:p-2.5 rounded-xl border transition-all active:scale-95 shadow-sm shrink-0 flex items-center justify-center",
+                showGrid
+                  ? "bg-indigo-600 border-indigo-500 text-white"
+                  : "bg-white/90 backdrop-blur-md border-slate-200 text-slate-700 hover:bg-white hover:text-indigo-600 hover:border-slate-300"
+              )}
+            >
+              <Grid size={16} />
+            </button>
+          </Tooltip>
 
-              return (
-                <Tooltip key={u.id || i} label={tooltipText} side="bottom">
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 ring-1 ring-slate-200 flex items-center justify-center text-[10px] font-black text-slate-600 uppercase relative"
-                    style={{ 
-                      boxShadow: u.color ? `0 0 0 2px ${u.color}33` : 'none',
-                      borderColor: u.color || 'white'
-                    }}
-                  >
-                    {u.username[0]}
-                    <span className={cn(
-                      "absolute -top-0.5 -right-0.5 w-2.5 h-2.5 border-2 border-white rounded-full",
-                      indicatorColor,
-                      animatePulse && "animate-pulse"
-                    )} />
-                  </motion.div>
-                </Tooltip>
-              );
-            })}
-            {(Object.values(users) as UserPresence[]).filter(u => u.id !== socket?.id).length > 5 && (
-              <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-900 text-white flex items-center justify-center text-[10px] font-black z-10 uppercase">
-                +{(Object.values(users) as UserPresence[]).filter(u => u.id !== socket?.id).length - 5}
-              </div>
-            )}
-          </div>
-          
-          <button 
+
+          <button
             onClick={onLeave}
-            className="flex items-center justify-center w-10 sm:w-auto h-10 sm:h-10 sm:px-4 bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-xl font-bold transition-all text-sm border border-slate-200 active:scale-90 shrink-0"
+            className="flex items-center justify-center w-10 sm:w-auto h-10 sm:px-4 bg-white/90 backdrop-blur-md text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-xl font-bold transition-all text-sm border border-slate-200 shadow-sm active:scale-90 shrink-0 pointer-events-auto"
           >
             <LogOut size={16} /> <span className="hidden lg:inline ml-2 uppercase text-[10px] tracking-widest">Leave</span>
           </button>
@@ -3287,9 +3423,19 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden relative bg-slate-50">
+      <div className={cn("flex-1 flex overflow-hidden relative", showGrid ? "bg-slate-100" : "bg-slate-50")}>
         {/* Full-screen Canvas Area */}
-        <div ref={containerRef} className="absolute inset-0 z-0 select-none">
+        <div ref={containerRef} className="absolute inset-0 z-0 select-none overflow-hidden">
+          {showGrid && (
+            <div
+              className="absolute inset-0 pointer-events-none opacity-10 z-10"
+              style={{
+                backgroundImage: 'linear-gradient(to right, #000 1px, transparent 1px), linear-gradient(to bottom, #000 1px, transparent 1px)',
+                backgroundSize: `${40 * transform.scale}px ${40 * transform.scale}px`,
+                backgroundPosition: `${transform.x}px ${transform.y}px`
+              }}
+            />
+          )}
           {/* Symmetry Guides */}
           {(symmetryMode === "horizontal" || symmetryMode === "both") && (
             <div className="absolute left-1/2 top-0 bottom-0 w-[1px] border-l border-dashed border-slate-200 pointer-events-none z-10" />
@@ -3297,15 +3443,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           {(symmetryMode === "vertical" || symmetryMode === "both") && (
             <div className="absolute top-1/2 left-0 right-0 h-[1px] border-t border-dashed border-slate-200 pointer-events-none z-10" />
           )}
-          
-          <canvas 
-            ref={canvasRef} 
+
+          <canvas
+            ref={canvasRef}
             className={cn(
               "w-full h-full touch-none outline-none will-change-transform canvas-area",
               isTransitioning && "transition-transform duration-300 ease-out",
               isHandTool ? "cursor-grab active:cursor-grabbing" : "cursor-none"
             )}
-            style={{ 
+            style={{
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
               transformOrigin: '0 0'
             }}
@@ -3324,9 +3470,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           />
 
           {/* Interactive Transform Overlay for selections */}
-          <div 
+          <div
             className="absolute inset-0 pointer-events-none overflow-hidden"
-            style={{ 
+            style={{
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
               transformOrigin: '0 0',
               width: canvasRef.current?.width || '100%',
@@ -3338,21 +3484,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               if (!editingTextId) return null;
               const t = placedTexts.find(x => x.id === editingTextId);
               if (!t || t.layerId !== activeLayerId) return null;
-              
+
               const textLength = t.text.length;
               const height = t.size * 3;
               const width = textLength * t.size * 1.6;
               const px = t.x;
               const py = t.y;
-              
+
               let minX = px - width / 2;
               if (t.align === "left") minX = px;
               else if (t.align === "right") minX = px - width;
-              
+
               const minY = py - height / 2;
-              
+
               return (
-                <div 
+                <div
                   className="absolute border border-dashed border-indigo-500 bg-indigo-50/15 rounded pointer-events-none"
                   style={{
                     left: `${minX}px`,
@@ -3375,14 +3521,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               if (!editingShapeId) return null;
               const s = placedShapes.find(x => x.id === editingShapeId);
               if (!s || s.layerId !== activeLayerId) return null;
-              
+
               const w = s.width;
               const h = s.height;
               const left = s.x - w / 2;
               const top = s.y - h / 2;
-              
+
               return (
-                <div 
+                <div
                   className="absolute border border-dashed border-indigo-600 bg-indigo-50/10 rounded pointer-events-none animate-fade-in"
                   style={{
                     left: `${left}px`,
@@ -3397,7 +3543,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     {s.type} Shape
                   </div>
                   {/* Top Left Resize Handle */}
-                  <div 
+                  <div
                     className="absolute -top-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
                     onMouseDown={(e) => startResize(e, "tl", s)}
                     onTouchStart={(e) => startResize(e, "tl", s)}
@@ -3405,7 +3551,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     <div className="w-3 h-3 bg-white border-2 border-indigo-600 rounded-full group-hover/handle:scale-125 transition-transform shadow-sm" />
                   </div>
                   {/* Top Right Resize Handle */}
-                  <div 
+                  <div
                     className="absolute -top-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
                     onMouseDown={(e) => startResize(e, "tr", s)}
                     onTouchStart={(e) => startResize(e, "tr", s)}
@@ -3413,7 +3559,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     <div className="w-3 h-3 bg-white border-2 border-indigo-600 rounded-full group-hover/handle:scale-125 transition-transform shadow-sm" />
                   </div>
                   {/* Bottom Left Resize Handle */}
-                  <div 
+                  <div
                     className="absolute -bottom-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
                     onMouseDown={(e) => startResize(e, "bl", s)}
                     onTouchStart={(e) => startResize(e, "bl", s)}
@@ -3421,7 +3567,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     <div className="w-3 h-3 bg-white border-2 border-indigo-600 rounded-full group-hover/handle:scale-125 transition-transform shadow-sm" />
                   </div>
                   {/* Bottom Right Resize Handle */}
-                  <div 
+                  <div
                     className="absolute -bottom-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
                     onMouseDown={(e) => startResize(e, "br", s)}
                     onTouchStart={(e) => startResize(e, "br", s)}
@@ -3437,14 +3583,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               if (id === editingShapeId) return null;
               const s = placedShapes.find(x => x.id === id);
               if (!s || s.layerId !== activeLayerId) return null;
-              
+
               const w = s.width;
               const h = s.height;
               const left = s.x - w / 2;
               const top = s.y - h / 2;
-              
+
               return (
-                <div 
+                <div
                   key={id}
                   className="absolute border border-dashed border-indigo-400 bg-indigo-50/5 rounded pointer-events-none"
                   style={{
@@ -3467,7 +3613,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
         {/* Floating Toolbar (Centered Bottom) */}
         <div className="fixed bottom-6 xs:bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2 flex items-end gap-3 z-30 pointer-events-none group w-full max-w-[95vw] justify-center">
-          <motion.div 
+          <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             className="bg-white/90 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] p-1.5 sm:p-2 flex items-center pointer-events-auto overflow-x-auto no-scrollbar scroll-smooth"
@@ -3505,19 +3651,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               {/* View/Zoom Controls Prominent */}
               <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-50 border border-slate-100 rounded-xl px-1">
                 <Tooltip label="Zoom Out" side="top">
-                   <button 
-                     onClick={() => { setTransformSmooth(prev => {
-                       const newScale = Math.max(prev.scale - 0.2, 0.1);
-                       return {...prev, scale: newScale};
-                     }); vibrate(5); }}
-                     className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all active:scale-90"
-                   >
-                     <Minus size={14} />
-                   </button>
+                  <button
+                    onClick={() => {
+                      setTransformSmooth(prev => {
+                        const newScale = Math.max(prev.scale - 0.2, 0.1);
+                        return { ...prev, scale: newScale };
+                      }); vibrate(5);
+                    }}
+                    className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all active:scale-90"
+                  >
+                    <Minus size={14} />
+                  </button>
                 </Tooltip>
-                
+
                 <Tooltip label="Reset (Click for 100%)" side="top">
-                  <button 
+                  <button
                     onClick={() => { setTransformSmooth({ x: 0, y: 0, scale: 1 }); vibrate(15); }}
                     className={cn(
                       "px-2 py-1 text-[9px] font-black rounded-lg transition-all tabular-nums min-w-[40px] text-center uppercase tracking-tighter",
@@ -3529,11 +3677,13 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                 </Tooltip>
 
                 <Tooltip label="Zoom In" side="top">
-                  <button 
-                    onClick={() => { setTransformSmooth(prev => {
-                      const newScale = Math.min(prev.scale + 0.2, 10);
-                      return {...prev, scale: newScale};
-                    }); vibrate(5); }}
+                  <button
+                    onClick={() => {
+                      setTransformSmooth(prev => {
+                        const newScale = Math.min(prev.scale + 0.2, 10);
+                        return { ...prev, scale: newScale };
+                      }); vibrate(5);
+                    }}
                     className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all active:scale-90"
                   >
                     <Plus size={14} />
@@ -3541,7 +3691,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                 </Tooltip>
 
                 <Tooltip label="Fit Canvas (Reset View)" side="top">
-                  <button 
+                  <button
                     onClick={() => { setTransformSmooth({ x: 0, y: 0, scale: 1 }); vibrate(15); }}
                     className={cn(
                       "p-2 rounded-lg transition-all active:scale-90",
@@ -3553,8 +3703,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                 </Tooltip>
 
                 <Tooltip label={isHandTool ? "Switch to Draw" : "Hand Pan (Click then drag canvas)"} side="top">
-                  <button 
-                    onClick={() => { setIsHandTool(!isHandTool); vibrate(10); }} 
+                  <button
+                    onClick={() => { setIsHandTool(!isHandTool); vibrate(10); }}
                     className={cn(
                       "p-2 rounded-lg transition-all active:scale-90",
                       isHandTool ? "bg-indigo-600 text-white shadow-md" : "text-slate-500 hover:bg-white"
@@ -3566,21 +3716,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               </div>
 
               <div className="w-[1px] h-6 bg-slate-100 mx-1 shrink-0" />
-              
+
               <Tooltip label={isLayersOpen ? "Close Layers" : "Open Layers"} side="top">
                 <div className="relative">
-                  <ToolButton 
-                    active={isLayersOpen} 
+                  <ToolButton
+                    active={isLayersOpen}
                     onClick={() => {
                       setIsLayersOpen(prev => !prev);
                       setIsPaletteOpen(false);
-                    }} 
-                    icon={<Layers size={18} />} 
-                    label="Layers" 
-                    color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20" 
+                    }}
+                    icon={<Layers size={18} />}
+                    label="Layers"
+                    color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20"
                   />
                   {layers.length > 1 && !isLayersOpen && (
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none"
@@ -3595,19 +3745,19 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
               <Tooltip label={isPaletteOpen ? "Close Palettes" : "Open Palettes"} side="top">
                 <div className="relative">
-                  <ToolButton 
-                    active={isPaletteOpen} 
+                  <ToolButton
+                    active={isPaletteOpen}
                     onClick={() => {
                       setIsPaletteOpen(prev => !prev);
                       setIsLayersOpen(false);
                       vibrate(10);
-                    }} 
-                    icon={<Palette size={18} />} 
-                    label="Palettes" 
-                    color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20" 
+                    }}
+                    icon={<Palette size={18} />}
+                    label="Palettes"
+                    color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20"
                   />
                   {palettes.length > 0 && !isPaletteOpen && (
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none"
@@ -3619,18 +3769,18 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               </Tooltip>
 
               <div className="w-[1px] h-6 bg-slate-100 mx-1 shrink-0" />
-              
+
               <Tooltip label={isChatOpen ? "Close Chat" : "Open Chat"} side="top">
                 <div className="relative">
-                  <ToolButton 
-                    active={isChatOpen} 
-                    onClick={toggleChat} 
-                    icon={<MessageSquare size={18} />} 
-                    label="Chat" 
-                    color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20" 
+                  <ToolButton
+                    active={isChatOpen}
+                    onClick={toggleChat}
+                    icon={<MessageSquare size={18} />}
+                    label="Chat"
+                    color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20"
                   />
                   {unreadCount > 0 && !isChatOpen && (
-                    <motion.div 
+                    <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none"
@@ -3643,13 +3793,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 shrink-0 mr-1">
-              <Tooltip label="Color" side="top">
-                <label 
-                  className="w-10 h-10 sm:w-11 sm:h-11 block border-4 border-white rounded-xl shadow-lg ring-1 ring-slate-200 hover:scale-105 active:scale-90 transition-all cursor-pointer overflow-hidden relative shrink-0"
+              <Tooltip label="Custom Color Picker" side="top">
+                <label
+                  className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center border-4 border-white rounded-xl shadow-lg ring-1 ring-slate-200 hover:scale-105 active:scale-90 transition-all cursor-pointer overflow-hidden relative shrink-0 group"
                   style={{ backgroundColor: color }}
                 >
-                  <input 
-                    type="color" 
+                  <Palette size={16} className={cn("transition-opacity", color === "#ffffff" ? "text-slate-800" : "text-white")} />
+                  <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <input
+                    type="color"
                     value={color}
                     onChange={(e) => {
                       setColor(e.target.value);
@@ -3669,7 +3821,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               </Tooltip>
               <div className="flex items-center gap-2 shrink-0">
                 {COLORS.slice(0, 12).map(c => (
-                  <button 
+                  <button
                     key={c}
                     onClick={() => {
                       setColor(c);
@@ -3698,26 +3850,26 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         {/* Floating Options Drawer (Left Side) */}
         <AnimatePresence>
           {showInvite && (
-            <motion.div 
+            <motion.div
               initial={{ x: -20, opacity: 0, scale: 0.95 }}
               animate={{ x: 0, opacity: 1, scale: 1 }}
               exit={{ x: -20, opacity: 0, scale: 0.95 }}
               className="fixed left-4 right-4 sm:left-6 top-20 sm:top-24 bottom-32 sm:bottom-32 sm:w-80 bg-white border border-slate-200 shadow-2xl rounded-3xl sm:rounded-[2.5rem] z-40 p-6 sm:p-8 flex flex-col gap-6 sm:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
             >
               <div className="flex items-center justify-between">
-                 <div className="flex flex-col">
-                   <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400">Configurations</h3>
-                   <span className="text-[9px] font-bold text-indigo-500 uppercase mt-0.5">Customize your stroke</span>
-                 </div>
-                 <button 
-                   onClick={() => {
-                     setShowInvite(false);
-                     vibrate(5);
-                   }} 
-                   className="p-2 sm:p-3 hover:bg-slate-100 rounded-2xl text-slate-400 transition-all active:scale-90"
-                 >
-                    <X size={18} />
-                 </button>
+                <div className="flex flex-col">
+                  <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400">Configurations</h3>
+                  <span className="text-[9px] font-bold text-indigo-500 uppercase mt-0.5">Customize your stroke</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowInvite(false);
+                    vibrate(5);
+                  }}
+                  className="p-2 sm:p-3 hover:bg-slate-100 rounded-2xl text-slate-400 transition-all active:scale-90"
+                >
+                  <X size={18} />
+                </button>
               </div>
 
               {/* Room Info for Mobile */}
@@ -3743,7 +3895,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                       placeholder="ENTER-ROOM-CODE"
                       title="Enter room code or name, and click outside or press Enter to join"
                     />
-                    <button 
+                    <button
                       onClick={handleCopyCode}
                       className="p-2 bg-white border border-slate-200 rounded-xl shadow-sm text-slate-500 hover:text-indigo-600 active:scale-90 transition-all shrink-0"
                     >
@@ -3782,8 +3934,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Brush Size</label>
                     <span className="text-[10px] font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">{size}PX</span>
                   </div>
-                  <input 
-                    type="range" min="1" max="100" value={size} 
+                  <input
+                    type="range" min="1" max="100" value={size}
                     onChange={(e) => {
                       setSize(parseInt(e.target.value));
                       if (parseInt(e.target.value) % 10 === 0) vibrate(5);
@@ -3792,7 +3944,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                   />
                   <div className="flex gap-1.5 sm:gap-2">
                     {[2, 8, 20, 50].map(s => (
-                      <button 
+                      <button
                         key={s}
                         onClick={() => {
                           setSize(s);
@@ -3814,8 +3966,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Eraser Size</label>
                     <span className="text-[10px] font-mono font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded">{eraserSize}PX</span>
                   </div>
-                  <input 
-                    type="range" min="1" max="150" value={eraserSize} 
+                  <input
+                    type="range" min="1" max="150" value={eraserSize}
                     onChange={(e) => {
                       setEraserSize(parseInt(e.target.value));
                       if (parseInt(e.target.value) % 10 === 0) vibrate(5);
@@ -3824,7 +3976,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                   />
                   <div className="flex gap-1.5 sm:gap-2">
                     {[5, 15, 30, 80].map(s => (
-                      <button 
+                      <button
                         key={s}
                         onClick={() => {
                           setEraserSize(s);
@@ -3840,614 +3992,614 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     ))}
                   </div>
                 </div>
-  
-                  <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tip Profile</label>
-                    <div className="grid grid-cols-3 bg-slate-50 border border-slate-100/50 rounded-[1.5rem] p-1.5 gap-1.5 sm:gap-2">
-                      {[
-                        { id: "round", icon: <Circle size={14} fill={brushStyle === "round" ? "currentColor" : "none"} /> },
-                        { id: "square", icon: <Square size={14} fill={brushStyle === "square" ? "currentColor" : "none"} /> },
-                        { id: "soft", icon: <Sparkles size={14} /> },
-                        { id: "star", icon: <Star size={14} fill={brushStyle === "star" ? "currentColor" : "none"} /> },
-                        { id: "diamond", icon: <Diamond size={14} fill={brushStyle === "diamond" ? "currentColor" : "none"} /> },
-                        { id: "cross", icon: <Plus size={14} /> },
-                      ].map((tip) => (
-                        <button 
-                          key={tip.id}
-                          onClick={() => {
-                            setBrushStyle(tip.id as BrushStyle);
-                            vibrate(10);
-                          }} 
-                          className={cn(
-                            "py-4 sm:py-5 rounded-2xl flex justify-center transition-all active:scale-95", 
-                            brushStyle === tip.id ? "bg-white shadow-md text-indigo-600" : "text-slate-300 hover:text-slate-400"
-                          )}
-                        >
-                          {tip.icon}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
 
-                  {/* Text Tool Config */}
-                  {tool === "text" && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-6 pt-2">
-                       <div className="space-y-3">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Text Content</label>
-                         <input 
-                           type="text" 
-                           value={textValue}
-                           onChange={(e) => setTextValue(e.target.value)}
-                           className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
-                           placeholder="Enter text..."
-                         />
-                       </div>
-
-                       <div className="space-y-3">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Font Style</label>
-                         <div className="max-h-48 overflow-y-auto no-scrollbar border border-slate-100 rounded-2xl bg-slate-50 p-1.5 space-y-1">
-                            {[
-                              { name: 'Sans', value: 'sans-serif' },
-                              { name: 'Serif', value: 'serif' },
-                              { name: 'Mono', value: 'monospace' },
-                              { name: 'Cursive', value: 'cursive' },
-                              { name: 'Inter (Modern)', value: 'Inter, sans-serif' },
-                              { name: 'Playfair (Serif)', value: '"Playfair Display", Georgia, serif' },
-                              { name: 'Fira (Mono)', value: '"Fira Code", monospace' },
-                              { name: 'Fredoka (Playful)', value: 'Fredoka, sans-serif' },
-                              { name: 'Caveat (Hand)', value: 'Caveat, cursive' },
-                              { name: 'Bebas (Display)', value: '"Bebas Neue", sans-serif' },
-                              { name: 'Pacifico (Cursive)', value: 'Pacifico, cursive' },
-                              { name: 'Montserrat', value: 'Montserrat, sans-serif' },
-                              { name: 'Cinzel (Classic)', value: 'Cinzel, serif' }
-                            ].map(font => (
-                              <button
-                                key={font.value}
-                                onClick={() => setFontFamily(font.value)}
-                                className={cn(
-                                  "w-full py-2 px-3 rounded-xl text-xs font-bold border transition-all text-left flex items-center justify-between",
-                                  fontFamily === font.value 
-                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" 
-                                    : "bg-white text-slate-600 border-transparent hover:border-slate-100"
-                                )}
-                                style={{ fontFamily: font.value }}
-                              >
-                                <span>{font.name}</span>
-                                <span className="text-[10px] opacity-75">Aa</span>
-                              </button>
-                            ))}
-                         </div>
-                       </div>
-
-                       <div className="flex gap-2">
-                         <button 
-                           onClick={() => { setIsBold(!isBold); vibrate(10); }}
-                           className={cn(
-                             "flex-1 py-3 rounded-xl font-bold border transition-all text-[10px] uppercase tracking-widest",
-                             isBold ? "bg-indigo-600 text-white border-indigo-600 shadow-lg" : "bg-white text-slate-600 border-slate-100 hover:border-indigo-200"
-                           )}
-                         >
-                           Bold
-                         </button>
-                         <button 
-                           onClick={() => { setIsItalic(!isItalic); vibrate(10); }}
-                           className={cn(
-                             "flex-1 py-3 rounded-xl italic border transition-all text-[10px] uppercase tracking-widest",
-                             isItalic ? "bg-indigo-600 text-white border-indigo-600 shadow-lg" : "bg-white text-slate-600 border-slate-100 hover:border-indigo-200"
-                           )}
-                         >
-                           Italic
-                         </button>
-                       </div>
-
-                       <div className="space-y-3">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Text Alignment</label>
-                         <div className="flex bg-slate-50 border border-slate-100 rounded-2xl p-1 gap-1">
-                           {[
-                             { value: 'left', icon: <AlignLeft size={16} />, label: 'Left' },
-                             { value: 'center', icon: <AlignCenter size={16} />, label: 'Center' },
-                             { value: 'right', icon: <AlignRight size={16} />, label: 'Right' }
-                           ].map(alignOption => (
-                             <button
-                               key={alignOption.value}
-                               onClick={() => { setTextAlign(alignOption.value as "left" | "center" | "right"); vibrate(8); }}
-                               className={cn(
-                                 "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-center text-xs font-bold transition-all border",
-                                 textAlign === alignOption.value
-                                   ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                                   : "bg-white text-slate-600 border-transparent hover:border-slate-100 active:scale-95"
-                               )}
-                             >
-                               {alignOption.icon}
-                               <span className="text-[9px] font-bold uppercase tracking-wide">{alignOption.label}</span>
-                             </button>
-                           ))}
-                         </div>
-                       </div>
-
-                       {editingTextId && (
-                         <div className="space-y-3 bg-indigo-50/40 p-4 rounded-3xl border border-indigo-100/40 flex flex-col gap-2">
-                           <div className="flex items-center justify-between">
-                             <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest">
-                               ● Editing text
-                             </span>
-                             <button 
-                               onClick={() => { saveToHistory(); setEditingTextId(null); vibrate(10); }}
-                               className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-wider"
-                             >
-                               Deselect
-                             </button>
-                           </div>
-                           
-                           <button
-                             onClick={() => {
-                               const next = placedTextsRef.current.filter(t => t.id !== editingTextId);
-                               setPlacedTexts(next);
-                               placedTextsRef.current = next;
-                               saveToHistory(next);
-                               setEditingTextId(null);
-                               socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
-                               setTimeout(() => compositeLayers(), 10);
-                               vibrate(12);
-                             }}
-                             className="w-full py-2.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
-                           >
-                             Delete Text
-                           </button>
-                         </div>
-                       )}
-
-                       <div className="space-y-3 bg-slate-50 p-4 rounded-3xl border border-slate-100/50">
-                         <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Outline</label>
-                              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Stroke Effect</span>
-                            </div>
-                            <button
-                              onClick={() => { setHasOutline(!hasOutline); vibrate(15); }}
-                              className={cn(
-                                "w-10 h-6 rounded-full transition-all relative p-1",
-                                hasOutline ? "bg-indigo-600" : "bg-slate-200"
-                              )}
-                            >
-                              <motion.div 
-                                animate={{ x: hasOutline ? 16 : 0 }}
-                                className="w-4 h-4 bg-white rounded-full shadow-sm"
-                              />
-                            </button>
-                         </div>
-                         
-                         <AnimatePresence>
-                           {hasOutline && (
-                             <motion.div 
-                               initial={{ height: 0, opacity: 0, marginTop: 0 }} 
-                               animate={{ height: 'auto', opacity: 1, marginTop: 12 }} 
-                               exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                               className="space-y-3 overflow-hidden"
-                             >
-                                <div className="flex items-center gap-3">
-                                  <div className="relative group">
-                                    <input 
-                                      type="color" 
-                                      value={outlineColor}
-                                      onChange={(e) => setOutlineColor(e.target.value)}
-                                      className="w-10 h-10 rounded-xl overflow-hidden border-none cursor-pointer p-0 bg-transparent"
-                                    />
-                                    <div className="absolute inset-0 rounded-xl border-2 border-white pointer-events-none shadow-inner" />
-                                  </div>
-                                  <div className="flex-1 space-y-1.5">
-                                    <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
-                                      <span>Thickness</span>
-                                      <span className="text-indigo-500">{textOutlineWidth}px</span>
-                                    </div>
-                                    <input 
-                                      type="range" 
-                                      min="1" 
-                                      max="15" 
-                                      value={textOutlineWidth}
-                                      onChange={(e) => setTextOutlineWidth(parseInt(e.target.value))}
-                                      className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                                    />
-                                  </div>
-                                </div>
-                             </motion.div>
-                           )}
-                         </AnimatePresence>
-                       </div>
-
-                       <div className="space-y-3">
-                         <div className="flex justify-between items-center">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rotation</label>
-                           <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{textRotation}°</span>
-                         </div>
-                         <input 
-                           type="range" 
-                           min="-180" 
-                           max="180" 
-                           value={textRotation} 
-                           onChange={(e) => setTextRotation(parseInt(e.target.value))} 
-                           className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                         />
-                       </div>
-                    </motion.div>
-                  )}
-
-                  {/* Shape Tool Config */}
-                  {tool === "shape" && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-6 pt-2">
-                       <div className="space-y-3">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Shape Type Preset</label>
-                         <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-100 rounded-2xl p-1.5">
-                            {[
-                              { type: 'square', id: 'Square', icon: <Square size={16} /> },
-                              { type: 'circle', id: 'Circle', icon: <Circle size={16} /> },
-                              { type: 'triangle', id: 'Triangle', icon: <Triangle size={16} /> },
-                              { type: 'star', id: 'Star', icon: <Star size={16} /> },
-                              { type: 'hexagon', id: 'Hexagon', icon: <Hexagon size={16} /> },
-                              { type: 'arrow', id: 'Arrow', icon: <ArrowUp size={16} /> }
-                            ].map(preset => (
-                              <button
-                                key={preset.type}
-                                onClick={() => { setShapeType(preset.type as any); vibrate(8); }}
-                                className={cn(
-                                  "flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border transition-all text-xs font-bold",
-                                  shapeType === preset.type
-                                    ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
-                                    : "bg-white text-slate-600 border-transparent hover:border-slate-100 active:scale-95"
-                                )}
-                              >
-                                {preset.icon}
-                                <span className="text-[8px] uppercase tracking-wide">{preset.id}</span>
-                              </button>
-                            ))}
-                         </div>
-                       </div>
-
-                       <div className="space-y-3">
-                         <div className="flex justify-between items-center">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Width</label>
-                           <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeWidth}px</span>
-                         </div>
-                         <input 
-                           type="range" 
-                           min="10" 
-                           max="800" 
-                           value={shapeWidth} 
-                           onChange={(e) => setShapeWidth(parseInt(e.target.value))} 
-                           className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                         />
-                       </div>
-
-                       <div className="space-y-3">
-                         <div className="flex justify-between items-center">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Height</label>
-                           <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeHeight}px</span>
-                         </div>
-                         <input 
-                           type="range" 
-                           min="10" 
-                           max="800" 
-                           value={shapeHeight} 
-                           onChange={(e) => setShapeHeight(parseInt(e.target.value))} 
-                           className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                         />
-                       </div>
-
-                       <div className="space-y-3">
-                         <div className="flex justify-between items-center">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rotation</label>
-                           <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeRotation}°</span>
-                         </div>
-                         <input 
-                           type="range" 
-                           min="-180" 
-                           max="180" 
-                           value={shapeRotation} 
-                           onChange={(e) => setShapeRotation(parseInt(e.target.value))} 
-                           className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                         />
-                       </div>
-
-                       <div className="space-y-3">
-                         <div className="flex justify-between items-center">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Border Thickness</label>
-                           <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeLineWidth}px</span>
-                         </div>
-                         <input 
-                           type="range" 
-                           min="1" 
-                           max="30" 
-                           value={shapeLineWidth} 
-                           onChange={(e) => setShapeLineWidth(parseInt(e.target.value))} 
-                           className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                         />
-                       </div>
-
-                       <div className="space-y-3 bg-slate-50 p-4 rounded-3xl border border-slate-100/50">
-                          <div className="flex items-center justify-between">
-                             <div className="flex flex-col">
-                               <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Fill Shape</label>
-                               <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Color Fill Effect</span>
-                             </div>
-                             <button
-                               onClick={() => { setShapeIsFilled(!shapeIsFilled); vibrate(15); }}
-                               className={cn(
-                                 "w-10 h-6 rounded-full transition-all relative p-1",
-                                 shapeIsFilled ? "bg-indigo-600" : "bg-slate-200"
-                               )}
-                             >
-                               <motion.div 
-                                 animate={{ x: shapeIsFilled ? 16 : 0 }}
-                                 className="w-4 h-4 bg-white rounded-full shadow-sm"
-                               />
-                             </button>
-                          </div>
-                          
-                          <AnimatePresence>
-                            {shapeIsFilled && (
-                              <motion.div 
-                                initial={{ height: 0, opacity: 0, marginTop: 0 }} 
-                                animate={{ height: 'auto', opacity: 1, marginTop: 12 }} 
-                                exit={{ height: 0, opacity: 0, marginTop: 0 }}
-                                className="space-y-3 overflow-hidden"
-                              >
-                                 <div className="flex items-center gap-3">
-                                   <div className="relative group">
-                                     <input 
-                                       type="color" 
-                                       value={shapeFillColor}
-                                       onChange={(e) => setShapeFillColor(e.target.value)}
-                                       className="w-10 h-10 rounded-xl overflow-hidden border-none cursor-pointer p-0 bg-transparent"
-                                     />
-                                     <div className="absolute inset-0 rounded-xl border-2 border-white pointer-events-none shadow-inner" />
-                                   </div>
-                                   <div className="flex-1">
-                                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Fill Color Accent</span>
-                                   </div>
-                                 </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                       </div>
-
-                       {editingShapeId && (
-                          <div className="space-y-3 bg-indigo-50/40 p-4 rounded-3xl border border-indigo-100/40 flex flex-col gap-2">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest">
-                                ● Editing Shape
-                              </span>
-                              <button 
-                                onClick={() => { saveToHistory(); setEditingShapeId(null); vibrate(10); }}
-                                className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-wider"
-                              >
-                                Deselect
-                              </button>
-                            </div>
-                            
-                            <button
-                              onClick={() => {
-                                const next = placedShapesRef.current.filter(s => s.id !== editingShapeId);
-                                setPlacedShapes(next);
-                                placedShapesRef.current = next;
-                                saveToHistory(undefined, next);
-                                setEditingShapeId(null);
-                                socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
-                                setTimeout(() => compositeLayers(), 10);
-                                vibrate(12);
-                              }}
-                              className="w-full py-2.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
-                            >
-                              Delete Shape
-                            </button>
-                          </div>
+                <div className="space-y-4">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tip Profile</label>
+                  <div className="grid grid-cols-3 bg-slate-50 border border-slate-100/50 rounded-[1.5rem] p-1.5 gap-1.5 sm:gap-2">
+                    {[
+                      { id: "round", icon: <Circle size={14} fill={brushStyle === "round" ? "currentColor" : "none"} /> },
+                      { id: "square", icon: <Square size={14} fill={brushStyle === "square" ? "currentColor" : "none"} /> },
+                      { id: "soft", icon: <Sparkles size={14} /> },
+                      { id: "star", icon: <Star size={14} fill={brushStyle === "star" ? "currentColor" : "none"} /> },
+                      { id: "diamond", icon: <Diamond size={14} fill={brushStyle === "diamond" ? "currentColor" : "none"} /> },
+                      { id: "cross", icon: <Plus size={14} /> },
+                    ].map((tip) => (
+                      <button
+                        key={tip.id}
+                        onClick={() => {
+                          setBrushStyle(tip.id as BrushStyle);
+                          vibrate(10);
+                        }}
+                        className={cn(
+                          "py-4 sm:py-5 rounded-2xl flex justify-center transition-all active:scale-95",
+                          brushStyle === tip.id ? "bg-white shadow-md text-indigo-600" : "text-slate-300 hover:text-slate-400"
                         )}
+                      >
+                        {tip.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
-                        {/* Shape alignment panel */}
-                        <div className="space-y-3 bg-slate-50 p-4 rounded-3xl border border-slate-100/50">
-                          <div className="flex items-center justify-between">
-                            <div className="flex flex-col">
-                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Multi-Select Mode</label>
-                              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Select multiple shapes</span>
-                            </div>
-                            <button
-                              onClick={() => {
-                                setIsMultiSelectMode(!isMultiSelectMode);
-                                vibrate(15);
-                                if (!isMultiSelectMode) {
-                                  if (editingShapeId) {
-                                    setSelectedShapeIds([editingShapeId]);
-                                    selectedShapeIdsRef.current = [editingShapeId];
-                                  }
-                                } else {
-                                  if (editingShapeId) {
-                                    setSelectedShapeIds([editingShapeId]);
-                                    selectedShapeIdsRef.current = [editingShapeId];
-                                  } else {
-                                    setSelectedShapeIds([]);
-                                    selectedShapeIdsRef.current = [];
-                                  }
-                                }
-                              }}
-                              className={cn(
-                                "w-10 h-6 rounded-full transition-all relative p-1",
-                                isMultiSelectMode ? "bg-indigo-600" : "bg-slate-200"
-                              )}
-                            >
-                              <motion.div 
-                                animate={{ x: isMultiSelectMode ? 16 : 0 }}
-                                className="w-4 h-4 bg-white rounded-full shadow-sm"
-                              />
-                            </button>
-                          </div>
-                          <p className="text-[8px] text-slate-400 leading-normal">
-                            Enable to select & drag multiple shapes by clicking them. You can also hold <kbd className="bg-slate-200 px-1 rounded font-mono text-[7px] text-slate-600">Shift</kbd> to multi-select.
-                          </p>
+                {/* Text Tool Config */}
+                {tool === "text" && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-6 pt-2">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Text Content</label>
+                      <input
+                        type="text"
+                        value={textValue}
+                        onChange={(e) => setTextValue(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-sm"
+                        placeholder="Enter text..."
+                      />
+                    </div>
 
-                          <div className="pt-2 border-t border-slate-200/55 space-y-2">
-                            <div className="flex justify-between items-center">
-                              <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Shape Alignment</span>
-                              {selectedShapeIds.length > 1 && (
-                                <span className="bg-indigo-100 text-indigo-700 text-[8px] px-2 py-0.5 rounded-full font-bold">
-                                  {selectedShapeIds.length} Selected
-                                </span>
-                              )}
-                            </div>
-                            
-                            <div className="grid grid-cols-3 gap-1.5 pt-1">
-                              <button
-                                disabled={selectedShapeIds.length <= 1}
-                                onClick={() => handleAlignShapes("left")}
-                                className={cn(
-                                  "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
-                                  selectedShapeIds.length > 1 
-                                    ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                    : "bg-slate-100/50 text-slate-400 border-transparent"
-                                )}
-                                title="Align Left Edges"
-                              >
-                                <span className="text-[9px] font-black uppercase tracking-wider">Left</span>
-                              </button>
-                              
-                              <button
-                                disabled={selectedShapeIds.length <= 1}
-                                onClick={() => handleAlignShapes("centerX")}
-                                className={cn(
-                                  "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
-                                  selectedShapeIds.length > 1 
-                                    ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                    : "bg-slate-100/50 text-slate-400 border-transparent"
-                                )}
-                                title="Align Center Horizontally"
-                              >
-                                <span className="text-[9px] font-black uppercase tracking-wider">H-Center</span>
-                              </button>
-
-                              <button
-                                disabled={selectedShapeIds.length <= 1}
-                                onClick={() => handleAlignShapes("right")}
-                                className={cn(
-                                  "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
-                                  selectedShapeIds.length > 1 
-                                    ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                    : "bg-slate-100/50 text-slate-400 border-transparent"
-                                )}
-                                title="Align Right Edges"
-                              >
-                                <span className="text-[9px] font-black uppercase tracking-wider">Right</span>
-                              </button>
-
-                              <button
-                                disabled={selectedShapeIds.length <= 1}
-                                onClick={() => handleAlignShapes("top")}
-                                className={cn(
-                                  "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
-                                  selectedShapeIds.length > 1 
-                                    ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                    : "bg-slate-100/50 text-slate-400 border-transparent"
-                                )}
-                                title="Align Top Edges"
-                              >
-                                <span className="text-[9px] font-black uppercase tracking-wider">Top</span>
-                              </button>
-
-                              <button
-                                disabled={selectedShapeIds.length <= 1}
-                                onClick={() => handleAlignShapes("centerY")}
-                                className={cn(
-                                  "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
-                                  selectedShapeIds.length > 1 
-                                    ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                    : "bg-slate-100/50 text-slate-400 border-transparent"
-                                )}
-                                title="Align Center Vertically"
-                              >
-                                <span className="text-[9px] font-black uppercase tracking-wider">V-Center</span>
-                              </button>
-
-                              <button
-                                disabled={selectedShapeIds.length <= 1}
-                                onClick={() => handleAlignShapes("bottom")}
-                                className={cn(
-                                  "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
-                                  selectedShapeIds.length > 1 
-                                    ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-                                    : "bg-slate-100/50 text-slate-400 border-transparent"
-                                )}
-                                title="Align Bottom Edges"
-                              >
-                                <span className="text-[9px] font-black uppercase tracking-wider">Bottom</span>
-                              </button>
-                            </div>
-                            
-                            {selectedShapeIds.length <= 1 && (
-                              <p className="text-[7.5px] text-slate-400/80 leading-snug pt-1 text-center font-medium">
-                                ※ Select 2 or more shapes to align them.
-                              </p>
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Font Style</label>
+                      <div className="max-h-48 overflow-y-auto no-scrollbar border border-slate-100 rounded-2xl bg-slate-50 p-1.5 space-y-1">
+                        {[
+                          { name: 'Sans', value: 'sans-serif' },
+                          { name: 'Serif', value: 'serif' },
+                          { name: 'Mono', value: 'monospace' },
+                          { name: 'Cursive', value: 'cursive' },
+                          { name: 'Inter (Modern)', value: 'Inter, sans-serif' },
+                          { name: 'Playfair (Serif)', value: '"Playfair Display", Georgia, serif' },
+                          { name: 'Fira (Mono)', value: '"Fira Code", monospace' },
+                          { name: 'Fredoka (Playful)', value: 'Fredoka, sans-serif' },
+                          { name: 'Caveat (Hand)', value: 'Caveat, cursive' },
+                          { name: 'Bebas (Display)', value: '"Bebas Neue", sans-serif' },
+                          { name: 'Pacifico (Cursive)', value: 'Pacifico, cursive' },
+                          { name: 'Montserrat', value: 'Montserrat, sans-serif' },
+                          { name: 'Cinzel (Classic)', value: 'Cinzel, serif' }
+                        ].map(font => (
+                          <button
+                            key={font.value}
+                            onClick={() => setFontFamily(font.value)}
+                            className={cn(
+                              "w-full py-2 px-3 rounded-xl text-xs font-bold border transition-all text-left flex items-center justify-between",
+                              fontFamily === font.value
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                : "bg-white text-slate-600 border-transparent hover:border-slate-100"
                             )}
-                          </div>
+                            style={{ fontFamily: font.value }}
+                          >
+                            <span>{font.name}</span>
+                            <span className="text-[10px] opacity-75">Aa</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setIsBold(!isBold); vibrate(10); }}
+                        className={cn(
+                          "flex-1 py-3 rounded-xl font-bold border transition-all text-[10px] uppercase tracking-widest",
+                          isBold ? "bg-indigo-600 text-white border-indigo-600 shadow-lg" : "bg-white text-slate-600 border-slate-100 hover:border-indigo-200"
+                        )}
+                      >
+                        Bold
+                      </button>
+                      <button
+                        onClick={() => { setIsItalic(!isItalic); vibrate(10); }}
+                        className={cn(
+                          "flex-1 py-3 rounded-xl italic border transition-all text-[10px] uppercase tracking-widest",
+                          isItalic ? "bg-indigo-600 text-white border-indigo-600 shadow-lg" : "bg-white text-slate-600 border-slate-100 hover:border-indigo-200"
+                        )}
+                      >
+                        Italic
+                      </button>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Text Alignment</label>
+                      <div className="flex bg-slate-50 border border-slate-100 rounded-2xl p-1 gap-1">
+                        {[
+                          { value: 'left', icon: <AlignLeft size={16} />, label: 'Left' },
+                          { value: 'center', icon: <AlignCenter size={16} />, label: 'Center' },
+                          { value: 'right', icon: <AlignRight size={16} />, label: 'Right' }
+                        ].map(alignOption => (
+                          <button
+                            key={alignOption.value}
+                            onClick={() => { setTextAlign(alignOption.value as "left" | "center" | "right"); vibrate(8); }}
+                            className={cn(
+                              "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-center text-xs font-bold transition-all border",
+                              textAlign === alignOption.value
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                : "bg-white text-slate-600 border-transparent hover:border-slate-100 active:scale-95"
+                            )}
+                          >
+                            {alignOption.icon}
+                            <span className="text-[9px] font-bold uppercase tracking-wide">{alignOption.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {editingTextId && (
+                      <div className="space-y-3 bg-indigo-50/40 p-4 rounded-3xl border border-indigo-100/40 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest">
+                            ● Editing text
+                          </span>
+                          <button
+                            onClick={() => { saveToHistory(); setEditingTextId(null); vibrate(10); }}
+                            className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-wider"
+                          >
+                            Deselect
+                          </button>
                         </div>
 
+                        <button
+                          onClick={() => {
+                            const next = placedTextsRef.current.filter(t => t.id !== editingTextId);
+                            setPlacedTexts(next);
+                            placedTextsRef.current = next;
+                            saveToHistory(next);
+                            setEditingTextId(null);
+                            socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+                            setTimeout(() => compositeLayers(), 10);
+                            vibrate(12);
+                          }}
+                          className="w-full py-2.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
+                        >
+                          Delete Text
+                        </button>
+                      </div>
+                    )}
 
-                    </motion.div>
-                  )}
+                    <div className="space-y-3 bg-slate-50 p-4 rounded-3xl border border-slate-100/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Outline</label>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Stroke Effect</span>
+                        </div>
+                        <button
+                          onClick={() => { setHasOutline(!hasOutline); vibrate(15); }}
+                          className={cn(
+                            "w-10 h-6 rounded-full transition-all relative p-1",
+                            hasOutline ? "bg-indigo-600" : "bg-slate-200"
+                          )}
+                        >
+                          <motion.div
+                            animate={{ x: hasOutline ? 16 : 0 }}
+                            className="w-4 h-4 bg-white rounded-full shadow-sm"
+                          />
+                        </button>
+                      </div>
 
-                  {/* Stamp Tool Config */}
-                  {tool === "stamp" && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-6 pt-2">
-                       <div className="space-y-3">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Emoji Stamps</label>
-                         <div className="grid grid-cols-5 gap-2 bg-slate-50 p-3 rounded-[1.5rem]">
-                            {["✨", "🔥", "❤️", "⭐", "🎨", "🚀", "🌈", "🦋", "🍄", "🐱", "🧿", "🍀", "💎", "🍭", "👾"].map(emoji => (
-                               <button
-                                 key={emoji}
-                                 onClick={() => { setStampEmoji(emoji); vibrate(5); }}
-                                 className={cn(
-                                   "aspect-square text-lg flex items-center justify-center rounded-xl transition-all active:scale-75",
-                                   stampEmoji === emoji ? "bg-white shadow-md scale-110" : "hover:bg-white/50"
-                                 )}
-                               >
-                                 {emoji}
-                               </button>
-                            ))}
-                         </div>
-                       </div>
-                       
-                       <div className="space-y-3">
-                         <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Emoji</label>
-                         <input 
-                           type="text" 
-                           value={stampEmoji}
-                           onChange={(e) => setStampEmoji(e.target.value.substring(0, 4))} // Handle composite emojis
-                           className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 font-bold text-center text-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                           placeholder="Drop any emoji..."
-                         />
-                       </div>
+                      <AnimatePresence>
+                        {hasOutline && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                            animate={{ height: 'auto', opacity: 1, marginTop: 12 }}
+                            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                            className="space-y-3 overflow-hidden"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="relative group">
+                                <input
+                                  type="color"
+                                  value={outlineColor}
+                                  onChange={(e) => setOutlineColor(e.target.value)}
+                                  className="w-10 h-10 rounded-xl overflow-hidden border-none cursor-pointer p-0 bg-transparent"
+                                />
+                                <div className="absolute inset-0 rounded-xl border-2 border-white pointer-events-none shadow-inner" />
+                              </div>
+                              <div className="flex-1 space-y-1.5">
+                                <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest">
+                                  <span>Thickness</span>
+                                  <span className="text-indigo-500">{textOutlineWidth}px</span>
+                                </div>
+                                <input
+                                  type="range"
+                                  min="1"
+                                  max="15"
+                                  value={textOutlineWidth}
+                                  onChange={(e) => setTextOutlineWidth(parseInt(e.target.value))}
+                                  className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                                />
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
 
-                       <div className="space-y-3">
-                         <div className="flex justify-between items-center">
-                           <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rotation</label>
-                           <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{textRotation}°</span>
-                         </div>
-                         <input 
-                           type="range" 
-                           min="-180" 
-                           max="180" 
-                           value={textRotation} 
-                           onChange={(e) => setTextRotation(parseInt(e.target.value))} 
-                           className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" 
-                         />
-                       </div>
-                    </motion.div>
-                  )}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rotation</label>
+                        <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{textRotation}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-180"
+                        max="180"
+                        value={textRotation}
+                        onChange={(e) => setTextRotation(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* Shape Tool Config */}
+                {tool === "shape" && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-6 pt-2">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Shape Type Preset</label>
+                      <div className="grid grid-cols-3 gap-2 bg-slate-50 border border-slate-100 rounded-2xl p-1.5">
+                        {[
+                          { type: 'square', id: 'Square', icon: <Square size={16} /> },
+                          { type: 'circle', id: 'Circle', icon: <Circle size={16} /> },
+                          { type: 'triangle', id: 'Triangle', icon: <Triangle size={16} /> },
+                          { type: 'star', id: 'Star', icon: <Star size={16} /> },
+                          { type: 'hexagon', id: 'Hexagon', icon: <Hexagon size={16} /> },
+                          { type: 'arrow', id: 'Arrow', icon: <ArrowUp size={16} /> }
+                        ].map(preset => (
+                          <button
+                            key={preset.type}
+                            onClick={() => { setShapeType(preset.type as any); vibrate(8); }}
+                            className={cn(
+                              "flex flex-col items-center justify-center gap-1.5 py-3 rounded-xl border transition-all text-xs font-bold",
+                              shapeType === preset.type
+                                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                                : "bg-white text-slate-600 border-transparent hover:border-slate-100 active:scale-95"
+                            )}
+                          >
+                            {preset.icon}
+                            <span className="text-[8px] uppercase tracking-wide">{preset.id}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Width</label>
+                        <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeWidth}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="800"
+                        value={shapeWidth}
+                        onChange={(e) => setShapeWidth(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Height</label>
+                        <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeHeight}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="800"
+                        value={shapeHeight}
+                        onChange={(e) => setShapeHeight(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rotation</label>
+                        <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeRotation}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-180"
+                        max="180"
+                        value={shapeRotation}
+                        onChange={(e) => setShapeRotation(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Border Thickness</label>
+                        <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{shapeLineWidth}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="30"
+                        value={shapeLineWidth}
+                        onChange={(e) => setShapeLineWidth(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+
+                    <div className="space-y-3 bg-slate-50 p-4 rounded-3xl border border-slate-100/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Fill Shape</label>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Color Fill Effect</span>
+                        </div>
+                        <button
+                          onClick={() => { setShapeIsFilled(!shapeIsFilled); vibrate(15); }}
+                          className={cn(
+                            "w-10 h-6 rounded-full transition-all relative p-1",
+                            shapeIsFilled ? "bg-indigo-600" : "bg-slate-200"
+                          )}
+                        >
+                          <motion.div
+                            animate={{ x: shapeIsFilled ? 16 : 0 }}
+                            className="w-4 h-4 bg-white rounded-full shadow-sm"
+                          />
+                        </button>
+                      </div>
+
+                      <AnimatePresence>
+                        {shapeIsFilled && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0, marginTop: 0 }}
+                            animate={{ height: 'auto', opacity: 1, marginTop: 12 }}
+                            exit={{ height: 0, opacity: 0, marginTop: 0 }}
+                            className="space-y-3 overflow-hidden"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="relative group">
+                                <input
+                                  type="color"
+                                  value={shapeFillColor}
+                                  onChange={(e) => setShapeFillColor(e.target.value)}
+                                  className="w-10 h-10 rounded-xl overflow-hidden border-none cursor-pointer p-0 bg-transparent"
+                                />
+                                <div className="absolute inset-0 rounded-xl border-2 border-white pointer-events-none shadow-inner" />
+                              </div>
+                              <div className="flex-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Fill Color Accent</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
+                    {editingShapeId && (
+                      <div className="space-y-3 bg-indigo-50/40 p-4 rounded-3xl border border-indigo-100/40 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-indigo-700 uppercase tracking-widest">
+                            ● Editing Shape
+                          </span>
+                          <button
+                            onClick={() => { saveToHistory(); setEditingShapeId(null); vibrate(10); }}
+                            className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-wider"
+                          >
+                            Deselect
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            const next = placedShapesRef.current.filter(s => s.id !== editingShapeId);
+                            setPlacedShapes(next);
+                            placedShapesRef.current = next;
+                            saveToHistory(undefined, next);
+                            setEditingShapeId(null);
+                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            setTimeout(() => compositeLayers(), 10);
+                            vibrate(12);
+                          }}
+                          className="w-full py-2.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
+                        >
+                          Delete Shape
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Shape alignment panel */}
+                    <div className="space-y-3 bg-slate-50 p-4 rounded-3xl border border-slate-100/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Multi-Select Mode</label>
+                          <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Select multiple shapes</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setIsMultiSelectMode(!isMultiSelectMode);
+                            vibrate(15);
+                            if (!isMultiSelectMode) {
+                              if (editingShapeId) {
+                                setSelectedShapeIds([editingShapeId]);
+                                selectedShapeIdsRef.current = [editingShapeId];
+                              }
+                            } else {
+                              if (editingShapeId) {
+                                setSelectedShapeIds([editingShapeId]);
+                                selectedShapeIdsRef.current = [editingShapeId];
+                              } else {
+                                setSelectedShapeIds([]);
+                                selectedShapeIdsRef.current = [];
+                              }
+                            }
+                          }}
+                          className={cn(
+                            "w-10 h-6 rounded-full transition-all relative p-1",
+                            isMultiSelectMode ? "bg-indigo-600" : "bg-slate-200"
+                          )}
+                        >
+                          <motion.div
+                            animate={{ x: isMultiSelectMode ? 16 : 0 }}
+                            className="w-4 h-4 bg-white rounded-full shadow-sm"
+                          />
+                        </button>
+                      </div>
+                      <p className="text-[8px] text-slate-400 leading-normal">
+                        Enable to select & drag multiple shapes by clicking them. You can also hold <kbd className="bg-slate-200 px-1 rounded font-mono text-[7px] text-slate-600">Shift</kbd> to multi-select.
+                      </p>
+
+                      <div className="pt-2 border-t border-slate-200/55 space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Shape Alignment</span>
+                          {selectedShapeIds.length > 1 && (
+                            <span className="bg-indigo-100 text-indigo-700 text-[8px] px-2 py-0.5 rounded-full font-bold">
+                              {selectedShapeIds.length} Selected
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-1.5 pt-1">
+                          <button
+                            disabled={selectedShapeIds.length <= 1}
+                            onClick={() => handleAlignShapes("left")}
+                            className={cn(
+                              "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
+                              selectedShapeIds.length > 1
+                                ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                : "bg-slate-100/50 text-slate-400 border-transparent"
+                            )}
+                            title="Align Left Edges"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-wider">Left</span>
+                          </button>
+
+                          <button
+                            disabled={selectedShapeIds.length <= 1}
+                            onClick={() => handleAlignShapes("centerX")}
+                            className={cn(
+                              "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
+                              selectedShapeIds.length > 1
+                                ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                : "bg-slate-100/50 text-slate-400 border-transparent"
+                            )}
+                            title="Align Center Horizontally"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-wider">H-Center</span>
+                          </button>
+
+                          <button
+                            disabled={selectedShapeIds.length <= 1}
+                            onClick={() => handleAlignShapes("right")}
+                            className={cn(
+                              "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
+                              selectedShapeIds.length > 1
+                                ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                : "bg-slate-100/50 text-slate-400 border-transparent"
+                            )}
+                            title="Align Right Edges"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-wider">Right</span>
+                          </button>
+
+                          <button
+                            disabled={selectedShapeIds.length <= 1}
+                            onClick={() => handleAlignShapes("top")}
+                            className={cn(
+                              "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
+                              selectedShapeIds.length > 1
+                                ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                : "bg-slate-100/50 text-slate-400 border-transparent"
+                            )}
+                            title="Align Top Edges"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-wider">Top</span>
+                          </button>
+
+                          <button
+                            disabled={selectedShapeIds.length <= 1}
+                            onClick={() => handleAlignShapes("centerY")}
+                            className={cn(
+                              "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
+                              selectedShapeIds.length > 1
+                                ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                : "bg-slate-100/50 text-slate-400 border-transparent"
+                            )}
+                            title="Align Center Vertically"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-wider">V-Center</span>
+                          </button>
+
+                          <button
+                            disabled={selectedShapeIds.length <= 1}
+                            onClick={() => handleAlignShapes("bottom")}
+                            className={cn(
+                              "py-2 rounded-xl flex flex-col items-center justify-center gap-1.5 text-xs font-bold border transition-all active:scale-95 disabled:opacity-40 disabled:pointer-events-none",
+                              selectedShapeIds.length > 1
+                                ? "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                                : "bg-slate-100/50 text-slate-400 border-transparent"
+                            )}
+                            title="Align Bottom Edges"
+                          >
+                            <span className="text-[9px] font-black uppercase tracking-wider">Bottom</span>
+                          </button>
+                        </div>
+
+                        {selectedShapeIds.length <= 1 && (
+                          <p className="text-[7.5px] text-slate-400/80 leading-snug pt-1 text-center font-medium">
+                            ※ Select 2 or more shapes to align them.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+
+                  </motion.div>
+                )}
+
+                {/* Stamp Tool Config */}
+                {tool === "stamp" && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-6 pt-2">
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Emoji Stamps</label>
+                      <div className="grid grid-cols-5 gap-2 bg-slate-50 p-3 rounded-[1.5rem]">
+                        {["✨", "🔥", "❤️", "⭐", "🎨", "🚀", "🌈", "🦋", "🍄", "🐱", "🧿", "🍀", "💎", "🍭", "👾"].map(emoji => (
+                          <button
+                            key={emoji}
+                            onClick={() => { setStampEmoji(emoji); vibrate(5); }}
+                            className={cn(
+                              "aspect-square text-lg flex items-center justify-center rounded-xl transition-all active:scale-75",
+                              stampEmoji === emoji ? "bg-white shadow-md scale-110" : "hover:bg-white/50"
+                            )}
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Custom Emoji</label>
+                      <input
+                        type="text"
+                        value={stampEmoji}
+                        onChange={(e) => setStampEmoji(e.target.value.substring(0, 4))} // Handle composite emojis
+                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 font-bold text-center text-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        placeholder="Drop any emoji..."
+                      />
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rotation</label>
+                        <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{textRotation}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-180"
+                        max="180"
+                        value={textRotation}
+                        onChange={(e) => setTextRotation(parseInt(e.target.value))}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                    </div>
+                  </motion.div>
+                )}
 
                 <div className="space-y-6">
                   <div className="bg-gradient-to-br from-slate-50 to-white border border-slate-100 rounded-[2rem] p-6 space-y-6 shadow-inner">
                     <div className="space-y-3">
-                       <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Opacity</span>
-                          <span className="text-[10px] font-bold text-indigo-600">{Math.round(opacity * 100)}%</span>
-                       </div>
-                       <input type="range" min="0.1" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Opacity</span>
+                        <span className="text-[10px] font-bold text-indigo-600">{Math.round(opacity * 100)}%</span>
+                      </div>
+                      <input type="range" min="0.1" max="1" step="0.1" value={opacity} onChange={(e) => setOpacity(parseFloat(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
                     </div>
                     {(tool !== "spray" && tool !== "smudge") && (
                       <div className="space-y-3">
@@ -4498,17 +4650,17 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Smoothing</span>
                         <Tooltip label={isSmoothingEnabled ? "High Precision" : "Raw Input"} side="top">
-                          <button 
-                            onClick={() => setIsSmoothingEnabled(!isSmoothingEnabled)} 
+                          <button
+                            onClick={() => setIsSmoothingEnabled(!isSmoothingEnabled)}
                             className={cn(
-                              "w-10 h-5 rounded-full relative transition-all duration-500 shadow-inner", 
+                              "w-10 h-5 rounded-full relative transition-all duration-500 shadow-inner",
                               isSmoothingEnabled ? "bg-indigo-600" : "bg-slate-300"
                             )}
                           >
-                            <motion.div 
-                              animate={{ x: isSmoothingEnabled ? 20 : 0 }} 
+                            <motion.div
+                              animate={{ x: isSmoothingEnabled ? 20 : 0 }}
                               transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                              className="absolute inset-y-1 left-1 w-3 h-3 bg-white rounded-full shadow-sm" 
+                              className="absolute inset-y-1 left-1 w-3 h-3 bg-white rounded-full shadow-sm"
                             />
                           </button>
                         </Tooltip>
@@ -4517,21 +4669,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     </div>
 
                     <div className="flex items-center justify-between pt-2">
-                       <div className="flex flex-col">
-                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rainbow Effect</span>
-                         <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-tighter">Smooth Color Cycling</span>
-                       </div>
-                       <button 
-                         onClick={() => { setIsRainbowMode(!isRainbowMode); vibrate(15); }} 
-                         className={cn(
-                           "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
-                           isRainbowMode 
-                             ? "bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 text-white shadow-lg animate-gradient-x" 
-                             : "bg-slate-50 text-slate-400 hover:bg-slate-100"
-                         )}
-                       >
-                         {isRainbowMode ? "Active" : "Enable"}
-                       </button>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rainbow Effect</span>
+                        <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-tighter">Smooth Color Cycling</span>
+                      </div>
+                      <button
+                        onClick={() => { setIsRainbowMode(!isRainbowMode); vibrate(15); }}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
+                          isRainbowMode
+                            ? "bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 text-white shadow-lg animate-gradient-x"
+                            : "bg-slate-50 text-slate-400 hover:bg-slate-100"
+                        )}
+                      >
+                        {isRainbowMode ? "Active" : "Enable"}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -4546,13 +4698,13 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                       { id: "both", icon: <GridIcon size={14} />, label: "Quad" },
                     ].map((sym) => (
                       <Tooltip key={sym.id} label={sym.label} side="top">
-                        <button 
+                        <button
                           onClick={() => {
                             setSymmetryMode(sym.id as any);
                             vibrate(10);
-                          }} 
+                          }}
                           className={cn(
-                            "py-4 sm:py-5 rounded-2xl flex justify-center transition-all active:scale-95", 
+                            "py-4 sm:py-5 rounded-2xl flex justify-center transition-all active:scale-95",
                             symmetryMode === sym.id ? "bg-white shadow-md text-indigo-600" : "text-slate-300 hover:text-slate-400"
                           )}
                         >
@@ -4567,24 +4719,24 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                   <div className="space-y-3 bg-slate-50 border border-slate-100 rounded-[1.5rem] p-4">
                     <div className="space-y-1.5">
                       <span className="text-[9px] font-bold text-slate-400 uppercase ml-1">Filename</span>
-                      <input 
-                        type="text" 
-                        value={exportName} 
-                        onChange={(e) => setExportName(e.target.value)} 
+                      <input
+                        type="text"
+                        value={exportName}
+                        onChange={(e) => setExportName(e.target.value)}
                         placeholder="Project name..."
                         className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                       />
                     </div>
-                    
+
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => handleSaveImage('png')}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-600 hover:bg-white hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
                       >
                         <Download size={12} />
                         PNG
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleSaveImage('jpeg')}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-white border border-slate-200 rounded-xl text-[10px] font-black text-slate-600 hover:bg-white hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm active:scale-95"
                       >
@@ -4594,14 +4746,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     </div>
 
                     <div className="pt-2 border-t border-slate-200/50">
-                      <input 
-                        type="file" 
-                        id="load-image" 
-                        accept="image/*" 
-                        onChange={handleLoadImage} 
-                        className="hidden" 
+                      <input
+                        type="file"
+                        id="load-image"
+                        accept="image/*"
+                        onChange={handleLoadImage}
+                        className="hidden"
                       />
-                      <label 
+                      <label
                         htmlFor="load-image"
                         className="w-full flex items-center justify-center gap-2 py-3 bg-indigo-50 border border-indigo-100 rounded-xl text-[10px] font-black text-indigo-600 hover:bg-indigo-100 transition-all cursor-pointer shadow-sm active:scale-95"
                       >
@@ -4613,50 +4765,28 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                   </div>
                 </div>
               </div>
-  
-               <button 
+
+              <button
                 onClick={() => {
                   setIsClearConfirmOpen(true);
                   vibrate(20);
                 }}
                 className="w-full py-4 flex items-center justify-center gap-3 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 hover:bg-rose-100 transition-all font-black text-[10px] uppercase tracking-widest shadow-sm active:scale-95"
-               >
-                 <Trash2 size={16} />
-                 <span>Canvas Wipe</span>
-               </button>
+              >
+                <Trash2 size={16} />
+                <span>Canvas Wipe</span>
+              </button>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Room Header Overlay */}
-        <div className="fixed top-24 left-1/2 -translate-x-1/2 pointer-events-none z-10 hidden sm:block">
-             <div className="bg-white/80 backdrop-blur-md border border-slate-200 rounded-full px-5 py-2 flex items-center gap-3 shadow-xl">
-                <div className="flex items-center -space-x-1.5">
-                   {(Object.values(users) as UserPresence[]).slice(0, 3).map((u, i) => {
-                      const isIdle = currentTime - (u.lastActiveAt || 0) > 60000;
-                      let indicatorColor = "bg-sky-500";
-                      if (u.isDrawing) indicatorColor = "bg-green-500 animate-pulse";
-                      else if (isIdle) indicatorColor = "bg-amber-500";
-
-                      return (
-                         <div key={i} className="w-5 h-5 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[7px] font-black text-slate-600 uppercase relative ring-1 ring-slate-100">
-                           {u.username[0]}
-                           <span className={cn("absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-white", indicatorColor)} />
-                         </div>
-                      );
-                   })}
-                </div>
-                <div className="h-3 w-[1px] bg-slate-200" />
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">{Object.keys(users).length} Live Artists</span>
-             </div>
-        </div>
 
         {/* Removed bulky side panel as requested */}
 
         {/* Palettes Section */}
         <AnimatePresence>
           {isPaletteOpen && (
-            <motion.div 
+            <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
@@ -4669,14 +4799,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Palettes ({palettes.length})</h3>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button 
+                    <button
                       onClick={handleCreatePalette}
                       className="p-1 px-2 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all rounded-lg flex items-center gap-1"
                       title="Create custom blank palette"
                     >
                       <Plus size={10} /> Add New
                     </button>
-                    <button 
+                    <button
                       onClick={() => setIsPaletteOpen(false)}
                       className="p-2 hover:bg-slate-200 rounded-xl text-slate-400 transition-colors"
                     >
@@ -4688,15 +4818,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
                   {palettes.map((palette) => {
                     const isSelected = palette.id === selectedPaletteId;
-                    
+
                     return (
-                      <div 
+                      <div
                         key={palette.id}
                         onClick={() => setSelectedPaletteId(palette.id)}
                         className={cn(
                           "p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-3 relative group",
-                          isSelected 
-                            ? "bg-indigo-50/40 border-indigo-200 ring-1 ring-indigo-200/50 shadow-sm" 
+                          isSelected
+                            ? "bg-indigo-50/40 border-indigo-200 ring-1 ring-indigo-200/50 shadow-sm"
                             : "bg-slate-50/40 border-slate-100 hover:border-slate-200 hover:bg-slate-50"
                         )}
                       >
@@ -4704,7 +4834,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             {editingPaletteId === palette.id ? (
-                              <input 
+                              <input
                                 type="text"
                                 autoFocus
                                 value={editingPaletteName}
@@ -4712,7 +4842,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     if (editingPaletteName.trim()) {
-                                      const updated = palettes.map((p) => 
+                                      const updated = palettes.map((p) =>
                                         p.id === palette.id ? { ...p, name: editingPaletteName.trim() } : p
                                       );
                                       setPalettes(updated);
@@ -4724,7 +4854,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                                 }}
                                 onBlur={() => {
                                   if (editingPaletteName.trim()) {
-                                    const updated = palettes.map((p) => 
+                                    const updated = palettes.map((p) =>
                                       p.id === palette.id ? { ...p, name: editingPaletteName.trim() } : p
                                     );
                                     setPalettes(updated);
@@ -4735,7 +4865,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                                 className="w-full text-xs font-black bg-white border border-slate-200 rounded-md px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans"
                               />
                             ) : (
-                              <span 
+                              <span
                                 onDoubleClick={(e) => {
                                   e.stopPropagation();
                                   if (palette.isPreset) return;
@@ -4765,7 +4895,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
                           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                             {!palette.isPreset && (
-                              <button 
+                              <button
                                 onClick={() => {
                                   vibrate([15]);
                                   handleDeletePalette(palette.id);
@@ -4784,8 +4914,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                           {palette.colors.map((c, idx) => {
                             const isCurrentColorActive = color === c;
                             return (
-                              <div 
-                                key={idx} 
+                              <div
+                                key={idx}
                                 className="relative group/swatch"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -4793,7 +4923,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                                   vibrate(5);
                                 }}
                               >
-                                <div 
+                                <div
                                   className={cn(
                                     "w-8 h-8 rounded-xl border border-slate-200 shadow-xs transition-all duration-150 hover:scale-110 cursor-pointer relative",
                                     isCurrentColorActive && "ring-2 ring-indigo-500 ring-offset-1 scale-105"
@@ -4843,7 +4973,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         {/* Layers Section */}
         <AnimatePresence>
           {isLayersOpen && (
-            <motion.div 
+            <motion.div
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
@@ -4856,13 +4986,13 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Layers ({layers.length})</h3>
                   </div>
                   <div className="flex items-center gap-1">
-                    <button 
+                    <button
                       onClick={handleAddLayer}
                       className="p-1 px-2 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:scale-95 transition-all rounded-lg flex items-center gap-1"
                     >
                       <Plus size={10} /> Add
                     </button>
-                    <button 
+                    <button
                       onClick={() => setIsLayersOpen(false)}
                       className="p-2 hover:bg-slate-200 rounded-xl text-slate-400 transition-colors"
                     >
@@ -4870,27 +5000,27 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     </button>
                   </div>
                 </div>
-                
+
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {[...layers].reverse().map((layer, reverseIndex) => {
                     const originalIndex = layers.length - 1 - reverseIndex;
                     const isActive = layer.id === activeLayerId;
-                    
+
                     return (
-                      <div 
+                      <div
                         key={layer.id}
                         onClick={() => setActiveLayerId(layer.id)}
                         className={cn(
                           "p-3 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2 relative group",
-                          isActive 
-                            ? "bg-indigo-50/70 border-indigo-200 ring-1 ring-indigo-200" 
+                          isActive
+                            ? "bg-indigo-50/70 border-indigo-200 ring-1 ring-indigo-200"
                             : "bg-slate-50/50 border-slate-100 hover:border-slate-200 hover:bg-slate-50"
                         )}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             {editingLayerId === layer.id ? (
-                              <input 
+                              <input
                                 type="text"
                                 autoFocus
                                 value={editingLayerName}
@@ -4898,7 +5028,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     if (editingLayerName.trim()) {
-                                      const updated = layers.map((l) => 
+                                      const updated = layers.map((l) =>
                                         l.id === layer.id ? { ...l, name: editingLayerName.trim() } : l
                                       );
                                       setLayers(updated);
@@ -4910,7 +5040,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                                 }}
                                 onBlur={() => {
                                   if (editingLayerName.trim()) {
-                                    const updated = layers.map((l) => 
+                                    const updated = layers.map((l) =>
                                       l.id === layer.id ? { ...l, name: editingLayerName.trim() } : l
                                     );
                                     setLayers(updated);
@@ -4921,7 +5051,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                                 className="w-full text-sm font-bold bg-white border border-slate-200 rounded-md px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-500"
                               />
                             ) : (
-                              <span 
+                              <span
                                 onDoubleClick={(e) => {
                                   e.stopPropagation();
                                   setEditingLayerId(layer.id);
@@ -4942,9 +5072,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="flex items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
-                            <button 
+                            <button
                               disabled={originalIndex === layers.length - 1}
                               onClick={() => {
                                 vibrate([10]);
@@ -4955,7 +5085,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                             >
                               <ChevronUp size={14} />
                             </button>
-                            <button 
+                            <button
                               disabled={originalIndex === 0}
                               onClick={() => {
                                 vibrate([10]);
@@ -4971,7 +5101,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                           <span className="text-[10px] font-bold text-slate-400 w-12 text-left">Opacity</span>
-                          <input 
+                          <input
                             type="range"
                             min="0"
                             max="1"
@@ -5016,16 +5146,16 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
                         <div className="flex justify-between items-center border-t border-slate-100/10 pt-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center gap-1">
-                            <button 
+                            <button
                               onClick={() => handleToggleVisibility(layer.id)}
                               className="p-1.5 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors"
                               title={layer.visible ? "Hide layer" : "Show layer"}
                             >
                               {layer.visible ? <Eye size={14} /> : <EyeOff size={14} />}
                             </button>
-                            
+
                             {originalIndex > 0 && (
-                              <button 
+                              <button
                                 onClick={() => {
                                   vibrate([15]);
                                   handleMergeLayerDown(layer.id);
@@ -5037,9 +5167,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                               </button>
                             )}
                           </div>
-                          
+
                           {layers.length > 1 && (
-                            <button 
+                            <button
                               onClick={() => {
                                 vibrate([15]);
                                 handleDeleteLayer(layer.id);
@@ -5063,7 +5193,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         {/* Chat Section */}
         <AnimatePresence>
           {isChatOpen && (
-            <motion.div 
+            <motion.div
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 20, opacity: 0 }}
@@ -5072,7 +5202,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-3xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Live Chat</h3>
-                  <button 
+                  <button
                     onClick={() => setIsChatOpen(false)}
                     className="p-2 hover:bg-slate-200 rounded-xl text-slate-400 transition-colors"
                   >
@@ -5080,11 +5210,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                   </button>
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <ChatSection 
-                    roomId={roomId} 
-                    username={username} 
-                    socket={socket} 
-                    chat={chat} 
+                  <ChatSection
+                    roomId={roomId}
+                    username={username}
+                    socket={socket}
+                    chat={chat}
                     vibrate={vibrate}
                   />
                 </div>
@@ -5097,7 +5227,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         <AnimatePresence>
           {isClearConfirmOpen && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
@@ -5114,13 +5244,13 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                     </p>
                   </div>
                   <div className="flex gap-3 w-full">
-                    <button 
+                    <button
                       onClick={() => setIsClearConfirmOpen(false)}
                       className="flex-1 py-4 px-6 rounded-2xl bg-slate-50 text-slate-600 font-bold hover:bg-slate-100 transition-all active:scale-95 text-sm"
                     >
                       Cancel
                     </button>
-                    <button 
+                    <button
                       onClick={() => {
                         vibrate([20, 50, 20]);
                         resetLayersToDefault();
@@ -5144,14 +5274,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         {/* Keyboard Shortcuts Modal */}
         <AnimatePresence>
           {showHotkeysModal && (
-            <div 
+            <div
               className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm"
               onClick={() => {
                 setShowHotkeysModal(false);
                 vibrate(5);
               }}
             >
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: 15 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 15 }}
@@ -5244,7 +5374,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
                   <div className="h-[1px] bg-slate-100 w-full" />
 
                   {/* Got it action button */}
-                  <button 
+                  <button
                     onClick={() => {
                       setShowHotkeysModal(false);
                       vibrate(5);
@@ -5279,7 +5409,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
 
 function ToolButton({ active, onClick, icon, label, color }: any) {
   return (
-    <button 
+    <button
       onClick={onClick}
       aria-label={label}
       className={cn(
@@ -5360,8 +5490,8 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
           <span className="text-[10px] font-bold text-indigo-500 mt-1 uppercase">Community Chat</span>
         </div>
         <div className="flex items-center gap-1.5 bg-indigo-50 px-2 py-1 rounded-full border border-indigo-100">
-          <motion.div 
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }} 
+          <motion.div
+            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
             transition={{ repeat: Infinity, duration: 2 }}
             className="w-1.5 h-1.5 rounded-full bg-indigo-500"
           />
@@ -5372,7 +5502,7 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/30 no-scrollbar relative scroll-smooth">
         <AnimatePresence initial={false}>
           {chat.map((c: any, i: number) => (
-            <motion.div 
+            <motion.div
               key={c.id || i}
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -5385,24 +5515,24 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
               </div>
               <div className={cn(
                 "px-4 py-2.5 rounded-2xl text-[13px] font-medium shadow-sm max-w-[90%] break-words relative group mb-3 mt-0.5 transition-all border",
-                c.username === username 
-                  ? "bg-indigo-600 text-white rounded-tr-none border-indigo-500 shadow-indigo-100" 
+                c.username === username
+                  ? "bg-indigo-600 text-white rounded-tr-none border-indigo-500 shadow-indigo-100"
                   : "bg-white text-slate-700 rounded-tl-none border-slate-200"
               )}>
                 {c.message}
-                
+
                 {/* Reaction Picker on Hover */}
                 <div className={cn(
                   "absolute -top-12 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-30 pointer-events-none group-hover:pointer-events-auto",
                   c.username === username ? "right-0" : "left-0"
                 )}>
-                  <motion.div 
+                  <motion.div
                     initial={{ scale: 0.8, y: 10 }}
                     whileInView={{ scale: 1, y: 0 }}
                     className="bg-white/95 border border-slate-200 rounded-2xl p-2 grid grid-cols-5 gap-1.5 shadow-2xl backdrop-blur-md max-w-[180px]"
                   >
                     {EMOJIS.map(emoji => (
-                      <button 
+                      <button
                         key={emoji}
                         onClick={() => {
                           socket?.emit("message-reaction", { roomId, messageId: c.id, emoji, username });
@@ -5423,13 +5553,13 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
                     c.username === username ? "right-1" : "left-1"
                   )}>
                     {Object.entries(c.reactions as { [key: string]: string[] }).map(([emoji, users]) => {
-                      const reactorList = users.length > 5 
+                      const reactorList = users.length > 5
                         ? `${users.slice(0, 5).join(", ")} and ${users.length - 5} others`
                         : users.join(", ");
-                      
+
                       return (
                         <Tooltip key={emoji} label={`${reactorList} reacted with ${emoji}`} side="top">
-                          <motion.button 
+                          <motion.button
                             initial={{ scale: 0.5, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             whileTap={{ scale: 0.8 }}
@@ -5457,7 +5587,7 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
           ))}
 
           {typingUsers.filter(u => u !== username).map(u => (
-            <motion.div 
+            <motion.div
               key={u}
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
@@ -5466,7 +5596,7 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
             >
               <div className="flex items-center gap-2 px-1">
                 <span className="text-[9px] font-black uppercase text-slate-300 tracking-wider">
-                   {u} is drawing words
+                  {u} is drawing words
                 </span>
                 <div className="flex gap-1 items-center">
                   {[0, 1, 2].map((idx) => (
@@ -5485,8 +5615,8 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
       </div>
 
       <div className="p-4 bg-white border-t border-slate-100 flex flex-col gap-3">
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth pb-0.5">
-          {EMOJIS.slice(0, 15).map(emoji => (
+        <div className="flex flex-wrap items-center gap-1.5 max-h-28 overflow-y-auto no-scrollbar scroll-smooth pb-0.5">
+          {EMOJIS.map(emoji => (
             <button
               key={emoji}
               onClick={() => {
@@ -5501,16 +5631,16 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
         </div>
         <div className="flex items-center gap-2">
           <div className="relative flex-1 group">
-            <input 
-              type="text" 
+            <input
+              type="text"
               value={msg}
               onChange={handleInputChange}
               onKeyDown={(e) => e.key === "Enter" && sendMsg()}
-              placeholder="Type a message..." 
+              placeholder="Type a message..."
               className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 text-sm focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:bg-white transition-all font-medium placeholder:text-slate-400"
             />
           </div>
-          <button 
+          <button
             onClick={sendMsg}
             disabled={!msg.trim()}
             className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center transition-all hover:bg-indigo-700 hover:scale-105 active:scale-95 disabled:opacity-30 disabled:scale-100 disabled:bg-slate-300 shadow-xl shadow-indigo-100 shrink-0"

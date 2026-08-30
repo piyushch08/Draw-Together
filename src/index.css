@@ -24,26 +24,103 @@
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  
+
   @keyframes gradient-x {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
   }
 
   .animate-gradient-x {
     background-size: 200% 200%;
     animation: gradient-x 3s ease infinite;
   }
+
+  .title-interactive {
+    font-family: 'Pacifico', cursive;
+    background: linear-gradient(to right, #ec4899, #8b5cf6, #3b82f6, #ec4899);
+    background-size: 200% auto;
+    color: transparent;
+    -webkit-background-clip: text;
+    background-clip: text;
+    animation: gradient-x 3s linear infinite;
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: inline-block;
+  }
+
+  .title-interactive:hover {
+    transform: scale(1.1) rotate(-3deg);
+  }
+
+  @keyframes spin-3d {
+    0% {
+      transform: perspective(800px) rotateX(15deg) rotateY(-15deg);
+    }
+
+    50% {
+      transform: perspective(800px) rotateX(-15deg) rotateY(15deg);
+    }
+
+    100% {
+      transform: perspective(800px) rotateX(15deg) rotateY(-15deg);
+    }
+  }
+
+  .text-logo-container {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+    transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+    position: relative;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    transform-style: preserve-3d;
+    border-radius: 18px;
+    box-shadow: 
+      0 10px 25px -5px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  }
+  
+  .text-logo-container:hover {
+    transform: translateY(-4px) scale(1.05) perspective(600px) rotateX(10deg) rotateY(-10deg);
+    box-shadow: 
+      0 20px 40px -10px rgba(139, 92, 246, 0.4),
+      0 0 20px rgba(236, 72, 153, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    border-color: rgba(236, 72, 153, 0.4);
+  }
+
+  .text-logo-text {
+    font-family: 'Pacifico', cursive;
+    color: #ffffff;
+    letter-spacing: 0;
+    transform: translateZ(30px);
+    text-shadow: 0px 4px 15px rgba(0, 0, 0, 0.4);
+    font-size: 2.5rem;
+  }
 }
 
 body {
-  @apply antialiased bg-slate-50 text-slate-800 touch-none; 
-  overscroll-behavior-y: contain;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior: none;
+  touch-action: none;
+  background-color: #f8fafc;
+}
+
+html {
+  overscroll-behavior: none;
 }
 
 .canvas-area {
@@ -68,4 +145,3 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #cbd5e1;
 }
-
