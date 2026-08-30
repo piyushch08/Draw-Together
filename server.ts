@@ -2,11 +2,7 @@ import express from "express";
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 import path from "path";
-import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 interface ConnectedUser {
   id: string;
@@ -41,7 +37,7 @@ interface RoomData {
 async function startServer() {
   const app = express();
   const httpServer = createServer(app);
-  
+
   const io = new Server(httpServer, {
     cors: {
       origin: "*",
@@ -50,7 +46,7 @@ async function startServer() {
     maxHttpBufferSize: 1e7 // 10MB payload limit for canvas data snapshots
   });
 
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json({ limit: "15mb" }));
 
@@ -102,7 +98,7 @@ async function startServer() {
     socket.on("join-room", ({ roomId, username, color }: { roomId: string; username: string; color?: string }) => {
       const cleanRoomId = (roomId || "default-room").trim();
       const cleanUsername = (username || "Anonymous Artist").trim();
-      
+
       socket.join(cleanRoomId);
       console.log(`[Room Join] User "${cleanUsername}" (${socket.id}) joined room "${cleanRoomId}"`);
 
@@ -113,7 +109,7 @@ async function startServer() {
         color: color || "#6366f1",
         joinedAt: Date.now()
       };
-      
+
       room.users.set(socket.id, user);
       room.lastActivity = Date.now();
 
@@ -253,7 +249,7 @@ async function startServer() {
         if (msg) {
           if (!msg.reactions) msg.reactions = {};
           if (!msg.reactions[data.emoji]) msg.reactions[data.emoji] = [];
-          
+
           if (!msg.reactions[data.emoji].includes(data.username)) {
             msg.reactions[data.emoji].push(data.username);
           } else {
@@ -288,7 +284,7 @@ async function startServer() {
           if (room) {
             room.users.delete(socket.id);
             socket.to(roomId).emit("user-left", { id: socket.id, userCount: room.users.size });
-            
+
             // If room is empty, preserve room data for 30 minutes in memory
             if (room.users.size === 0) {
               setTimeout(() => {
