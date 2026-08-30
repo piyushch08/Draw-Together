@@ -1,5 +1,5 @@
 {
-  "name": "DuoDraw: Collaborative Canvas",
+  "name": "Draw Together: Collaborative Canvas",
   "description": "A real-time, high-performance collaborative drawing platform for duos and teams. Connect with online peers, draw together in real time, and share ideas on a multi-layer vector and raster canvas.",
   "requestFramePermissions": [],
   "majorCapabilities": [

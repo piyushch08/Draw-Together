@@ -62,6 +62,7 @@ import {
   HelpCircle
 } from "lucide-react";
 import { cn } from "./lib/utils";
+import logo from "./assets/logo.jpg";
 
 const COLORS = [
   "#000000", "#FF0000", "#00FF00", "#0000FF", 
@@ -161,7 +162,7 @@ export default function App() {
 
   useEffect(() => {
     // 1. Get or generate user nickname automatically
-    let savedUsername = localStorage.getItem("duodraw_username");
+    let savedUsername = localStorage.getItem("draw_together_username");
     if (!savedUsername) {
       const adjectives = ["Happy", "Creative", "Clever", "Swift", "Pixel", "Sketch", "Vector", "Cosmic", "Vibrant", "Neon", "Magic", "Bold"];
       const nouns = ["Artist", "Painter", "Sketcher", "Designer", "Doodler", "Creator", "Muralist", "Wand", "Brush", "Canvas", "Palette"];
@@ -169,7 +170,7 @@ export default function App() {
       const randNoun = nouns[Math.floor(Math.random() * nouns.length)];
       const randomNum = Math.floor(100 + Math.random() * 900);
       savedUsername = `${randAdj}${randNoun}_${randomNum}`;
-      localStorage.setItem("duodraw_username", savedUsername);
+      localStorage.setItem("draw_together_username", savedUsername);
     }
     setUsername(savedUsername);
 
@@ -228,7 +229,7 @@ export default function App() {
         username={username}
         setUsername={(newVal: string) => {
           setUsername(newVal);
-          localStorage.setItem("duodraw_username", newVal);
+          localStorage.setItem("draw_together_username", newVal);
         }}
         createCustomName={createCustomName}
         setCreateCustomName={setCreateCustomName}
@@ -258,7 +259,7 @@ export default function App() {
       username={username} 
       setUsername={(newUsername: string) => {
         setUsername(newUsername);
-        localStorage.setItem("duodraw_username", newUsername);
+        localStorage.setItem("draw_together_username", newUsername);
       }}
       onLeave={handleLeaveRoom} 
     />
@@ -285,9 +286,9 @@ function LandingPage({
         className="w-full max-w-md bg-white border border-slate-200/80 p-8 sm:p-10 rounded-3xl shadow-xl shadow-slate-200/50"
       >
         <div className="flex items-center gap-3.5 mb-8">
-          <div className="w-12 h-12 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-indigo-200">D</div>
+          <img src={logo} alt="Draw Together logo" className="h-12 w-12" />
           <div>
-            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">DuoDraw</h1>
+            <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Draw Together</h1>
             <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Collaborative Real-time Canvas</p>
           </div>
         </div>
@@ -1070,7 +1071,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
     vibrate(25);
     const dataUrl = canvas.toDataURL(`image/${format}`, 0.9);
     const link = document.createElement('a');
-    link.download = `${exportName || 'duodraw-artwork'}.${format}`;
+    link.download = `${exportName || 'draw-together-artwork'}.${format}`;
     link.href = dataUrl;
     link.click();
   };
@@ -3111,7 +3112,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
         <div className="flex items-center gap-3 sm:gap-4 md:gap-6">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-sm">D</div>
-            <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 hidden xs:block">DuoDraw</h2>
+            <h2 className="text-base sm:text-lg font-black tracking-tight text-slate-900 hidden xs:block">Draw Together</h2>
           </div>
           <div className="hidden lg:flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-1 border border-slate-200">
             <div className="flex flex-col items-start leading-none shrink-0">
@@ -5269,7 +5270,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave }: { roomId: strin
           <span className="hidden sm:inline">Canvas: Optimized</span>
         </div>
         <div className="text-[9px] opacity-50 font-medium tracking-widest uppercase">
-          DuoDraw &copy; 2024 • Real-time Collaboration
+          Draw Together &copy; 2024 • Real-time Collaboration
         </div>
       </footer>
     </div>
