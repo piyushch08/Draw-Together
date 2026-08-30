@@ -360,13 +360,15 @@ export function LandingPage({
 
           <div className="flex flex-col items-center justify-center text-center gap-4 mb-10 relative z-10">
             <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.1, duration: 0.5 }}
-              className="flex-shrink-0 h-16 w-16 rounded-xl flex items-center justify-center text-logo-container cursor-default"
+              initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
+              animate={{ scale: 1, opacity: 1, rotate: 0 }}
+              transition={{ delay: 0.1, duration: 0.6, type: "spring", bounce: 0.6 }}
+              className="flex-shrink-0 h-24 w-24 rounded-3xl flex items-center justify-center text-logo-container cursor-default relative group"
             >
-              <span className="font-bold text-3xl tracking-tighter text-logo-text select-none">
-                DT
+              <div className="absolute inset-0 bg-white/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></div>
+              <Brush className="absolute text-white/20 w-16 h-16 transform -rotate-12 translate-x-2 -translate-y-2 pointer-events-none" style={{ transform: 'translateZ(20px)' }} />
+              <span className="font-extrabold text-5xl tracking-tighter text-logo-text select-none relative z-10">
+                Dt
               </span>
             </motion.div>
             <div>
