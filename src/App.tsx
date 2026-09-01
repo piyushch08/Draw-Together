@@ -605,6 +605,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     let boardW = 1920; let boardH = 1080;
     if (roomSettingsRef.current.aspectRatio === "4:3") { boardW = 1440; boardH = 1080; }
     else if (roomSettingsRef.current.aspectRatio === "1:1") { boardW = 1080; boardH = 1080; }
+    else if (roomSettingsRef.current.aspectRatio === "9:16") { boardW = 1080; boardH = 1920; }
+    else if (roomSettingsRef.current.aspectRatio === "3:4") { boardW = 1080; boardH = 1440; }
     
     const scaleX = clientWidth / boardW;
     const scaleY = clientHeight / boardH;
@@ -1696,6 +1698,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       const ar = roomSettingsRef.current.aspectRatio;
       if (ar === "4:3") { newWidth = 1440; newHeight = 1080; }
       else if (ar === "1:1") { newWidth = 1080; newHeight = 1080; }
+      else if (ar === "9:16") { newWidth = 1080; newHeight = 1920; }
+      else if (ar === "3:4") { newWidth = 1080; newHeight = 1440; }
 
       // 1. Resize each offscreen layer canvas
       layersRef.current.forEach((layer) => {
@@ -3509,8 +3513,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               isHandTool ? "cursor-grab active:cursor-grabbing" : "cursor-none"
             )}
             style={{
-              width: roomSettings.aspectRatio === "16:9" ? 1920 : roomSettings.aspectRatio === "4:3" ? 1440 : 1080, 
-              height: 1080, 
+              width: roomSettings.aspectRatio === "16:9" ? 1920 : 
+                     roomSettings.aspectRatio === "4:3" ? 1440 : 
+                     (roomSettings.aspectRatio === "1:1" || roomSettings.aspectRatio === "9:16" || roomSettings.aspectRatio === "3:4") ? 1080 : 1920, 
+              height: roomSettings.aspectRatio === "9:16" ? 1920 : 
+                      roomSettings.aspectRatio === "3:4" ? 1440 : 1080, 
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
               transformOrigin: '0 0'
             }}
@@ -5319,11 +5326,13 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                   
                   <div className="space-y-3">
                     <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Aspect Ratio</label>
-                    <div className="grid grid-cols-1 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       {[
                         { id: "16:9", label: "Widescreen (16:9)" },
                         { id: "4:3", label: "Standard (4:3)" },
-                        { id: "1:1", label: "Square (1:1)" }
+                        { id: "1:1", label: "Square (1:1)" },
+                        { id: "9:16", label: "Mobile (9:16)" },
+                        { id: "3:4", label: "Tablet (3:4)" }
                       ].map(ar => (
                         <button
                           key={ar.id}
