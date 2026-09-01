@@ -166,6 +166,7 @@ export default function App() {
   const [joinCode, setJoinCode] = useState("");
   const [createCustomName, setCreateCustomName] = useState("");
   const [isJoining, setIsJoining] = useState(false);
+  const [isNewRoom, setIsNewRoom] = useState(false);
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -269,10 +270,12 @@ export default function App() {
             if (!target) {
               target = nanoid(6).toUpperCase();
             }
+            setIsNewRoom(true);
             navigateToRoom(target);
           }}
           onJoin={() => {
             if (joinCode.trim()) {
+              setIsNewRoom(false);
               navigateToRoom(joinCode);
             }
           }}
@@ -294,6 +297,7 @@ export default function App() {
         onEnter={() => setIsEntered(true)}
         isFullscreen={isFullscreen}
         toggleFullscreen={toggleFullscreen}
+        isNewRoom={isNewRoom}
       />
     </>
   );
@@ -569,7 +573,7 @@ export function LandingPage({
   );
 }
 
-function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullscreen, toggleFullscreen }: {
+function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullscreen, toggleFullscreen, isNewRoom }: {
   roomId: string;
   username: string;
   setUsername: (v: string) => void;
@@ -577,9 +581,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   onEnter: () => void;
   isFullscreen: boolean;
   toggleFullscreen: () => void;
+  isNewRoom: boolean;
 }) {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(true);
+  const [showTemplateModal, setShowTemplateModal] = useState(isNewRoom);
+  
+  const [roomSettings, _setRoomSettings] = useState({ backgroundColor: "#FFFFFF", aspectRatio: "auto" });
+  const roomSettingsRef = useRef({ backgroundColor: "#FFFFFF", aspectRatio: "auto" });
+  const resizeCanvasRef = useRef<(() => void) | null>(null);
+
+  const setRoomSettings = (settings: { backgroundColor: string, aspectRatio: string }) => {
+    _setRoomSettings(settings);
+    roomSettingsRef.current = settings;
+    if (resizeCanvasRef.current) resizeCanvasRef.current();
+  };
 
   const [localRoomInput, setLocalRoomInput] = useState(roomId);
   useEffect(() => {
@@ -968,8 +984,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     masterCtx.save();
     masterCtx.clearRect(0, 0, masterCanvas.width, masterCanvas.height);
 
-    // Draw base white background first
-    masterCtx.fillStyle = "#FFFFFF";
+    // Draw base background first
+    masterCtx.fillStyle = roomSettingsRef.current.backgroundColor;
     masterCtx.fillRect(0, 0, masterCanvas.width, masterCanvas.height);
 
     // Render layers from bottom (end of array) to top (start of array)
@@ -1033,7 +1049,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = "#FFFFFF";
+        ctx.fillStyle = roomSettingsRef.current.backgroundColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
     }
@@ -1503,6 +1519,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       placedTexts?: PlacedText[];
       canvasData?: string;
       chat?: ChatMessage[];
+      backgroundColor?: string;
+      aspectRatio?: string;
     }) => {
       if (data.users && Array.isArray(data.users)) {
         const userMap: Record<string, UserPresence> = {};
@@ -1521,6 +1539,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       if (data.chat && Array.isArray(data.chat) && data.chat.length > 0) {
         setChat(data.chat);
       }
+      
+      const bg = data.backgroundColor || "#FFFFFF";
+      const ar = data.aspectRatio || "auto";
+      setRoomSettings({ backgroundColor: bg, aspectRatio: ar });
+      
       if (data.placedShapes && Array.isArray(data.placedShapes) && data.placedShapes.length > 0) {
         setPlacedShapes(data.placedShapes);
         placedShapesRef.current = data.placedShapes;
@@ -1575,6 +1598,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
     s.on("clear-canvas", () => {
       resetLayersToDefault();
+    });
+
+    s.on("room-settings-updated", (data: { backgroundColor: string; aspectRatio: string }) => {
+      setRoomSettings({ backgroundColor: data.backgroundColor, aspectRatio: data.aspectRatio });
+      setTimeout(() => compositeLayers(), 50);
     });
 
     s.on("sync-placed-texts", ({ placedTexts: remotePlacedTexts }: { placedTexts: PlacedText[] }) => {
@@ -1640,8 +1668,14 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       const canvas = canvasRef.current;
       if (!container || !canvas) return;
 
-      const newWidth = container.clientWidth;
-      const newHeight = container.clientHeight;
+      let newWidth = container.clientWidth;
+      let newHeight = container.clientHeight;
+      const ar = roomSettingsRef.current.aspectRatio;
+      if (ar !== "auto") {
+        if (ar === "16:9") { newWidth = 1920; newHeight = 1080; }
+        else if (ar === "4:3") { newWidth = 1440; newHeight = 1080; }
+        else if (ar === "1:1") { newWidth = 1080; newHeight = 1080; }
+      }
 
       // 1. Resize each offscreen layer canvas
       layersRef.current.forEach((layer) => {
@@ -1686,6 +1720,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       compositeLayers();
     };
 
+    resizeCanvasRef.current = resizeCanvas;
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
@@ -3449,11 +3484,16 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           <canvas
             ref={canvasRef}
             className={cn(
-              "w-full h-full touch-none outline-none will-change-transform canvas-area",
+              "touch-none outline-none will-change-transform canvas-area shadow-2xl transition-shadow",
+              roomSettings.aspectRatio === "auto" ? "w-full h-full" : "",
               isTransitioning && "transition-transform duration-300 ease-out",
               isHandTool ? "cursor-grab active:cursor-grabbing" : "cursor-none"
             )}
             style={{
+              ...(roomSettings.aspectRatio !== "auto" ? { 
+                width: roomSettings.aspectRatio === "16:9" ? 1920 : roomSettings.aspectRatio === "4:3" ? 1440 : 1080, 
+                height: 1080, 
+              } : {}),
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
               transformOrigin: '0 0'
             }}
@@ -5222,6 +5262,88 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                 </div>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Template Settings Modal */}
+        <AnimatePresence>
+          {showTemplateModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl border border-slate-200"
+              >
+                <div className="flex flex-col gap-6">
+                  <div className="space-y-2">
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Room Template</h3>
+                    <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                      Choose your canvas settings. You can always change this later.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Background Color</label>
+                    <div className="flex flex-wrap gap-2">
+                      {["#FFFFFF", "#F8FAFC", "#F1F5F9", "#E2E8F0", "#FEF3C7", "#DCFCE7", "#E0E7FF"].map(c => (
+                        <button
+                          key={c}
+                          onClick={() => setRoomSettings({ ...roomSettingsRef.current, backgroundColor: c })}
+                          className={cn(
+                            "w-8 h-8 rounded-full border-2 transition-transform",
+                            roomSettingsRef.current.backgroundColor === c ? "border-indigo-600 scale-110" : "border-slate-200 hover:scale-105"
+                          )}
+                          style={{ backgroundColor: c }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Aspect Ratio</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: "auto", label: "Infinite (Auto)" },
+                        { id: "16:9", label: "Widescreen (16:9)" },
+                        { id: "4:3", label: "Standard (4:3)" },
+                        { id: "1:1", label: "Square (1:1)" }
+                      ].map(ar => (
+                        <button
+                          key={ar.id}
+                          onClick={() => setRoomSettings({ ...roomSettingsRef.current, aspectRatio: ar.id })}
+                          className={cn(
+                            "py-3 px-4 rounded-xl text-xs font-bold transition-all border",
+                            roomSettingsRef.current.aspectRatio === ar.id 
+                              ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
+                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                          )}
+                        >
+                          {ar.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      vibrate([20]);
+                      setShowTemplateModal(false);
+                      if (socket && roomId) {
+                        socket.emit("update-room-settings", { 
+                          roomId, 
+                          backgroundColor: roomSettingsRef.current.backgroundColor, 
+                          aspectRatio: roomSettingsRef.current.aspectRatio 
+                        });
+                      }
+                    }}
+                    className="w-full mt-2 py-4 px-6 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-200 active:scale-95 text-sm"
+                  >
+                    Start Drawing
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 

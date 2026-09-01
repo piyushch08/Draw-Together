@@ -32,6 +32,8 @@ interface RoomData {
   chat: ChatMessage[];
   layers?: any[];
   activeLayerId?: string;
+  backgroundColor?: string;
+  aspectRatio?: string;
 }
 
 async function startServer() {
@@ -123,7 +125,9 @@ async function startServer() {
         canvasData: room.canvasData,
         chat: room.chat.slice(-50),
         layers: room.layers,
-        activeLayerId: room.activeLayerId
+        activeLayerId: room.activeLayerId,
+        backgroundColor: room.backgroundColor || "#FFFFFF",
+        aspectRatio: room.aspectRatio || "auto"
       });
 
       // Broadcast new user arrival to existing peers in the room
@@ -274,6 +278,17 @@ async function startServer() {
         room.lastActivity = Date.now();
       }
       io.to(roomId).emit("clear-canvas");
+    });
+
+    // Room settings synchronization
+    socket.on("update-room-settings", (data: { roomId: string; backgroundColor: string; aspectRatio: string }) => {
+      if (!data?.roomId) return;
+      const room = getOrCreateRoom(data.roomId);
+      room.backgroundColor = data.backgroundColor;
+      room.aspectRatio = data.aspectRatio;
+      room.lastActivity = Date.now();
+      // Broadcast to everyone including the sender
+      io.to(data.roomId).emit("room-settings-updated", data);
     });
 
     // Disconnection & cleanup
