@@ -3730,9 +3730,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                   </button>
                 </Tooltip>
 
-                <Tooltip label="Reset (Click for 100%)" side="top">
+                <Tooltip label="Reset (Fit to Screen)" side="top">
                   <button
-                    onClick={() => { setTransformSmooth({ x: 0, y: 0, scale: 1 }); vibrate(15); }}
+                    onClick={() => { fitToScreen(); vibrate(15); }}
                     className={cn(
                       "px-2 py-1 text-[9px] font-black rounded-lg transition-all tabular-nums min-w-[40px] text-center uppercase tracking-tighter",
                       isTransformModified ? "text-indigo-600 bg-white shadow-sm ring-1 ring-indigo-100" : "text-slate-400"
@@ -3758,7 +3758,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
                 <Tooltip label="Fit Canvas (Reset View)" side="top">
                   <button
-                    onClick={() => { setTransformSmooth({ x: 0, y: 0, scale: 1 }); vibrate(15); }}
+                    onClick={() => { fitToScreen(); vibrate(15); }}
                     className={cn(
                       "p-2 rounded-lg transition-all active:scale-90",
                       !isTransformModified ? "text-slate-300 pointer-events-none" : "text-slate-500 hover:text-indigo-600 hover:bg-white"
