@@ -587,14 +587,33 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [showTemplateModal, setShowTemplateModal] = useState(isNewRoom);
   
-  const [roomSettings, _setRoomSettings] = useState({ backgroundColor: "#FFFFFF", aspectRatio: "auto" });
-  const roomSettingsRef = useRef({ backgroundColor: "#FFFFFF", aspectRatio: "auto" });
+  const [roomSettings, _setRoomSettings] = useState({ backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
+  const roomSettingsRef = useRef({ backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
   const resizeCanvasRef = useRef<(() => void) | null>(null);
 
   const setRoomSettings = (settings: { backgroundColor: string, aspectRatio: string }) => {
     _setRoomSettings(settings);
     roomSettingsRef.current = settings;
     if (resizeCanvasRef.current) resizeCanvasRef.current();
+  };
+
+  const fitToScreen = () => {
+    const container = containerRef.current;
+    if (!container) return;
+    const { clientWidth, clientHeight } = container;
+    
+    let boardW = 1920; let boardH = 1080;
+    if (roomSettingsRef.current.aspectRatio === "4:3") { boardW = 1440; boardH = 1080; }
+    else if (roomSettingsRef.current.aspectRatio === "1:1") { boardW = 1080; boardH = 1080; }
+    
+    const scaleX = clientWidth / boardW;
+    const scaleY = clientHeight / boardH;
+    const fitScale = Math.min(scaleX, scaleY) * 0.95; // 5% padding
+    
+    const targetX = (clientWidth - boardW * fitScale) / 2;
+    const targetY = (clientHeight - boardH * fitScale) / 2;
+    
+    setTransformSmooth({ x: targetX, y: targetY, scale: fitScale });
   };
 
   const [localRoomInput, setLocalRoomInput] = useState(roomId);
@@ -1541,8 +1560,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       }
       
       const bg = data.backgroundColor || "#FFFFFF";
-      const ar = data.aspectRatio || "auto";
+      const ar = data.aspectRatio || "16:9";
       setRoomSettings({ backgroundColor: bg, aspectRatio: ar });
+      setTimeout(() => fitToScreen(), 100);
       
       if (data.placedShapes && Array.isArray(data.placedShapes) && data.placedShapes.length > 0) {
         setPlacedShapes(data.placedShapes);
@@ -1602,7 +1622,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
     s.on("room-settings-updated", (data: { backgroundColor: string; aspectRatio: string }) => {
       setRoomSettings({ backgroundColor: data.backgroundColor, aspectRatio: data.aspectRatio });
-      setTimeout(() => compositeLayers(), 50);
+      setTimeout(() => {
+        compositeLayers();
+        fitToScreen();
+      }, 50);
     });
 
     s.on("sync-placed-texts", ({ placedTexts: remotePlacedTexts }: { placedTexts: PlacedText[] }) => {
@@ -1668,14 +1691,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       const canvas = canvasRef.current;
       if (!container || !canvas) return;
 
-      let newWidth = container.clientWidth;
-      let newHeight = container.clientHeight;
+      let newWidth = 1920; 
+      let newHeight = 1080;
       const ar = roomSettingsRef.current.aspectRatio;
-      if (ar !== "auto") {
-        if (ar === "16:9") { newWidth = 1920; newHeight = 1080; }
-        else if (ar === "4:3") { newWidth = 1440; newHeight = 1080; }
-        else if (ar === "1:1") { newWidth = 1080; newHeight = 1080; }
-      }
+      if (ar === "4:3") { newWidth = 1440; newHeight = 1080; }
+      else if (ar === "1:1") { newWidth = 1080; newHeight = 1080; }
 
       // 1. Resize each offscreen layer canvas
       layersRef.current.forEach((layer) => {
@@ -3485,15 +3505,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
             ref={canvasRef}
             className={cn(
               "touch-none outline-none will-change-transform canvas-area shadow-2xl transition-shadow",
-              roomSettings.aspectRatio === "auto" ? "w-full h-full" : "",
               isTransitioning && "transition-transform duration-300 ease-out",
               isHandTool ? "cursor-grab active:cursor-grabbing" : "cursor-none"
             )}
             style={{
-              ...(roomSettings.aspectRatio !== "auto" ? { 
-                width: roomSettings.aspectRatio === "16:9" ? 1920 : roomSettings.aspectRatio === "4:3" ? 1440 : 1080, 
-                height: 1080, 
-              } : {}),
+              width: roomSettings.aspectRatio === "16:9" ? 1920 : roomSettings.aspectRatio === "4:3" ? 1440 : 1080, 
+              height: 1080, 
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
               transformOrigin: '0 0'
             }}
@@ -5302,9 +5319,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                   
                   <div className="space-y-3">
                     <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Aspect Ratio</label>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-2">
                       {[
-                        { id: "auto", label: "Infinite (Auto)" },
                         { id: "16:9", label: "Widescreen (16:9)" },
                         { id: "4:3", label: "Standard (4:3)" },
                         { id: "1:1", label: "Square (1:1)" }
@@ -5336,6 +5352,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                           aspectRatio: roomSettingsRef.current.aspectRatio 
                         });
                       }
+                      setTimeout(() => fitToScreen(), 50);
                     }}
                     className="w-full mt-2 py-4 px-6 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-200 active:scale-95 text-sm"
                   >

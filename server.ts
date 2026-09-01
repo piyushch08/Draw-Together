@@ -127,7 +127,7 @@ async function startServer() {
         layers: room.layers,
         activeLayerId: room.activeLayerId,
         backgroundColor: room.backgroundColor || "#FFFFFF",
-        aspectRatio: room.aspectRatio || "auto"
+        aspectRatio: room.aspectRatio || "16:9"
       });
 
       // Broadcast new user arrival to existing peers in the room
