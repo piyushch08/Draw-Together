@@ -991,6 +991,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         ctx.fill();
       }
       ctx.stroke();
+    } else if (s.type === "sticker" && s.emoji) {
+      // Stickers are text emojis
+      ctx.font = `${Math.min(w, h)}px Arial`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(s.emoji, 0, 0);
     }
 
     ctx.restore();

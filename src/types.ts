@@ -96,7 +96,7 @@ export interface PlacedText {
 
 export interface PlacedShape {
   id: string;
-  type: "circle" | "triangle" | "star" | "square" | "ellipse" | "hexagon" | "arrow" | "rectangle";
+  type: "circle" | "triangle" | "star" | "square" | "ellipse" | "hexagon" | "arrow" | "rectangle" | "sticker";
   x: number;
   y: number;
   width: number;
@@ -107,6 +107,7 @@ export interface PlacedShape {
   isFilled: boolean;
   fillColor: string;
   layerId: string;
+  emoji?: string;
 }
 
 
