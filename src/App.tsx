@@ -357,7 +357,7 @@ export function LandingPage({
           initial={{ opacity: 0, y: 30, scale: 0.95 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={{ duration: 0.6, type: "spring", bounce: 0.5 }}
-          className="w-full max-w-md bg-white/40 backdrop-blur-2xl border border-white/60 p-8 sm:p-10 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.15)] relative overflow-hidden"
+          className="w-full max-w-md bg-white/40 backdrop-blur-2xl border border-white/60 p-6 sm:p-10 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.15)] relative overflow-hidden"
         >
           {/* Subtle shine inside the glass card */}
           <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none"></div>
@@ -371,7 +371,7 @@ export function LandingPage({
             >
               <div className="absolute inset-0 bg-white/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></div>
               <Brush className="absolute text-white/20 w-16 h-16 transform -rotate-12 translate-x-2 -translate-y-2 pointer-events-none" style={{ transform: 'translateZ(20px)' }} />
-              <span className="font-extrabold text-5xl tracking-tighter text-logo-text select-none relative z-10">
+              <span className="font-extrabold text-4xl sm:text-5xl tracking-tighter text-logo-text select-none relative z-10">
                 Dt
               </span>
             </motion.div>
@@ -380,7 +380,7 @@ export function LandingPage({
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="text-4xl font-black tracking-tight title-interactive drop-shadow-sm"
+                className="text-3xl sm:text-4xl font-black tracking-tight title-interactive drop-shadow-sm"
               >
                 Draw Together
               </motion.h1>
@@ -3920,7 +3920,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               initial={{ x: -20, opacity: 0, scale: 0.95 }}
               animate={{ x: 0, opacity: 1, scale: 1 }}
               exit={{ x: -20, opacity: 0, scale: 0.95 }}
-              className="fixed left-4 right-4 sm:left-6 top-20 sm:top-24 bottom-32 sm:bottom-32 sm:w-80 bg-white border border-slate-200 shadow-2xl rounded-3xl sm:rounded-[2.5rem] z-40 p-6 sm:p-8 flex flex-col gap-6 sm:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
+              className="fixed left-4 right-4 sm:left-6 top-20 sm:top-24 bottom-28 sm:bottom-32 sm:w-80 bg-white border border-slate-200 shadow-2xl rounded-3xl sm:rounded-[2.5rem] z-40 p-6 sm:p-8 flex flex-col gap-6 sm:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
@@ -4856,7 +4856,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className="fixed left-4 right-4 sm:right-auto sm:left-6 top-20 sm:top-24 bottom-32 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
+              className="fixed left-4 right-4 sm:right-auto sm:left-6 top-20 sm:top-24 bottom-28 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
             >
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-3xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -5043,7 +5043,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className="fixed left-4 right-4 sm:right-auto sm:left-6 top-20 sm:top-24 bottom-32 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
+              className="fixed left-4 right-4 sm:right-auto sm:left-6 top-20 sm:top-24 bottom-28 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
             >
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-3xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -5263,7 +5263,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               initial={{ x: 20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 20, opacity: 0 }}
-              className="fixed left-4 right-4 sm:left-auto sm:right-6 top-20 sm:top-24 bottom-32 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
+              className="fixed left-4 right-4 sm:left-auto sm:right-6 top-20 sm:top-24 bottom-28 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
             >
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-3xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
