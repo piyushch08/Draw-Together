@@ -5597,8 +5597,22 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
   const [msg, setMsg] = useState("");
   const [isTypingUI, setIsTypingUI] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [activeReactionId, setActiveReactionId] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTouchStart = (msgId: string) => {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+    pressTimerRef.current = setTimeout(() => {
+      setActiveReactionId(msgId);
+      vibrate(15);
+    }, 500); // 0.5s long press
+  };
+
+  const handleTouchEnd = () => {
+    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
+  };
 
   useEffect(() => {
     if (!socket) return;
@@ -5671,6 +5685,14 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-slate-50/30 no-scrollbar relative scroll-smooth">
+        {/* Invisible backdrop to dismiss reaction picker on mobile */}
+        {activeReactionId && (
+          <div
+            className="fixed inset-0 z-20"
+            onTouchStart={() => setActiveReactionId(null)}
+            onClick={() => setActiveReactionId(null)}
+          />
+        )}
         <AnimatePresence initial={false}>
           {chat.map((c: any, i: number) => (
             <motion.div
@@ -5684,17 +5706,26 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
                 <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">{c.username}</span>
                 <span className="text-[8px] font-bold text-slate-300 tabular-nums">{c.timestamp}</span>
               </div>
-              <div className={cn(
+              <div 
+                onTouchStart={() => handleTouchStart(c.id)}
+                onTouchEnd={handleTouchEnd}
+                onTouchMove={handleTouchEnd}
+                onContextMenu={(e) => { e.preventDefault(); handleTouchStart(c.id); }}
+                className={cn(
                 "px-4 py-2.5 rounded-2xl text-[13px] font-medium shadow-sm max-w-[90%] break-words relative group mb-3 mt-0.5 transition-all border",
+                activeReactionId === c.id ? "z-30 ring-2 ring-indigo-400 ring-offset-2" : "",
                 c.username === username
                   ? "bg-indigo-600 text-white rounded-tr-none border-indigo-500 shadow-indigo-100"
                   : "bg-white text-slate-700 rounded-tl-none border-slate-200"
               )}>
                 {c.message}
 
-                {/* Reaction Picker on Hover */}
+                {/* Reaction Picker on Hover or Long Press */}
                 <div className={cn(
-                  "absolute -top-12 flex gap-1 opacity-0 group-hover:opacity-100 transition-all z-30 pointer-events-none group-hover:pointer-events-auto",
+                  "absolute -top-12 flex gap-1 transition-all z-40",
+                  activeReactionId === c.id
+                    ? "opacity-100 pointer-events-auto"
+                    : "opacity-0 pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto",
                   c.username === username ? "right-0" : "left-0"
                 )}>
                   <motion.div
@@ -5708,6 +5739,7 @@ function ChatSection({ roomId, username, socket, chat, vibrate }: any) {
                         onClick={() => {
                           socket?.emit("message-reaction", { roomId, messageId: c.id, emoji, username });
                           vibrate(5);
+                          setActiveReactionId(null);
                         }}
                         className="hover:scale-150 transition-transform text-lg active:scale-90 p-1 flex items-center justify-center rounded-lg hover:bg-slate-50"
                       >
