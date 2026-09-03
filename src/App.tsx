@@ -317,12 +317,9 @@ export function LandingPage({
   isFullscreen,
   toggleFullscreen
 }: any) {
-  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-
   return (
     <div
       className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden"
-      onMouseMove={(e) => setMousePos({ x: e.clientX, y: e.clientY })}
     >
       <button
         onClick={toggleFullscreen}
@@ -341,16 +338,12 @@ export function LandingPage({
       </div>
 
       {/* Colorful Interactive Spotlight Grid */}
-      <div
-        className="absolute inset-0 z-0 pointer-events-none transition-opacity duration-300"
-        style={{
-          backgroundImage: 'linear-gradient(rgba(139, 92, 246, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(236, 72, 153, 0.3) 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-          opacity: 1,
-          maskImage: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, black, transparent)`,
-          WebkitMaskImage: `radial-gradient(circle 400px at ${mousePos.x}px ${mousePos.y}px, black, transparent)`
-        }}
-      ></div>
+      <div className="absolute inset-0 pointer-events-none z-10 hidden sm:block" style={{
+        backgroundImage: 'linear-gradient(rgba(139, 92, 246, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(236, 72, 153, 0.3) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+        maskImage: `radial-gradient(circle 400px at 50% 50%, black, transparent)`,
+        WebkitMaskImage: `radial-gradient(circle 400px at 50% 50%, black, transparent)`
+      }}></div>
 
       <div className="flex-1 flex items-center justify-center w-full z-10 mt-8 sm:mt-12">
         <motion.div
@@ -803,14 +796,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const [exportName, setExportName] = useState("my-artwork");
   const [copied, setCopied] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [currentTime, setCurrentTime] = useState(Date.now());
 
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingQueue = useRef<DrawingData[]>([]);
@@ -1356,7 +1342,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const lastCursorEmitTime = useRef(0);
   const emitCursorUpdateThrottled = (x?: number, y?: number, drawingOverride?: boolean) => {
     const now = Date.now();
-    if (now - lastCursorEmitTime.current < 12 && drawingOverride === undefined) return; // ~80fps for ultra-smooth cursor sharing
+    if (now - lastCursorEmitTime.current < 33 && drawingOverride === undefined) return; // Throttled to ~30fps for smooth cursor sharing with less latency
     lastCursorEmitTime.current = now;
     emitCursorUpdate(x, y, drawingOverride);
   };
@@ -1491,52 +1477,81 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         return msg;
       }));
     });
+    let pendingCursorUpdates: Record<string, CursorUpdate> = {};
+    let cursorFlushTimeout: ReturnType<typeof setTimeout> | null = null;
+    let lastCursorFlush = 0;
+
+    const flushCursorUpdates = () => {
+      lastCursorFlush = Date.now();
+      const updates = { ...pendingCursorUpdates };
+      pendingCursorUpdates = {};
+      
+      if (Object.keys(updates).length > 0) {
+        setUsers(prev => {
+          const next = { ...prev };
+          let changed = false;
+          
+          for (const userId in updates) {
+            const data = updates[userId];
+            const prevUser = prev[userId];
+            const prevX = prevUser?.cursorX;
+            const prevY = prevUser?.cursorY;
+            let trail = prevUser?.trail || [];
+            
+            if (prevX !== undefined && prevY !== undefined && data.x !== undefined && data.y !== undefined) {
+              const dx = data.x - prevX;
+              const dy = data.y - prevY;
+              const dist = Math.hypot(dx, dy);
+
+              if (dist > 15) {
+                const numSteps = Math.min(Math.floor(dist / 15), 4);
+                const newPoints = [];
+                for (let i = 1; i <= numSteps; i++) {
+                  const ratio = i / (numSteps + 1);
+                  const ix = prevX + dx * ratio;
+                  const iy = prevY + dy * ratio;
+                  newPoints.push({
+                    x: ix,
+                    y: iy,
+                    timestamp: Date.now() - (1 - ratio) * 50,
+                    id: `${data.userId}-${Date.now()}-${i}-${Math.random()}`,
+                    size: Math.max(2.5, Math.min(dist / 8, 10))
+                  });
+                }
+                trail = [...newPoints, ...trail].slice(0, 15);
+              }
+            }
+            
+            next[userId] = {
+              ...(prevUser || { id: data.userId, username: "..." }),
+              cursorX: data.x,
+              cursorY: data.y,
+              tool: data.tool,
+              color: data.color,
+              isDrawing: data.isDrawing,
+              trail,
+              lastActiveAt: Date.now()
+            };
+            changed = true;
+          }
+          return changed ? next : prev;
+        });
+      }
+    };
 
     s.on("cursor-move", (data: CursorUpdate) => {
-      setUsers(prev => {
-        const prevUser = prev[data.userId];
-        const prevX = prevUser?.cursorX;
-        const prevY = prevUser?.cursorY;
-        let trail = prevUser?.trail || [];
-
-        if (prevX !== undefined && prevY !== undefined && data.x !== undefined && data.y !== undefined) {
-          const dx = data.x - prevX;
-          const dy = data.y - prevY;
-          const dist = Math.hypot(dx, dy);
-
-          if (dist > 15) {
-            const numSteps = Math.min(Math.floor(dist / 15), 4);
-            const newPoints = [];
-            for (let i = 1; i <= numSteps; i++) {
-              const ratio = i / (numSteps + 1);
-              const ix = prevX + dx * ratio;
-              const iy = prevY + dy * ratio;
-              newPoints.push({
-                x: ix,
-                y: iy,
-                timestamp: Date.now() - (1 - ratio) * 50,
-                id: `${data.userId}-${Date.now()}-${i}-${Math.random()}`,
-                size: Math.max(2.5, Math.min(dist / 8, 10))
-              });
-            }
-            trail = [...newPoints, ...trail].slice(0, 15);
-          }
-        }
-
-        return {
-          ...prev,
-          [data.userId]: {
-            ...(prevUser || { id: data.userId, username: "..." }),
-            cursorX: data.x,
-            cursorY: data.y,
-            tool: data.tool,
-            color: data.color,
-            isDrawing: data.isDrawing,
-            trail,
-            lastActiveAt: Date.now()
-          }
-        };
-      });
+      pendingCursorUpdates[data.userId] = data;
+      const now = Date.now();
+      
+      if (now - lastCursorFlush > 45) { // Throttled to max ~22fps state updates
+        if (cursorFlushTimeout) clearTimeout(cursorFlushTimeout);
+        flushCursorUpdates();
+      } else if (!cursorFlushTimeout) {
+        cursorFlushTimeout = setTimeout(() => {
+          cursorFlushTimeout = null;
+          flushCursorUpdates();
+        }, 45 - (now - lastCursorFlush));
+      }
     });
 
     s.on("init-room-state", (data: {
@@ -3978,7 +3993,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                 <div className="flex items-center gap-2">
                   <div className="flex -space-x-1 flex-1">
                     {(Object.values(users) as UserPresence[]).slice(0, 5).map((u, i) => {
-                      const isIdle = currentTime - (u.lastActiveAt || 0) > 60000;
+                      const isIdle = Date.now() - (u.lastActiveAt || 0) > 60000;
                       let indicatorColor = "bg-sky-500";
                       if (u.isDrawing) indicatorColor = "bg-green-500 animate-pulse";
                       else if (isIdle) indicatorColor = "bg-amber-500";
