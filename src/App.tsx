@@ -1331,6 +1331,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   };
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Prevent default scroll actions on mobile aggressively to avoid drawing delay
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const preventScroll = (e: TouchEvent) => e.preventDefault();
+    canvas.addEventListener('touchmove', preventScroll, { passive: false });
+    return () => canvas.removeEventListener('touchmove', preventScroll);
+  }, []);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const vibrate = (pattern: number | number[] = 10) => {
@@ -2584,7 +2593,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     let x = rawX;
     let y = rawY;
 
-    if (isSmoothingEnabled) {
+    const isTouchInput = e.identifier !== undefined || e.pointerType === "touch";
+    if (isSmoothingEnabled && !isTouchInput) {
       // Enhanced exponential lerp: use higher precision lerp for responsiveness
       // Factor is 1 - smoothing (e.g. 0.9 smoothing means 0.1 factor per update)
       const factor = Math.max(0.01, 1 - smoothing);
