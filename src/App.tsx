@@ -2524,13 +2524,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
             return sh;
           });
 
-          setPlacedShapes(nextShapes);
+          // Do not update React state on every mouse move to avoid re-renders (latency)
           placedShapesRef.current = nextShapes;
-          setShapeWidth(Math.round(newWidth));
-          setShapeHeight(Math.round(newHeight));
 
-          socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
-          setTimeout(() => compositeLayers(), 5);
+          requestAnimationFrame(() => compositeLayers());
         }
       } else if (drawingState.current.isDraggingShape && drawingState.current.dragShapeId) {
         // Drag-move shape
@@ -2549,10 +2546,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           }
           return s;
         });
-        setPlacedShapes(nextShapes);
         placedShapesRef.current = nextShapes;
-        socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
-        setTimeout(() => compositeLayers(), 5);
+        requestAnimationFrame(() => compositeLayers());
       } else if (drawingState.current.isCreatingShape && drawingState.current.dragShapeId) {
         // Drag-resize shape during creation
         const startX = drawingState.current.dragStartX;
@@ -2575,13 +2570,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           }
           return s;
         });
-        setPlacedShapes(nextShapes);
         placedShapesRef.current = nextShapes;
-        setShapeWidth(Math.round(width));
-        setShapeHeight(Math.round(height));
-
-        socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
-        setTimeout(() => compositeLayers(), 5);
+        requestAnimationFrame(() => compositeLayers());
       }
       return;
     }
@@ -2669,13 +2659,16 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         }
         saveToHistory();
       } else if (drawingState.current.isDraggingShape || (drawingState.current as any).isResizingShape) {
+        // Officially update React state and emit to socket after drag/resize finishes
+        setPlacedShapes(placedShapesRef.current);
+        socket?.emit("sync-placed-shapes", { roomId, placedShapes: placedShapesRef.current });
         saveToHistory();
       }
       drawingState.current.isCreatingShape = false;
       drawingState.current.isDraggingShape = false;
       (drawingState.current as any).isResizingShape = false;
       drawingState.current.dragShapeId = null;
-      setTimeout(() => compositeLayers(), 10);
+      requestAnimationFrame(() => compositeLayers());
       return;
     }
 
@@ -3129,14 +3122,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
             return sh;
           });
 
-          setPlacedShapes(nextShapes);
           placedShapesRef.current = nextShapes;
-          setShapeRotation(Math.round(newRotation));
-          setShapeWidth(Math.round(newWidth));
-          setShapeHeight(Math.round(newHeight));
 
-          socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
-          setTimeout(() => compositeLayers(), 5);
+          requestAnimationFrame(() => compositeLayers());
           return; // Skip normal board pan/zoom gesture when shape is manipulated
         }
       }
@@ -3550,7 +3538,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               height: roomSettings.aspectRatio === "9:16" ? 1920 : 
                       roomSettings.aspectRatio === "3:4" ? 1440 : 1080, 
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-              transformOrigin: '0 0'
+              transformOrigin: '0 0',
+              touchAction: 'none'
             }}
             onMouseDown={(e) => startDrawing(e.nativeEvent)}
             onMouseMove={handleMouseMove}
