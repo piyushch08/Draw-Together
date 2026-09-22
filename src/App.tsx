@@ -800,7 +800,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawingQueue = useRef<DrawingData[]>([]);
+  const networkQueueRef = useRef<DrawingData[]>([]);
   const rafId = useRef<number | null>(null);
+  const networkIntervalId = useRef<number | null>(null);
 
   const processDrawingQueue = () => {
     if (drawingQueue.current.length > 0) {
@@ -810,18 +812,29 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       if (segments.length > 0) {
         // Use a single requestAnimationFrame batch
         segments.forEach(data => drawOnCanvas(data));
-        socket?.emit("drawing-batch", { roomId, segments });
+        networkQueueRef.current.push(...segments);
       }
     }
     rafId.current = requestAnimationFrame(processDrawingQueue);
   };
 
   useEffect(() => {
+    const processNetworkQueue = () => {
+      if (networkQueueRef.current.length > 0) {
+        const segments = [...networkQueueRef.current];
+        networkQueueRef.current = [];
+        socket?.emit("drawing-batch", { roomId, segments });
+      }
+    };
+
     rafId.current = requestAnimationFrame(processDrawingQueue);
+    networkIntervalId.current = window.setInterval(processNetworkQueue, 50); // ~20fps broadcast
+    
     return () => {
       if (rafId.current) cancelAnimationFrame(rafId.current);
+      if (networkIntervalId.current) clearInterval(networkIntervalId.current);
     };
-  }, [socket]);
+  }, [socket, roomId]);
 
   // --- LAYER TYPES & HELPERS ---
   interface LayerHistoryState {
@@ -1797,10 +1810,30 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       const nextShapes = shapes.filter(s => {
         if (s.layerId !== targetLayerId) return true;
 
-        // Continuous collision detection: test 7 intermediate points along the eraser stroke segment
-        const steps = 7;
         const pX = data.prevX ?? data.x;
         const pY = data.prevY ?? data.y;
+
+        // Coarse AABB (Axis-Aligned Bounding Box) Pre-Check
+        // 1. Get bounding box of eraser stroke segment
+        const minX = Math.min(pX, data.x) - eraserRadius;
+        const maxX = Math.max(pX, data.x) + eraserRadius;
+        const minY = Math.min(pY, data.y) - eraserRadius;
+        const maxY = Math.max(pY, data.y) + eraserRadius;
+
+        // 2. Get rough bounding box of the shape (incorporating max possible rotation bounding box)
+        const shapeRadius = Math.sqrt((s.width / 2) ** 2 + (s.height / 2) ** 2);
+        const sMinX = s.x - shapeRadius;
+        const sMaxX = s.x + shapeRadius;
+        const sMinY = s.y - shapeRadius;
+        const sMaxY = s.y + shapeRadius;
+
+        // 3. Skip heavy step math if completely outside bounds!
+        if (maxX < sMinX || minX > sMaxX || maxY < sMinY || minY > sMaxY) {
+          return true; // Keep shape
+        }
+
+        // Continuous collision detection: test 7 intermediate points along the eraser stroke segment
+        const steps = 7;
 
         for (let i = 0; i <= steps; i++) {
           const t = i / steps;
