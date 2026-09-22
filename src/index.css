@@ -20,6 +20,12 @@
   --color-slate-900: #0f172a;
 }
 
+html, body {
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;

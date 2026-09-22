@@ -64,7 +64,8 @@ import {
   Linkedin,
   MessageCircleHeart,
   Minimize,
-  Grid
+  Grid,
+  Instagram
 } from "lucide-react";
 import { cn } from "./lib/utils";
 import logo from "./assets/logo.jpg";
@@ -536,28 +537,37 @@ export function LandingPage({
         </div>
 
         {/* Footer Links & Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between text-slate-500 dark:text-slate-400 text-xs px-2 gap-4 mt-2 border-t border-slate-200/50 dark:border-slate-700/50 pt-6">
-          <p className="font-medium">
-            &copy; {new Date().getFullYear()} Piyush Chauhan. All rights reserved.
+        <div className="flex flex-col sm:flex-row items-center justify-between text-slate-500 dark:text-slate-400 text-xs px-4 gap-6 mt-4 border-t border-slate-200/50 dark:border-slate-700/50 pt-8 pb-4">
+          <p className="font-semibold text-slate-600 dark:text-slate-300">
+            &copy; {new Date().getFullYear()} <span className="text-indigo-500 font-bold">Piyush Chauhan</span>. All rights reserved.
           </p>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-6">
             <a
               href="https://github.com/piyushch08"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-white transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white transition-all hover:scale-105 active:scale-95"
             >
-              <Github size={14} />
-              <span className="font-semibold">GitHub</span>
+              <Github size={16} />
+              <span className="font-bold">GitHub</span>
             </a>
             <a
               href="https://www.linkedin.com/in/piyush-chauhan-353822385/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all hover:scale-105 active:scale-95"
             >
-              <Linkedin size={14} />
-              <span className="font-semibold">LinkedIn</span>
+              <Linkedin size={16} />
+              <span className="font-bold">LinkedIn</span>
+            </a>
+            <a
+              href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-pink-50 dark:hover:bg-pink-900/30 hover:text-pink-600 dark:hover:text-pink-400 transition-all hover:scale-105 active:scale-95"
+            >
+              <Instagram size={16} />
+              <span className="font-bold">Instagram</span>
             </a>
           </div>
         </div>
@@ -828,7 +838,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     };
 
     rafId.current = requestAnimationFrame(processDrawingQueue);
-    networkIntervalId.current = window.setInterval(processNetworkQueue, 50); // ~20fps broadcast
+    networkIntervalId.current = window.setInterval(processNetworkQueue, 16); // ~60fps smooth broadcast for near-zero latency
     
     return () => {
       if (rafId.current) cancelAnimationFrame(rafId.current);
@@ -1364,7 +1374,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const lastCursorEmitTime = useRef(0);
   const emitCursorUpdateThrottled = (x?: number, y?: number, drawingOverride?: boolean) => {
     const now = Date.now();
-    if (now - lastCursorEmitTime.current < 33 && drawingOverride === undefined) return; // Throttled to ~30fps for smooth cursor sharing with less latency
+    if (now - lastCursorEmitTime.current < 16 && drawingOverride === undefined) return; // 60fps cursor sync for near-zero latency
     lastCursorEmitTime.current = now;
     emitCursorUpdate(x, y, drawingOverride);
   };
@@ -1458,7 +1468,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   }, [isHandTool]);
 
   useEffect(() => {
-    const s = io();
+    // Force WebSocket transport immediately to skip long-polling handshake latency
+    const s = io({ transports: ["websocket"], upgrade: false });
     setSocket(s);
 
     s.emit("join-room", { roomId, username });
@@ -5594,16 +5605,20 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       </div>
 
       {/* Footer status bar */}
-      <footer className="h-8 bg-slate-900 flex items-center px-6 justify-between text-white shrink-0">
+      <footer className="h-10 sm:h-8 bg-slate-900 flex flex-col sm:flex-row items-center px-6 justify-center sm:justify-between text-white shrink-0 gap-1 sm:gap-0 z-50 relative pb-safe">
         <div className="flex items-center gap-4 text-[9px] font-medium tracking-wide uppercase opacity-70">
           <span className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div> Connected
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></div> Connected
           </span>
-          <span className="hidden sm:inline">Latency: 12ms</span>
-          <span className="hidden sm:inline">Canvas: Optimized</span>
+          <span className="hidden sm:inline">Latency: Optimized</span>
+          <span className="hidden sm:inline">Canvas: High-Perf</span>
         </div>
-        <div className="text-[9px] opacity-50 font-medium tracking-widest uppercase">
-          Draw Together &copy; 2024 • Real-time Collaboration
+        <div className="flex items-center gap-3 text-[9px] opacity-70 font-medium tracking-widest uppercase">
+          <span>&copy; {new Date().getFullYear()} Piyush Chauhan</span>
+          <span className="opacity-40">•</span>
+          <a href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-pink-400 transition-colors">
+            <Instagram size={10} /> Instagram
+          </a>
         </div>
       </footer>
     </div>
