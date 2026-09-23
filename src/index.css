@@ -158,6 +158,20 @@ html {
   background-size: 20px 20px;
 }
 
+/* GPU-accelerated canvas rendering */
+canvas {
+  will-change: contents;
+  image-rendering: -webkit-optimize-contrast;
+  contain: strict;
+}
+
+/* Promote transform containers to their own compositing layer */
+[style*="transform"] {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
 /* Minimalist Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
