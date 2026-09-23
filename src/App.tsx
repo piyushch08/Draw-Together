@@ -838,7 +838,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     };
 
     rafId.current = requestAnimationFrame(processDrawingQueue);
-    networkIntervalId.current = window.setInterval(processNetworkQueue, 16); // ~60fps smooth broadcast for near-zero latency
+    networkIntervalId.current = window.setInterval(processNetworkQueue, 33); // ~30fps smooth broadcast (prevents mobile bufferbloat)
     
     return () => {
       if (rafId.current) cancelAnimationFrame(rafId.current);
@@ -1374,7 +1374,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const lastCursorEmitTime = useRef(0);
   const emitCursorUpdateThrottled = (x?: number, y?: number, drawingOverride?: boolean) => {
     const now = Date.now();
-    if (now - lastCursorEmitTime.current < 16 && drawingOverride === undefined) return; // 60fps cursor sync for near-zero latency
+    if (now - lastCursorEmitTime.current < 33 && drawingOverride === undefined) return; // 30fps cursor sync prevents mobile disconnects
     lastCursorEmitTime.current = now;
     emitCursorUpdate(x, y, drawingOverride);
   };
@@ -1468,8 +1468,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   }, [isHandTool]);
 
   useEffect(() => {
-    // Force WebSocket transport immediately to skip long-polling handshake latency
-    const s = io({ transports: ["websocket"], upgrade: false });
+    const s = io();
     setSocket(s);
 
     s.emit("join-room", { roomId, username });
