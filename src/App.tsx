@@ -537,11 +537,11 @@ export function LandingPage({
         </div>
 
         {/* Footer Links & Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between px-8 py-6 mt-12 border-t border-slate-100 dark:border-slate-800/50">
-          <p className="text-sm text-slate-500 dark:text-slate-400 tracking-wide font-medium">
-            &copy; {new Date().getFullYear()} <span className="text-slate-800 dark:text-slate-200 font-semibold">Piyush Chauhan</span>
+        <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-8 py-6 mt-12 border-t border-slate-100 dark:border-slate-800/50 gap-6 sm:gap-4">
+          <p className="text-sm text-slate-500 dark:text-slate-400 tracking-wide font-medium text-center sm:text-left leading-relaxed">
+            &copy; 2026 <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent drop-shadow-sm">Piyush Chauhan</span>. All rights reserved. <br className="sm:hidden" />Built with love and passion.
           </p>
-          <div className="flex items-center gap-6 mt-4 sm:mt-0">
+          <div className="flex items-center gap-6 mt-2 sm:mt-0">
             <a
               href="https://github.com/piyushch08"
               target="_blank"
@@ -5618,16 +5618,17 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       </div>
 
       {/* Footer status bar */}
-      <footer className="h-10 bg-transparent flex items-center px-4 sm:px-6 justify-between text-slate-500 shrink-0 z-50 relative pb-safe border-t border-slate-100">
+      <footer className="min-h-[40px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex flex-wrap items-center px-4 sm:px-6 justify-between text-slate-500 dark:text-slate-400 shrink-0 z-50 relative pb-safe border-t border-slate-200 dark:border-slate-800 py-2 sm:py-0 gap-y-2">
         <div className="flex items-center gap-3 text-[10px] font-medium tracking-wide">
           <span className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.4)]"></div>
             <span className="opacity-80">Connected</span>
           </span>
         </div>
-        <div className="flex items-center gap-4 text-[10px] opacity-80 font-medium tracking-wide">
-          <span className="hidden sm:inline">&copy; {new Date().getFullYear()} Piyush Chauhan</span>
-          <a href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+        <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4 text-[10px] font-medium tracking-wide">
+          <span className="hidden md:inline">&copy; 2026 <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">Piyush Chauhan</span>. All rights reserved. Built with love and passion.</span>
+          <span className="inline md:hidden">&copy; 2026 <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">Piyush Chauhan</span></span>
+          <a href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-slate-400 hover:text-pink-600 dark:hover:text-pink-400 transition-colors">
             <Instagram size={12} strokeWidth={2} />
             <span className="hidden sm:inline">Instagram</span>
           </a>
