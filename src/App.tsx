@@ -537,37 +537,37 @@ export function LandingPage({
         </div>
 
         {/* Footer Links & Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between text-slate-600 dark:text-slate-300 text-sm px-6 gap-6 mt-6 border-t border-slate-300/60 dark:border-slate-600/60 pt-8 pb-6 bg-gradient-to-t from-slate-100/80 dark:from-slate-800/40 to-transparent">
-          <p className="text-base font-bold text-slate-700 dark:text-slate-200 tracking-tight">
-            &copy; {new Date().getFullYear()} <span className="text-indigo-600 dark:text-indigo-400 font-extrabold">Piyush Chauhan</span>. All rights reserved.
+        <div className="flex flex-col sm:flex-row items-center justify-between px-8 py-6 mt-12 border-t border-slate-100 dark:border-slate-800/50">
+          <p className="text-sm text-slate-500 dark:text-slate-400 tracking-wide font-medium">
+            &copy; {new Date().getFullYear()} <span className="text-slate-800 dark:text-slate-200 font-semibold">Piyush Chauhan</span>
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6 mt-4 sm:mt-0">
             <a
               href="https://github.com/piyushch08"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-900 hover:text-white dark:hover:bg-white dark:hover:text-slate-900 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              className="text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors duration-300 hover:scale-110 active:scale-95"
+              aria-label="GitHub"
             >
-              <Github size={18} />
-              <span className="font-bold text-sm">GitHub</span>
+              <Github size={20} strokeWidth={1.5} />
             </a>
             <a
               href="https://www.linkedin.com/in/piyush-chauhan-353822385/"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-500 dark:hover:text-white transition-all hover:scale-105 active:scale-95 shadow-sm"
+              className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 hover:scale-110 active:scale-95"
+              aria-label="LinkedIn"
             >
-              <Linkedin size={18} />
-              <span className="font-bold text-sm">LinkedIn</span>
+              <Linkedin size={20} strokeWidth={1.5} />
             </a>
             <a
               href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-pink-50 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 hover:bg-gradient-to-r hover:from-pink-500 hover:to-orange-400 hover:text-white dark:hover:from-pink-500 dark:hover:to-orange-400 transition-all hover:scale-105 active:scale-95 shadow-sm"
+              className="text-slate-400 hover:text-pink-600 dark:hover:text-pink-400 transition-colors duration-300 hover:scale-110 active:scale-95"
+              aria-label="Instagram"
             >
-              <Instagram size={18} />
-              <span className="font-bold text-sm">Instagram</span>
+              <Instagram size={20} strokeWidth={1.5} />
             </a>
           </div>
         </div>
@@ -5618,19 +5618,18 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       </div>
 
       {/* Footer status bar */}
-      <footer className="h-12 sm:h-10 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 flex flex-col sm:flex-row items-center px-6 justify-center sm:justify-between text-white shrink-0 gap-1.5 sm:gap-0 z-50 relative pb-safe border-t border-slate-700/50">
-        <div className="flex items-center gap-4 text-[11px] font-semibold tracking-wide uppercase opacity-90">
+      <footer className="h-10 bg-transparent flex items-center px-4 sm:px-6 justify-between text-slate-500 shrink-0 z-50 relative pb-safe border-t border-slate-100">
+        <div className="flex items-center gap-3 text-[10px] font-medium tracking-wide">
           <span className="flex items-center gap-1.5">
-            <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_6px_rgba(52,211,153,0.6)]"></div> Connected
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.4)]"></div>
+            <span className="opacity-80">Connected</span>
           </span>
-          <span className="hidden sm:inline text-emerald-300/80">Latency: Optimized</span>
-          <span className="hidden sm:inline text-sky-300/80">Canvas: High-Perf</span>
         </div>
-        <div className="flex items-center gap-3 text-[11px] opacity-90 font-semibold tracking-wider uppercase">
-          <span className="text-slate-300">&copy; {new Date().getFullYear()} <span className="text-indigo-400 font-bold">Piyush Chauhan</span></span>
-          <span className="text-slate-500">•</span>
-          <a href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-pink-400/90 hover:text-pink-300 transition-colors hover:scale-105 active:scale-95">
-            <Instagram size={12} /> Instagram
+        <div className="flex items-center gap-4 text-[10px] opacity-80 font-medium tracking-wide">
+          <span className="hidden sm:inline">&copy; {new Date().getFullYear()} Piyush Chauhan</span>
+          <a href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-slate-800 transition-colors">
+            <Instagram size={12} strokeWidth={2} />
+            <span className="hidden sm:inline">Instagram</span>
           </a>
         </div>
       </footer>
