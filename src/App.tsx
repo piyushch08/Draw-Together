@@ -1048,6 +1048,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const [isHandTool, setIsHandTool] = useState(false);
   const [textValue, setTextValue] = useState("AI Studio");
   const [stampEmoji, setStampEmoji] = useState("✨");
+  const [stampSize, setStampSize] = useState(80);
+  const [textSize, setTextSize] = useState(28);
   const [textRotation, setTextRotation] = useState(0);
   const [fontFamily, setFontFamily] = useState("sans-serif");
   const [isBold, setIsBold] = useState(true);
@@ -2573,6 +2575,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         setSelectedShapeIds([matchedSticker.id]);
         selectedShapeIdsRef.current = [matchedSticker.id];
         if (matchedSticker.emoji) setStampEmoji(matchedSticker.emoji);
+        setStampSize(Math.round(matchedSticker.width));
 
         // Setup drag-move
         drawingState.current.isDraggingShape = true;
@@ -2589,7 +2592,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           selectedShapeIdsRef.current = [];
         } else {
           // Tap once places the sticker!
-          const stickerSize = Math.max(50, Math.min(180, size * 7));
+          const stickerSize = stampSize || 80;
           const newStickerId = `sticker-${nanoid(6)}`;
           const newSticker: PlacedShape = {
             id: newStickerId,
@@ -2811,6 +2814,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         setTextValue(matchedText.text);
         setFontFamily(matchedText.fontFamily);
         setSize(matchedText.size);
+        setTextSize(matchedText.size);
         setColor(matchedText.color);
         setIsBold(matchedText.isBold);
         setIsItalic(matchedText.isItalic);
@@ -2842,7 +2846,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
             x,
             y,
             color,
-            size: Math.max(14, size * 2.5),
+            size: Math.max(12, textSize || size || 28),
             rotation: textRotation,
             fontFamily,
             isBold,
@@ -2937,47 +2941,66 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           let shiftX = 0;
           let shiftY = 0;
 
+          if (s.type === "sticker") {
+            const initialDist = (drawingState.current as any).dragStartDist || Math.hypot(drawingState.current.dragStartX - startCenterX, drawingState.current.dragStartY - startCenterY);
+            const currentDist = Math.hypot(x - startCenterX, y - startCenterY);
+            const scale = currentDist / Math.max(10, initialDist);
+            const newDim = Math.max(25, Math.min(600, Math.round(startWidth * scale)));
+            setStampSize(newDim);
+
+            const nextShapes = placedShapesRef.current.map(sh => {
+              if (sh.id === s.id) {
+                return {
+                  ...sh,
+                  x: startCenterX,
+                  y: startCenterY,
+                  width: newDim,
+                  height: newDim
+                };
+              }
+              return sh;
+            });
+            placedShapesRef.current = nextShapes;
+            requestAnimationFrame(() => compositeLayers());
+            return;
+          }
+
           if (corner === "br") {
-            newWidth = Math.max(15, startWidth + localDx);
-            newHeight = Math.max(15, startHeight + localDy);
-            if (s.type === "sticker") {
-              const maxDim = Math.max(newWidth, newHeight);
-              newWidth = maxDim;
-              newHeight = maxDim;
-            }
+            newWidth = Math.max(20, startWidth + localDx);
+            newHeight = Math.max(20, startHeight + localDy);
             shiftX = (newWidth - startWidth) / 2;
             shiftY = (newHeight - startHeight) / 2;
           } else if (corner === "bl") {
-            newWidth = Math.max(15, startWidth - localDx);
-            newHeight = Math.max(15, startHeight + localDy);
-            if (s.type === "sticker") {
-              const maxDim = Math.max(newWidth, newHeight);
-              newWidth = maxDim;
-              newHeight = maxDim;
-            }
+            newWidth = Math.max(20, startWidth - localDx);
+            newHeight = Math.max(20, startHeight + localDy);
             shiftX = -(newWidth - startWidth) / 2;
             shiftY = (newHeight - startHeight) / 2;
           } else if (corner === "tr") {
-            newWidth = Math.max(15, startWidth + localDx);
-            newHeight = Math.max(15, startHeight - localDy);
-            if (s.type === "sticker") {
-              const maxDim = Math.max(newWidth, newHeight);
-              newWidth = maxDim;
-              newHeight = maxDim;
-            }
+            newWidth = Math.max(20, startWidth + localDx);
+            newHeight = Math.max(20, startHeight - localDy);
             shiftX = (newWidth - startWidth) / 2;
             shiftY = -(newHeight - startHeight) / 2;
           } else if (corner === "tl") {
-            newWidth = Math.max(15, startWidth - localDx);
-            newHeight = Math.max(15, startHeight - localDy);
-            if (s.type === "sticker") {
-              const maxDim = Math.max(newWidth, newHeight);
-              newWidth = maxDim;
-              newHeight = maxDim;
-            }
+            newWidth = Math.max(20, startWidth - localDx);
+            newHeight = Math.max(20, startHeight - localDy);
             shiftX = -(newWidth - startWidth) / 2;
             shiftY = -(newHeight - startHeight) / 2;
+          } else if (corner === "r") {
+            newWidth = Math.max(20, startWidth + localDx);
+            shiftX = (newWidth - startWidth) / 2;
+          } else if (corner === "l") {
+            newWidth = Math.max(20, startWidth - localDx);
+            shiftX = -(newWidth - startWidth) / 2;
+          } else if (corner === "b") {
+            newHeight = Math.max(20, startHeight + localDy);
+            shiftY = (newHeight - startHeight) / 2;
+          } else if (corner === "t") {
+            newHeight = Math.max(20, startHeight - localDy);
+            shiftY = -(newHeight - startHeight) / 2;
           }
+
+          setShapeWidth(Math.round(newWidth));
+          setShapeHeight(Math.round(newHeight));
 
           // Convert center shift back from local to world coordinates
           const worldShiftX = shiftX * Math.cos(theta) - shiftY * Math.sin(theta);
@@ -3025,21 +3048,27 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     if (tool === "text") {
       const { x, y } = getCoordinates(e);
       if ((drawingState.current as any).isResizingText && (drawingState.current as any).dragTextId) {
-        const dx = x - drawingState.current.dragStartX;
-        const dy = y - drawingState.current.dragStartY;
-        const corner = (drawingState.current as any).resizeTextCorner;
-        const startSize = (drawingState.current as any).dragStartTextSize || 20;
-        const delta = (corner === "br" || corner === "tr") ? (dx + dy) / 4 : (-dx - dy) / 4;
-        const newSize = Math.max(8, Math.min(150, Math.round(startSize + delta)));
+        const t = placedTextsRef.current.find(text => text.id === (drawingState.current as any).dragTextId);
+        if (t) {
+          const startCenterX = (drawingState.current as any).dragStartTextX ?? t.x;
+          const startCenterY = (drawingState.current as any).dragStartTextY ?? t.y;
+          const startSize = (drawingState.current as any).dragStartTextSize || 28;
+          const initialDist = (drawingState.current as any).dragStartDist || Math.hypot(drawingState.current.dragStartX - startCenterX, drawingState.current.dragStartY - startCenterY);
+          const currentDist = Math.hypot(x - startCenterX, y - startCenterY);
+          const scale = currentDist / Math.max(10, initialDist);
+          const newSize = Math.max(10, Math.min(180, Math.round(startSize * scale)));
+          setTextSize(newSize);
+          setSize(newSize);
 
-        const nextTexts = placedTextsRef.current.map(t => {
-          if (t.id === (drawingState.current as any).dragTextId) {
-            return { ...t, size: newSize };
-          }
-          return t;
-        });
-        placedTextsRef.current = nextTexts;
-        requestAnimationFrame(() => compositeLayers());
+          const nextTexts = placedTextsRef.current.map(item => {
+            if (item.id === t.id) {
+              return { ...item, size: newSize, x: startCenterX, y: startCenterY };
+            }
+            return item;
+          });
+          placedTextsRef.current = nextTexts;
+          requestAnimationFrame(() => compositeLayers());
+        }
       } else if ((drawingState.current as any).isDraggingText && (drawingState.current as any).dragTextId) {
         const dx = x - drawingState.current.dragStartX;
         const dy = y - drawingState.current.dragStartY;
@@ -3373,7 +3402,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     vibrate(10);
   };
 
-  const startResize = (e: any, corner: "tl" | "tr" | "bl" | "br", shape: PlacedShape) => {
+  const startResize = (e: any, corner: "tl" | "tr" | "bl" | "br" | "t" | "b" | "l" | "r", shape: PlacedShape) => {
     e.preventDefault();
     e.stopPropagation();
 
@@ -3388,6 +3417,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     (drawingState.current as any).dragStartHeight = shape.height;
     (drawingState.current as any).dragStartCenterX = shape.x;
     (drawingState.current as any).dragStartCenterY = shape.y;
+    (drawingState.current as any).dragStartDist = Math.max(10, Math.hypot(coords.x - shape.x, coords.y - shape.y));
 
     vibrate(10);
   };
@@ -3406,7 +3436,94 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     (drawingState.current as any).dragStartTextSize = textItem.size;
     (drawingState.current as any).dragStartTextX = textItem.x;
     (drawingState.current as any).dragStartTextY = textItem.y;
+    (drawingState.current as any).dragStartDist = Math.max(10, Math.hypot(coords.x - textItem.x, coords.y - textItem.y));
 
+    vibrate(10);
+  };
+
+  // --- Quick Resizing Helpers for Shapes, Stickers, and Text ---
+  const resizeEditingShapeDelta = (deltaPercent: number) => {
+    if (!editingShapeId) return;
+    const s = placedShapesRef.current.find(item => item.id === editingShapeId);
+    if (!s) return;
+
+    const multiplier = 1 + deltaPercent;
+    let newWidth = Math.max(25, Math.min(600, Math.round(s.width * multiplier)));
+    let newHeight = s.type === "sticker" ? newWidth : Math.max(25, Math.min(600, Math.round(s.height * multiplier)));
+
+    if (s.type === "sticker") {
+      setStampSize(newWidth);
+    } else {
+      setShapeWidth(newWidth);
+      setShapeHeight(newHeight);
+    }
+
+    const nextShapes = placedShapesRef.current.map(item => item.id === s.id ? { ...item, width: newWidth, height: newHeight } : item);
+    placedShapesRef.current = nextShapes;
+    setPlacedShapes(nextShapes);
+    saveToHistory(undefined, nextShapes);
+    socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+    compositeLayers();
+    vibrate(8);
+  };
+
+  const resizeEditingShapePreset = (targetSize: number) => {
+    if (!editingShapeId) return;
+    const s = placedShapesRef.current.find(item => item.id === editingShapeId);
+    if (!s) return;
+
+    let newWidth = targetSize;
+    let newHeight = targetSize;
+    if (s.type !== "sticker") {
+      const ratio = s.height / Math.max(1, s.width);
+      newHeight = Math.round(targetSize * ratio);
+      setShapeWidth(newWidth);
+      setShapeHeight(newHeight);
+    } else {
+      setStampSize(newWidth);
+    }
+
+    const nextShapes = placedShapesRef.current.map(item => item.id === s.id ? { ...item, width: newWidth, height: newHeight } : item);
+    placedShapesRef.current = nextShapes;
+    setPlacedShapes(nextShapes);
+    saveToHistory(undefined, nextShapes);
+    socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+    compositeLayers();
+    vibrate(10);
+  };
+
+  const resizeEditingTextDelta = (deltaPoints: number) => {
+    if (!editingTextId) return;
+    const t = placedTextsRef.current.find(item => item.id === editingTextId);
+    if (!t) return;
+
+    const newSize = Math.max(10, Math.min(180, t.size + deltaPoints));
+    setTextSize(newSize);
+    setSize(newSize);
+
+    const nextTexts = placedTextsRef.current.map(item => item.id === t.id ? { ...item, size: newSize } : item);
+    placedTextsRef.current = nextTexts;
+    setPlacedTexts(nextTexts);
+    saveToHistory(nextTexts);
+    socket?.emit("sync-placed-texts", { roomId, placedTexts: nextTexts });
+    compositeLayers();
+    vibrate(8);
+  };
+
+  const resizeEditingTextPreset = (targetSize: number) => {
+    if (!editingTextId) return;
+    const t = placedTextsRef.current.find(item => item.id === editingTextId);
+    if (!t) return;
+
+    setTextSize(targetSize);
+    setSize(targetSize);
+
+    const nextTexts = placedTextsRef.current.map(item => item.id === t.id ? { ...item, size: targetSize } : item);
+    placedTextsRef.current = nextTexts;
+    setPlacedTexts(nextTexts);
+    saveToHistory(nextTexts);
+    socket?.emit("sync-placed-texts", { roomId, placedTexts: nextTexts });
+    compositeLayers();
     vibrate(10);
   };
 
@@ -3931,7 +4048,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               height: canvasRef.current?.height || '100%'
             }}
           >
-            {/* If editingTextId exists, draw dashed border, resize handles, and delete cross button */}
+            {/* If editingTextId exists, draw dashed border, floating resize bar, handles, and delete cross button */}
             {(() => {
               if (!editingTextId) return null;
               const t = placedTexts.find(x => x.id === editingTextId);
@@ -3962,10 +4079,77 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     transformOrigin: 'center center'
                   }}
                 >
-                  {/* Label Badge */}
-                  <div className="absolute -top-6 left-0 bg-[#7E3BED] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider flex items-center gap-1 select-none pointer-events-none">
-                    <Type size={11} />
-                    <span>Text</span>
+                  {/* Floating Quick Action & Resize Toolbar */}
+                  <div
+                    className="absolute -top-13 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900/95 text-white backdrop-blur-md px-3 py-1.5 rounded-full shadow-2xl border border-slate-700/80 pointer-events-auto select-none z-30 animate-fade-in text-xs whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-violet-300 pr-0.5">
+                      <Type size={13} />
+                      <span>Text</span>
+                    </div>
+
+                    <div className="w-px h-3.5 bg-slate-700" />
+
+                    {/* Quick Scale Down [-] */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); resizeEditingTextDelta(-4); }}
+                      title="Smaller text (-4pt)"
+                      className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
+                    >
+                      −
+                    </button>
+
+                    {/* Current Size Display */}
+                    <span className="text-[11px] font-mono font-bold text-lime-400 px-1 min-w-[34px] text-center">
+                      {t.size}pt
+                    </span>
+
+                    {/* Quick Scale Up [+] */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); resizeEditingTextDelta(4); }}
+                      title="Larger text (+4pt)"
+                      className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
+                    >
+                      +
+                    </button>
+
+                    <div className="w-px h-3.5 bg-slate-700" />
+
+                    {/* Presets: S, M, L, XL */}
+                    <div className="flex items-center gap-1">
+                      {[
+                        { label: 'S', size: 18 },
+                        { label: 'M', size: 28 },
+                        { label: 'L', size: 44 },
+                        { label: 'XL', size: 68 },
+                      ].map(p => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); resizeEditingTextPreset(p.size); }}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer",
+                            Math.abs(t.size - p.size) < 5 ? "bg-violet-600 text-white shadow-xs" : "bg-white/10 text-slate-300 hover:bg-white/20"
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="w-px h-3.5 bg-slate-700" />
+
+                    {/* Delete [✕] */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); deleteEditingText(t.id); }}
+                      title="Delete text"
+                      className="w-6 h-6 rounded-full bg-rose-500/80 hover:bg-rose-600 text-white active:scale-90 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
                   </div>
 
                   {/* Corner Delete Cross Button */}
@@ -3985,40 +4169,92 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     <X size={14} strokeWidth={2.5} />
                   </button>
 
-                  {/* Corner Resize Handles */}
+                  {/* Touch-Friendly Corner Resize Handles */}
                   <div
-                    className="absolute -top-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startTextResize(e, "tl", t)}
-                    onTouchStart={(e) => startTextResize(e, "tl", t)}
+                    className="absolute -top-4 -left-4 w-8 h-8 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startTextResize(e, "tl", t);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingText) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
                   <div
-                    className="absolute -top-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startTextResize(e, "tr", t)}
-                    onTouchStart={(e) => startTextResize(e, "tr", t)}
+                    className="absolute -top-4 -right-4 w-8 h-8 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startTextResize(e, "tr", t);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingText) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
                   <div
-                    className="absolute -bottom-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startTextResize(e, "bl", t)}
-                    onTouchStart={(e) => startTextResize(e, "bl", t)}
+                    className="absolute -bottom-4 -left-4 w-8 h-8 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startTextResize(e, "bl", t);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingText) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
                   <div
-                    className="absolute -bottom-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startTextResize(e, "br", t)}
-                    onTouchStart={(e) => startTextResize(e, "br", t)}
+                    className="absolute -bottom-4 -right-4 w-8 h-8 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startTextResize(e, "br", t);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingText) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
                 </div>
               );
             })()}
 
-            {/* If editingShapeId exists, draw dashed border, handles, and delete cross button */}
+            {/* If editingShapeId exists, draw dashed border, floating resize bar, handles, and delete cross button */}
             {(() => {
               if (!editingShapeId) return null;
               const s = placedShapes.find(x => x.id === editingShapeId);
@@ -4043,19 +4279,91 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     transformOrigin: 'center center'
                   }}
                 >
-                  {/* Label Badge */}
-                  <div className="absolute -top-6 left-0 bg-[#7E3BED] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider whitespace-nowrap pointer-events-none flex items-center gap-1 select-none">
-                    {isSticker ? (
-                      <>
-                        <Sticker size={11} />
-                        <span>Sticker {s.emoji || ''}</span>
-                      </>
-                    ) : (
-                      <>
-                        <Shapes size={11} />
-                        <span>{s.type} Shape</span>
-                      </>
-                    )}
+                  {/* Floating Quick Action & Resize Toolbar */}
+                  <div
+                    className="absolute -top-13 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-slate-900/95 text-white backdrop-blur-md px-3 py-1.5 rounded-full shadow-2xl border border-slate-700/80 pointer-events-auto select-none z-30 animate-fade-in text-xs whitespace-nowrap"
+                  >
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-violet-300 pr-0.5">
+                      {isSticker ? (
+                        <>
+                          <span className="text-sm">{s.emoji || "✨"}</span>
+                          <span>Sticker</span>
+                        </>
+                      ) : (
+                        <>
+                          <Shapes size={13} />
+                          <span className="capitalize">{s.type}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="w-px h-3.5 bg-slate-700" />
+
+                    {/* Quick Scale Down [-] */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); resizeEditingShapeDelta(-0.2); }}
+                      title="Smaller (-20%)"
+                      className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
+                    >
+                      −
+                    </button>
+
+                    {/* Current Size Display */}
+                    <span className="text-[11px] font-mono font-bold text-lime-400 px-1 min-w-[38px] text-center">
+                      {isSticker ? `${Math.round(w)}px` : `${Math.round(w)}×${Math.round(h)}`}
+                    </span>
+
+                    {/* Quick Scale Up [+] */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); resizeEditingShapeDelta(0.2); }}
+                      title="Larger (+20%)"
+                      className="w-6 h-6 rounded-full bg-white/10 hover:bg-white/25 active:scale-90 flex items-center justify-center transition-all cursor-pointer text-sm font-bold"
+                    >
+                      +
+                    </button>
+
+                    <div className="w-px h-3.5 bg-slate-700" />
+
+                    {/* Presets: S, M, L, XL */}
+                    <div className="flex items-center gap-1">
+                      {(isSticker ? [
+                        { label: 'S', size: 50 },
+                        { label: 'M', size: 80 },
+                        { label: 'L', size: 130 },
+                        { label: 'XL', size: 200 },
+                      ] : [
+                        { label: 'S', size: 60 },
+                        { label: 'M', size: 110 },
+                        { label: 'L', size: 180 },
+                        { label: 'XL', size: 260 },
+                      ]).map(p => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); resizeEditingShapePreset(p.size); }}
+                          className={cn(
+                            "px-1.5 py-0.5 rounded text-[10px] font-black transition-all cursor-pointer",
+                            Math.abs(w - p.size) < 15 ? "bg-violet-600 text-white shadow-xs" : "bg-white/10 text-slate-300 hover:bg-white/20"
+                          )}
+                        >
+                          {p.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="w-px h-3.5 bg-slate-700" />
+
+                    {/* Delete [✕] */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); deleteEditingShape(s.id); }}
+                      title="Delete"
+                      className="w-6 h-6 rounded-full bg-rose-500/80 hover:bg-rose-600 text-white active:scale-90 flex items-center justify-center transition-all cursor-pointer"
+                    >
+                      <X size={12} strokeWidth={2.5} />
+                    </button>
                   </div>
 
                   {/* Corner Delete Cross Button */}
@@ -4075,38 +4383,165 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     <X size={14} strokeWidth={2.5} />
                   </button>
 
-                  {/* Top Left Resize Handle */}
+                  {/* Touch-Friendly Corner Resize Handles */}
                   <div
-                    className="absolute -top-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startResize(e, "tl", s)}
-                    onTouchStart={(e) => startResize(e, "tl", s)}
+                    className="absolute -top-4 -left-4 w-8 h-8 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startResize(e, "tl", s);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingShape) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
-                  {/* Top Right Resize Handle */}
                   <div
-                    className="absolute -top-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startResize(e, "tr", s)}
-                    onTouchStart={(e) => startResize(e, "tr", s)}
+                    className="absolute -top-4 -right-4 w-8 h-8 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startResize(e, "tr", s);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingShape) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
-                  {/* Bottom Left Resize Handle */}
                   <div
-                    className="absolute -bottom-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startResize(e, "bl", s)}
-                    onTouchStart={(e) => startResize(e, "bl", s)}
+                    className="absolute -bottom-4 -left-4 w-8 h-8 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startResize(e, "bl", s);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingShape) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
-                  {/* Bottom Right Resize Handle */}
                   <div
-                    className="absolute -bottom-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
-                    onMouseDown={(e) => startResize(e, "br", s)}
-                    onTouchStart={(e) => startResize(e, "br", s)}
+                    className="absolute -bottom-4 -right-4 w-8 h-8 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20 touch-none"
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                      startResize(e, "br", s);
+                    }}
+                    onPointerMove={(e) => {
+                      if ((drawingState.current as any).isResizingShape) {
+                        draw(e.nativeEvent || e);
+                      }
+                    }}
+                    onPointerUp={(e) => {
+                      try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                      stopDrawing();
+                    }}
                   >
-                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                    <div className="w-4.5 h-4.5 bg-white border-2.5 border-[#7E3BED] rounded-full group-hover/handle:scale-125 group-active/handle:scale-130 transition-transform shadow-md ring-2 ring-[#7E3BED]/20" />
                   </div>
+
+                  {/* Midpoint Edge Handles for Geometric Shapes */}
+                  {!isSticker && (
+                    <>
+                      <div
+                        className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 flex items-center justify-center cursor-ns-resize pointer-events-auto group/handle z-20 touch-none"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                          startResize(e, "t", s);
+                        }}
+                        onPointerMove={(e) => {
+                          if ((drawingState.current as any).isResizingShape) draw(e.nativeEvent || e);
+                        }}
+                        onPointerUp={(e) => {
+                          try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                          stopDrawing();
+                        }}
+                      >
+                        <div className="w-3.5 h-2.5 bg-white border-2 border-[#7E3BED] rounded-md shadow-xs group-hover/handle:scale-125 transition-transform" />
+                      </div>
+                      <div
+                        className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-6 h-6 flex items-center justify-center cursor-ns-resize pointer-events-auto group/handle z-20 touch-none"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                          startResize(e, "b", s);
+                        }}
+                        onPointerMove={(e) => {
+                          if ((drawingState.current as any).isResizingShape) draw(e.nativeEvent || e);
+                        }}
+                        onPointerUp={(e) => {
+                          try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                          stopDrawing();
+                        }}
+                      >
+                        <div className="w-3.5 h-2.5 bg-white border-2 border-[#7E3BED] rounded-md shadow-xs group-hover/handle:scale-125 transition-transform" />
+                      </div>
+                      <div
+                        className="absolute -left-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center cursor-ew-resize pointer-events-auto group/handle z-20 touch-none"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                          startResize(e, "l", s);
+                        }}
+                        onPointerMove={(e) => {
+                          if ((drawingState.current as any).isResizingShape) draw(e.nativeEvent || e);
+                        }}
+                        onPointerUp={(e) => {
+                          try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                          stopDrawing();
+                        }}
+                      >
+                        <div className="w-2.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-md shadow-xs group-hover/handle:scale-125 transition-transform" />
+                      </div>
+                      <div
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center cursor-ew-resize pointer-events-auto group/handle z-20 touch-none"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch {}
+                          startResize(e, "r", s);
+                        }}
+                        onPointerMove={(e) => {
+                          if ((drawingState.current as any).isResizingShape) draw(e.nativeEvent || e);
+                        }}
+                        onPointerUp={(e) => {
+                          try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch {}
+                          stopDrawing();
+                        }}
+                      >
+                        <div className="w-2.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-md shadow-xs group-hover/handle:scale-125 transition-transform" />
+                      </div>
+                    </>
+                  )}
                 </div>
               );
             })()}
@@ -4566,6 +5001,63 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     </div>
 
                     <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Font Size</label>
+                        <span className="text-[10px] font-bold text-indigo-600 font-mono tabular-nums">{textSize}pt</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="12"
+                        max="120"
+                        value={textSize}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setTextSize(val);
+                          setSize(val);
+                          if (editingTextId) {
+                            const next = placedTextsRef.current.map(t => t.id === editingTextId ? { ...t, size: val } : t);
+                            setPlacedTexts(next);
+                            placedTextsRef.current = next;
+                            socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+                            compositeLayers();
+                          }
+                        }}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <div className="flex gap-1.5">
+                        {[
+                          { label: 'S', val: 18 },
+                          { label: 'M', val: 28 },
+                          { label: 'L', val: 44 },
+                          { label: 'XL', val: 68 }
+                        ].map(p => (
+                          <button
+                            key={p.label}
+                            onClick={() => {
+                              setTextSize(p.val);
+                              setSize(p.val);
+                              if (editingTextId) {
+                                const next = placedTextsRef.current.map(t => t.id === editingTextId ? { ...t, size: p.val } : t);
+                                setPlacedTexts(next);
+                                placedTextsRef.current = next;
+                                saveToHistory(next);
+                                socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+                                compositeLayers();
+                              }
+                              vibrate(8);
+                            }}
+                            className={cn(
+                              "flex-1 py-2 rounded-xl text-[10px] font-bold border transition-all active:scale-95",
+                              textSize === p.val ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                            )}
+                          >
+                            {p.label} ({p.val}pt)
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
                       <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Font Style</label>
                       <div className="max-h-48 overflow-y-auto no-scrollbar border border-slate-100 rounded-2xl bg-slate-50 p-1.5 space-y-1">
                         {[
@@ -4792,10 +5284,20 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                       </div>
                       <input
                         type="range"
-                        min="10"
+                        min="20"
                         max="800"
                         value={shapeWidth}
-                        onChange={(e) => setShapeWidth(parseInt(e.target.value))}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setShapeWidth(val);
+                          if (editingShapeId) {
+                            const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, width: val } : s);
+                            setPlacedShapes(next);
+                            placedShapesRef.current = next;
+                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            compositeLayers();
+                          }
+                        }}
                         className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                       />
                     </div>
@@ -4807,12 +5309,53 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                       </div>
                       <input
                         type="range"
-                        min="10"
+                        min="20"
                         max="800"
                         value={shapeHeight}
-                        onChange={(e) => setShapeHeight(parseInt(e.target.value))}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setShapeHeight(val);
+                          if (editingShapeId) {
+                            const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, height: val } : s);
+                            setPlacedShapes(next);
+                            placedShapesRef.current = next;
+                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            compositeLayers();
+                          }
+                        }}
                         className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                       />
+                      <div className="flex gap-1.5 pt-1">
+                        {[
+                          { label: 'S', size: 60 },
+                          { label: 'M', size: 110 },
+                          { label: 'L', size: 180 },
+                          { label: 'XL', size: 260 }
+                        ].map(p => (
+                          <button
+                            key={p.label}
+                            onClick={() => {
+                              setShapeWidth(p.size);
+                              setShapeHeight(p.size);
+                              if (editingShapeId) {
+                                const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, width: p.size, height: p.size } : s);
+                                setPlacedShapes(next);
+                                placedShapesRef.current = next;
+                                saveToHistory(undefined, next);
+                                socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                                compositeLayers();
+                              }
+                              vibrate(8);
+                            }}
+                            className={cn(
+                              "flex-1 py-1.5 rounded-xl text-[10px] font-bold border transition-all active:scale-95",
+                              shapeWidth === p.size && shapeHeight === p.size ? "bg-indigo-600 text-white border-indigo-600 shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                            )}
+                          >
+                            {p.label} ({p.size}px)
+                          </button>
+                        ))}
+                      </div>
                     </div>
 
                     <div className="space-y-3">
