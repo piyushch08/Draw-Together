@@ -5678,6 +5678,61 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                       />
                     </div>
 
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Sticker Size</label>
+                        <span className="text-[10px] font-bold text-[#7E3BED] font-mono tabular-nums">{stampSize}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="30"
+                        max="250"
+                        value={stampSize}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          setStampSize(val);
+                          if (editingShapeId) {
+                            const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, width: val, height: val } : s);
+                            setPlacedShapes(next);
+                            placedShapesRef.current = next;
+                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            compositeLayers();
+                          }
+                        }}
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#7E3BED]"
+                      />
+                      <div className="flex gap-1.5">
+                        {[
+                          { label: 'S', val: 50 },
+                          { label: 'M', val: 80 },
+                          { label: 'L', val: 130 },
+                          { label: 'XL', val: 200 }
+                        ].map(p => (
+                          <button
+                            key={p.label}
+                            onClick={() => {
+                              setStampSize(p.val);
+                              if (editingShapeId) {
+                                const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, width: p.val, height: p.val } : s);
+                                setPlacedShapes(next);
+                                placedShapesRef.current = next;
+                                saveToHistory(undefined, next);
+                                socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                                compositeLayers();
+                              }
+                              vibrate(8);
+                            }}
+                            className={cn(
+                              "flex-1 py-1.5 rounded-xl text-[10px] font-bold border transition-all active:scale-95",
+                              stampSize === p.val ? "bg-[#7E3BED] text-white border-[#7E3BED] shadow-sm" : "bg-white text-slate-500 border-slate-200 hover:bg-slate-50"
+                            )}
+                          >
+                            {p.label} ({p.val}px)
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
                     {editingShapeId && (
                       <div className="space-y-3 bg-[#7E3BED]/5 p-4 rounded-3xl border border-[#7E3BED]/20 flex flex-col gap-2">
                         <div className="flex items-center justify-between">
