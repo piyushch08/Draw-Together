@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, ReactNode } from "react";
 import React from "react";
 import { nanoid } from "nanoid";
 import { io, Socket } from "socket.io-client";
@@ -156,6 +156,319 @@ function Tooltip({ children, label, side = "right" }: TooltipProps) {
   );
 }
 
+interface CustomCursorProps {
+  cursorRef: React.RefObject<HTMLDivElement | null>;
+  isOverCanvas: boolean;
+  isHandTool: boolean;
+  tool: Tool;
+  size: number;
+  eraserSize: number;
+  scale: number;
+}
+
+const CustomCursor: React.FC<CustomCursorProps> = React.memo(({
+  cursorRef,
+  isOverCanvas,
+  isHandTool,
+  tool,
+  size,
+  eraserSize,
+  scale,
+}) => {
+  if (!isOverCanvas || isHandTool || (typeof window !== "undefined" && 'ontouchstart' in window)) return null;
+
+  const cursorSize = (tool === "eraser" ? eraserSize : size) * scale;
+  const icons: Record<string, React.ReactNode> = {
+    pencil: <Pencil size={12} />,
+    brush: <Brush size={12} />,
+    spray: <CloudRain size={12} />,
+    smudge: <Fingerprint size={12} />,
+    eraser: <Eraser size={12} />
+  };
+
+  return (
+    <div
+      ref={cursorRef}
+      className="fixed pointer-events-none z-[9999] flex items-center justify-center -translate-x-1/2 -translate-y-1/2 will-change-[left,top]"
+      style={{ left: -100, top: -100 }}
+    >
+      <div
+        className={cn(
+          "rounded-full border border-slate-400/50 flex items-center justify-center",
+          tool === "eraser" ? "bg-white/20" : "bg-transparent"
+        )}
+        style={{
+          width: cursorSize,
+          height: cursorSize,
+        }}
+      >
+        <div className="bg-white/90 p-0.5 rounded shadow-lg text-slate-700 flex items-center justify-center transform scale-90">
+          {icons[tool]}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+interface RemoteCursorsProps {
+  socket: Socket | null;
+  transform: { x: number; y: number; scale: number };
+  isTransitioning: boolean;
+  users: Record<string, UserPresence>;
+}
+
+const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
+  socket,
+  transform,
+  isTransitioning,
+  users,
+}) => {
+  const [remoteCursors, setRemoteCursors] = useState<Record<string, UserPresence>>({});
+  const [now, setNow] = useState(Date.now());
+  const rafRef = useRef<number | null>(null);
+  const isTickingRef = useRef(false);
+  const remoteCursorsRef = useRef<Record<string, UserPresence>>({});
+  remoteCursorsRef.current = remoteCursors;
+
+  const usersRef = useRef(users);
+  useEffect(() => {
+    usersRef.current = users;
+  }, [users]);
+
+  const TRAIL_LIFETIME = 500;
+
+  const startTickIfNeeded = useCallback(() => {
+    if (isTickingRef.current) return;
+    isTickingRef.current = true;
+
+    const tick = () => {
+      const currentNow = Date.now();
+      setNow(currentNow);
+
+      let hasActiveTrails = false;
+      const currentCursors = remoteCursorsRef.current;
+      for (const uid in currentCursors) {
+        const trail = currentCursors[uid]?.trail;
+        if (trail && trail.some(t => currentNow - t.timestamp < TRAIL_LIFETIME)) {
+          hasActiveTrails = true;
+          break;
+        }
+      }
+
+      if (hasActiveTrails) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        isTickingRef.current = false;
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+  }, []);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    let pendingUpdates: Record<string, CursorUpdate> = {};
+    let flushTimeout: ReturnType<typeof setTimeout> | null = null;
+    let lastFlush = 0;
+
+    const flushUpdates = () => {
+      lastFlush = Date.now();
+      const updates = { ...pendingUpdates };
+      pendingUpdates = {};
+
+      if (Object.keys(updates).length > 0) {
+        setRemoteCursors(prev => {
+          const next = { ...prev };
+          let changed = false;
+          let addedTrail = false;
+
+          for (const userId in updates) {
+            const data = updates[userId];
+            const prevCursor = prev[userId];
+            const userInfo = usersRef.current[userId];
+            const prevX = prevCursor?.cursorX;
+            const prevY = prevCursor?.cursorY;
+            let trail = prevCursor?.trail || [];
+
+            if (prevX !== undefined && prevY !== undefined && data.x !== undefined && data.y !== undefined) {
+              const dx = data.x - prevX;
+              const dy = data.y - prevY;
+              const dist = Math.hypot(dx, dy);
+
+              if (dist > 15) {
+                const numSteps = Math.min(Math.floor(dist / 15), 4);
+                const newPoints = [];
+                for (let i = 1; i <= numSteps; i++) {
+                  const ratio = i / (numSteps + 1);
+                  newPoints.push({
+                    x: prevX + dx * ratio,
+                    y: prevY + dy * ratio,
+                    timestamp: Date.now() - (1 - ratio) * 50,
+                    id: `${data.userId}-${Date.now()}-${i}-${Math.random()}`,
+                    size: Math.max(2.5, Math.min(dist / 8, 10))
+                  });
+                }
+                trail = [...newPoints, ...trail].slice(0, 15);
+                addedTrail = true;
+              }
+            }
+
+            next[userId] = {
+              id: data.userId,
+              username: userInfo?.username || prevCursor?.username || "Artist",
+              color: data.color || userInfo?.color || "#6366f1",
+              cursorX: data.x,
+              cursorY: data.y,
+              tool: data.tool,
+              isDrawing: data.isDrawing,
+              trail,
+              lastActiveAt: Date.now()
+            };
+            changed = true;
+          }
+
+          if (addedTrail) {
+            startTickIfNeeded();
+          }
+
+          return changed ? next : prev;
+        });
+      }
+    };
+
+    const handleCursorMove = (data: CursorUpdate) => {
+      pendingUpdates[data.userId] = data;
+      const currentNow = Date.now();
+      if (currentNow - lastFlush > 33) {
+        if (flushTimeout) clearTimeout(flushTimeout);
+        flushUpdates();
+      } else if (!flushTimeout) {
+        flushTimeout = setTimeout(() => {
+          flushTimeout = null;
+          flushUpdates();
+        }, 33 - (currentNow - lastFlush));
+      }
+    };
+
+    const handleUserLeft = ({ id }: { id: string }) => {
+      setRemoteCursors(prev => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    };
+
+    socket.on("cursor-move", handleCursorMove);
+    socket.on("user-left", handleUserLeft);
+
+    return () => {
+      socket.off("cursor-move", handleCursorMove);
+      socket.off("user-left", handleUserLeft);
+      if (flushTimeout) clearTimeout(flushTimeout);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [socket, startTickIfNeeded]);
+
+  return (
+    <div
+      className={cn(
+        "absolute inset-0 pointer-events-none z-10 overflow-hidden",
+        isTransitioning && "transition-transform duration-300 ease-out"
+      )}
+      style={{
+        transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+        transformOrigin: '0 0'
+      }}
+    >
+      {(Object.values(remoteCursors) as UserPresence[]).filter(u => u.id !== socket?.id && u.cursorX !== undefined).map(u => {
+        const activeTrail = (u.trail || []).filter(t => now - t.timestamp < TRAIL_LIFETIME);
+        return (
+          <React.Fragment key={u.id}>
+            {activeTrail.map((point) => {
+              const age = now - point.timestamp;
+              const ratio = Math.max(0, 1 - age / TRAIL_LIFETIME);
+              return (
+                <div
+                  key={point.id}
+                  className="absolute rounded-full pointer-events-none transform -translate-x-1/2 -translate-y-1/2 will-change-[width,height,opacity]"
+                  style={{
+                    left: point.x,
+                    top: point.y,
+                    width: (point.size || 5) * ratio * 1.5,
+                    height: (point.size || 5) * ratio * 1.5,
+                    backgroundColor: u.color,
+                    opacity: ratio * 0.55,
+                    boxShadow: `0 0 6px ${u.color}`,
+                  }}
+                />
+              );
+            })}
+
+            <motion.div
+              initial={false}
+              animate={{ x: u.cursorX, y: u.cursorY }}
+              transition={{ type: "spring", stiffness: 800, damping: 60, mass: 0.2 }}
+              className="absolute flex flex-col items-start gap-1"
+              style={{
+                zIndex: u.isDrawing ? 20 : 10,
+              }}
+            >
+              <div className="relative">
+                <svg
+                  width="24" height="24" viewBox="0 0 24 24" fill="none"
+                  className="drop-shadow-2xl -translate-x-[2px] -translate-y-[2px]"
+                  style={{ color: u.color }}
+                >
+                  <path
+                    d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z"
+                    fill="currentColor"
+                    stroke="white"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+
+                {u.isDrawing && (
+                  <motion.div
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 4, opacity: 0 }}
+                    transition={{ duration: 1, repeat: Infinity }}
+                    className="absolute left-0 top-0 w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2"
+                    style={{ backgroundColor: u.color }}
+                  />
+                )}
+              </div>
+
+              <div className="flex items-center gap-1.5 -translate-x-1 mt-1">
+                <motion.div
+                  animate={u.isDrawing ? { scale: [1, 1.2, 1], rotate: [-10, 10, -10] } : { scale: 1, rotate: 0 }}
+                  transition={{ repeat: Infinity, duration: 2 }}
+                  className="w-6 h-6 rounded-lg border-2 border-white shadow-xl flex items-center justify-center transition-all bg-white overflow-hidden"
+                >
+                  <div className="absolute inset-0 opacity-20" style={{ backgroundColor: u.color }} />
+                  <div className="relative">
+                    {u.tool === "pencil" && <Pencil size={12} style={{ color: u.color }} />}
+                    {u.tool === "brush" && <Brush size={12} style={{ color: u.color }} />}
+                    {u.tool === "spray" && <CloudRain size={12} style={{ color: u.color }} />}
+                    {u.tool === "smudge" && <Fingerprint size={12} style={{ color: u.color }} />}
+                    {u.tool === "eraser" && <Eraser size={12} className="text-slate-400" />}
+                  </div>
+                </motion.div>
+
+                <div className="bg-slate-900/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg whitespace-nowrap shadow-2xl border border-slate-700/50 uppercase tracking-tighter shadow-indigo-500/10">
+                  {u.username}
+                </div>
+              </div>
+            </motion.div>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+});
 
 export default function App() {
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -812,20 +1125,35 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const drawingQueue = useRef<DrawingData[]>([]);
   const networkQueueRef = useRef<DrawingData[]>([]);
   const rafId = useRef<number | null>(null);
+  const isDrawingScheduledRef = useRef(false);
   const networkIntervalId = useRef<number | null>(null);
 
+  const scheduleDrawingQueue = () => {
+    if (isDrawingScheduledRef.current) return;
+    isDrawingScheduledRef.current = true;
+    rafId.current = requestAnimationFrame(processDrawingQueue);
+  };
+
   const processDrawingQueue = () => {
+    isDrawingScheduledRef.current = false;
     if (drawingQueue.current.length > 0) {
       const segments = [...drawingQueue.current];
       drawingQueue.current = [];
 
       if (segments.length > 0) {
-        // Use a single requestAnimationFrame batch
-        segments.forEach(data => drawOnCanvas(data));
+        // Draw all segments to layer canvas without individual compositing
+        for (let i = 0; i < segments.length; i++) {
+          drawOnCanvas(segments[i], false);
+        }
+        // Composite once for the entire batch
+        compositeLayers();
         networkQueueRef.current.push(...segments);
       }
     }
-    rafId.current = requestAnimationFrame(processDrawingQueue);
+    if (drawingQueue.current.length > 0) {
+      isDrawingScheduledRef.current = true;
+      rafId.current = requestAnimationFrame(processDrawingQueue);
+    }
   };
 
   useEffect(() => {
@@ -837,7 +1165,6 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       }
     };
 
-    rafId.current = requestAnimationFrame(processDrawingQueue);
     networkIntervalId.current = window.setInterval(processNetworkQueue, 33); // ~30fps smooth broadcast (prevents mobile bufferbloat)
     
     return () => {
@@ -1071,6 +1398,16 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     masterCtx.restore();
   };
 
+  const isCompositingScheduledRef = useRef(false);
+  const scheduleCompositeLayers = () => {
+    if (isCompositingScheduledRef.current) return;
+    isCompositingScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      isCompositingScheduledRef.current = false;
+      compositeLayers();
+    });
+  };
+
   const resetLayersToDefault = () => {
     const defaultLayers = [
       { id: "default", name: "Layer 1", visible: true, opacity: 1 }
@@ -1279,7 +1616,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     };
 
     const newHistory = [...historyRef.current.slice(0, historyIndexRef.current + 1), JSON.stringify(state)];
-    if (newHistory.length > 50) {
+    if (newHistory.length > 30) {
       newHistory.shift();
     }
 
@@ -1488,11 +1825,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     s.emit("join-room", { roomId, username });
 
     s.on("drawing", (data: DrawingData) => {
-      drawOnCanvas(data);
+      drawOnCanvas(data, true);
     });
 
     s.on("drawing-batch", ({ segments }: { segments: DrawingData[] }) => {
-      segments.forEach(data => drawOnCanvas(data));
+      if (!segments || segments.length === 0) return;
+      for (let i = 0; i < segments.length; i++) {
+        drawOnCanvas(segments[i], false);
+      }
+      compositeLayers();
     });
 
     s.on("chat-message", (data: ChatMessage) => {
@@ -1522,82 +1863,6 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         }
         return msg;
       }));
-    });
-    let pendingCursorUpdates: Record<string, CursorUpdate> = {};
-    let cursorFlushTimeout: ReturnType<typeof setTimeout> | null = null;
-    let lastCursorFlush = 0;
-
-    const flushCursorUpdates = () => {
-      lastCursorFlush = Date.now();
-      const updates = { ...pendingCursorUpdates };
-      pendingCursorUpdates = {};
-      
-      if (Object.keys(updates).length > 0) {
-        setUsers(prev => {
-          const next = { ...prev };
-          let changed = false;
-          
-          for (const userId in updates) {
-            const data = updates[userId];
-            const prevUser = prev[userId];
-            const prevX = prevUser?.cursorX;
-            const prevY = prevUser?.cursorY;
-            let trail = prevUser?.trail || [];
-            
-            if (prevX !== undefined && prevY !== undefined && data.x !== undefined && data.y !== undefined) {
-              const dx = data.x - prevX;
-              const dy = data.y - prevY;
-              const dist = Math.hypot(dx, dy);
-
-              if (dist > 15) {
-                const numSteps = Math.min(Math.floor(dist / 15), 4);
-                const newPoints = [];
-                for (let i = 1; i <= numSteps; i++) {
-                  const ratio = i / (numSteps + 1);
-                  const ix = prevX + dx * ratio;
-                  const iy = prevY + dy * ratio;
-                  newPoints.push({
-                    x: ix,
-                    y: iy,
-                    timestamp: Date.now() - (1 - ratio) * 50,
-                    id: `${data.userId}-${Date.now()}-${i}-${Math.random()}`,
-                    size: Math.max(2.5, Math.min(dist / 8, 10))
-                  });
-                }
-                trail = [...newPoints, ...trail].slice(0, 15);
-              }
-            }
-            
-            next[userId] = {
-              ...(prevUser || { id: data.userId, username: "..." }),
-              cursorX: data.x,
-              cursorY: data.y,
-              tool: data.tool,
-              color: data.color,
-              isDrawing: data.isDrawing,
-              trail,
-              lastActiveAt: Date.now()
-            };
-            changed = true;
-          }
-          return changed ? next : prev;
-        });
-      }
-    };
-
-    s.on("cursor-move", (data: CursorUpdate) => {
-      pendingCursorUpdates[data.userId] = data;
-      const now = Date.now();
-      
-      if (now - lastCursorFlush > 45) { // Throttled to max ~22fps state updates
-        if (cursorFlushTimeout) clearTimeout(cursorFlushTimeout);
-        flushCursorUpdates();
-      } else if (!cursorFlushTimeout) {
-        cursorFlushTimeout = setTimeout(() => {
-          cursorFlushTimeout = null;
-          flushCursorUpdates();
-        }, 45 - (now - lastCursorFlush));
-      }
     });
 
     s.on("init-room-state", (data: {
@@ -1817,7 +2082,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     return () => window.removeEventListener("resize", resizeCanvas);
   }, []);
 
-  const drawOnCanvas = (data: DrawingData) => {
+  const drawOnCanvas = (data: DrawingData, shouldComposite: boolean = true) => {
     const masterCanvas = canvasRef.current;
     if (!masterCanvas) return;
 
@@ -2118,7 +2383,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       ctx.restore();
     }
 
-    compositeLayers();
+    if (shouldComposite) {
+      compositeLayers();
+    }
   };
 
   useEffect(() => {
@@ -2685,6 +2952,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     };
 
     drawingQueue.current.push(data);
+    scheduleDrawingQueue();
 
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
@@ -2730,7 +2998,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     }
 
     if (drawingState.current.isDrawing) {
-      saveToHistory();
+      setTimeout(() => saveToHistory(), 0);
       emitCursorUpdate(undefined, undefined, false);
     }
     drawingState.current.isDrawing = false;
@@ -2758,8 +3026,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
     const newHistory = [...historyRef.current.slice(0, historyIndexRef.current + 1), JSON.stringify(state)];
 
-    // Limit history to 50 states
-    if (newHistory.length > 50) {
+    // Limit history to 30 states to keep memory footprint light and garbage collection instant
+    if (newHistory.length > 30) {
       newHistory.shift();
     }
 
@@ -3241,174 +3509,23 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     }
   };
 
-  const CustomCursor = () => {
-    // Disable custom cursor on touch devices to improve performance and visibility
-    if (!isOverCanvas || isHandTool || ('ontouchstart' in window)) return null;
-
-    const cursorSize = (tool === "eraser" ? eraserSize : size) * transform.scale;
-    const icons = {
-      pencil: <Pencil size={12} />,
-      brush: <Brush size={12} />,
-      spray: <CloudRain size={12} />,
-      smudge: <Fingerprint size={12} />,
-      eraser: <Eraser size={12} />
-    };
-
-    return (
-      <div
-        ref={cursorRef}
-        className="fixed pointer-events-none z-[9999] flex items-center justify-center -translate-x-1/2 -translate-y-1/2 will-change-[left,top]"
-        style={{ left: -100, top: -100 }} // Start offscreen
-      >
-        {/* Brush Area Preview */}
-        <div
-          className={cn(
-            "rounded-full border border-slate-400/50 flex items-center justify-center",
-            tool === "eraser" ? "bg-white/20" : "bg-transparent"
-          )}
-          style={{
-            width: cursorSize,
-            height: cursorSize,
-          }}
-        >
-          {/* Tool Icon */}
-          <div className="bg-white/90 p-0.5 rounded shadow-lg text-slate-700 flex items-center justify-center transform scale-90">
-            {icons[tool]}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const RemoteCursors = () => {
-    // We only want to show cursors that are "live" (updated recently)
-    // and correctly scaled/translated.
-    // Ticker to continually update and fade out trails in real-time
-    const [now, setNow] = useState(Date.now());
-
-    useEffect(() => {
-      let active = true;
-      const tick = () => {
-        if (!active) return;
-        setNow(Date.now());
-        requestAnimationFrame(tick);
-      };
-      requestAnimationFrame(tick);
-      return () => {
-        active = false;
-      };
-    }, []);
-
-    const TRAIL_LIFETIME = 500; // Trail fades completely after 500ms
-
-    return (
-      <div
-        className={cn(
-          "absolute inset-0 pointer-events-none z-10 overflow-hidden",
-          isTransitioning && "transition-transform duration-300 ease-out"
-        )}
-        style={{
-          transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-          transformOrigin: '0 0'
-        }}
-      >
-        {(Object.values(users) as UserPresence[]).filter(u => u.id !== socket?.id && u.cursorX !== undefined).map(u => {
-          const activeTrail = (u.trail || []).filter(t => now - t.timestamp < TRAIL_LIFETIME);
-          return (
-            <React.Fragment key={u.id}>
-              {/* Cursor trail points */}
-              {activeTrail.map((point) => {
-                const age = now - point.timestamp;
-                const ratio = Math.max(0, 1 - age / TRAIL_LIFETIME);
-                return (
-                  <div
-                    key={point.id}
-                    className="absolute rounded-full pointer-events-none transform -translate-x-1/2 -translate-y-1/2 will-change-[width,height,opacity]"
-                    style={{
-                      left: point.x,
-                      top: point.y,
-                      width: (point.size || 5) * ratio * 1.5,
-                      height: (point.size || 5) * ratio * 1.5,
-                      backgroundColor: u.color,
-                      opacity: ratio * 0.55,
-                      boxShadow: `0 0 6px ${u.color}`,
-                    }}
-                  />
-                );
-              })}
-
-              <motion.div
-                initial={false}
-                animate={{ x: u.cursorX, y: u.cursorY }}
-                transition={{ type: "spring", stiffness: 800, damping: 60, mass: 0.2 }}
-                className="absolute flex flex-col items-start gap-1"
-                style={{
-                  zIndex: u.isDrawing ? 20 : 10,
-                }}
-              >
-                {/* The cursor pointer itself */}
-                <div className="relative">
-                  <svg
-                    width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    className="drop-shadow-2xl -translate-x-[2px] -translate-y-[2px]"
-                    style={{ color: u.color }}
-                  >
-                    <path
-                      d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z"
-                      fill="currentColor"
-                      stroke="white"
-                      strokeWidth="2"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-
-                  {/* Drawing Ping Pulse */}
-                  {u.isDrawing && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 1 }}
-                      animate={{ scale: 4, opacity: 0 }}
-                      transition={{ duration: 1, repeat: Infinity }}
-                      className="absolute left-0 top-0 w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2"
-                      style={{ backgroundColor: u.color }}
-                    />
-                  )}
-                </div>
-
-                {/* Tool indicator & Name tag */}
-                <div className="flex items-center gap-1.5 -translate-x-1 mt-1">
-                  <motion.div
-                    animate={u.isDrawing ? { scale: [1, 1.2, 1], rotate: [-10, 10, -10] } : { scale: 1, rotate: 0 }}
-                    transition={{ repeat: Infinity, duration: 2 }}
-                    className={cn(
-                      "w-6 h-6 rounded-lg border-2 border-white shadow-xl flex items-center justify-center transition-all bg-white overflow-hidden",
-                    )}
-                  >
-                    <div className="absolute inset-0 opacity-20" style={{ backgroundColor: u.color }} />
-                    <div className="relative">
-                      {u.tool === "pencil" && <Pencil size={12} style={{ color: u.color }} />}
-                      {u.tool === "brush" && <Brush size={12} style={{ color: u.color }} />}
-                      {u.tool === "spray" && <CloudRain size={12} style={{ color: u.color }} />}
-                      {u.tool === "smudge" && <Fingerprint size={12} style={{ color: u.color }} />}
-                      {u.tool === "eraser" && <Eraser size={12} className="text-slate-400" />}
-                    </div>
-                  </motion.div>
-
-                  <div className="bg-slate-900/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg whitespace-nowrap shadow-2xl border border-slate-700/50 uppercase tracking-tighter shadow-indigo-500/10">
-                    {u.username}
-                  </div>
-                </div>
-              </motion.div>
-            </React.Fragment>
-          )
-        })}
-      </div>
-    );
-  };
-
   return (
     <div className="h-screen bg-slate-50 flex flex-col font-sans overflow-hidden cursor-default">
-      <CustomCursor />
-      <RemoteCursors />
+      <CustomCursor
+        cursorRef={cursorRef}
+        isOverCanvas={isOverCanvas}
+        isHandTool={isHandTool}
+        tool={tool}
+        size={size}
+        eraserSize={eraserSize}
+        scale={transform.scale}
+      />
+      <RemoteCursors
+        socket={socket}
+        transform={transform}
+        isTransitioning={isTransitioning}
+        users={users}
+      />
       {/* Floating Header */}
       <header className="absolute top-4 left-4 right-4 z-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pointer-events-none">
         <div className="flex items-center gap-3 sm:gap-4 md:gap-6 pointer-events-auto">
