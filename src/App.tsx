@@ -24,7 +24,6 @@ import {
   Zap,
   Sparkles,
   Star,
-  Activity as CrossBox,
   Diamond,
   Plus,
   Minus,
@@ -43,9 +42,6 @@ import {
   Upload,
   ChevronUp,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  RotateCcw,
   Layers,
   Eye,
   EyeOff,
@@ -58,8 +54,6 @@ import {
   Shapes,
   Hexagon,
   ArrowUp,
-  Keyboard,
-  HelpCircle,
   Github,
   Linkedin,
   MessageCircleHeart,
@@ -68,7 +62,6 @@ import {
   Instagram
 } from "lucide-react";
 import { cn } from "./lib/utils";
-import logo from "./assets/logo.jpg";
 
 const COLORS = [
   "#000000", "#FF0000", "#00FF00", "#0000FF"
@@ -643,12 +636,11 @@ export function LandingPage({
         {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
       </button>
 
-      {/* Colorful Animated Background Blobs */}
+      {/* Ambient Static Glow Background */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-pink-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob"></div>
-        <div className="absolute top-[20%] -right-[10%] w-[60%] h-[60%] bg-purple-400 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] bg-yellow-300 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-4000"></div>
-        <div className="absolute top-[40%] left-[40%] w-[40%] h-[40%] bg-cyan-400 rounded-full mix-blend-multiply filter blur-[120px] opacity-40 animate-blob animation-delay-2000"></div>
+        <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-pink-300/30 rounded-full blur-[100px]"></div>
+        <div className="absolute top-[20%] -right-[10%] w-[60%] h-[60%] bg-purple-300/30 rounded-full blur-[100px]"></div>
+        <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] bg-indigo-200/40 rounded-full blur-[100px]"></div>
       </div>
 
       {/* Colorful Interactive Spotlight Grid */}
@@ -660,45 +652,32 @@ export function LandingPage({
       }}></div>
 
       <div className="flex-1 flex items-center justify-center w-full z-10 mt-8 sm:mt-12">
-        <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, type: "spring", bounce: 0.5 }}
-          className="w-full max-w-md bg-white/40 backdrop-blur-2xl border border-white/60 p-6 sm:p-10 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.15)] relative overflow-hidden"
+        <div
+          className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-white/80 p-6 sm:p-10 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.08)] relative overflow-hidden"
         >
           {/* Subtle shine inside the glass card */}
           <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none"></div>
 
           <div className="flex flex-col items-center justify-center text-center gap-4 mb-10 relative z-10">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0, rotate: -10 }}
-              animate={{ scale: 1, opacity: 1, rotate: 0 }}
-              transition={{ delay: 0.1, duration: 0.6, type: "spring", bounce: 0.6 }}
-              className="flex-shrink-0 h-24 w-24 rounded-3xl flex items-center justify-center text-logo-container cursor-default relative group"
+            <div
+              className="flex-shrink-0 h-24 w-24 rounded-3xl flex items-center justify-center bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 shadow-xl shadow-pink-500/25 border border-white/50 relative select-none"
             >
-              <div className="absolute inset-0 bg-white/20 rounded-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></div>
-              <Brush className="absolute text-white/20 w-16 h-16 transform -rotate-12 translate-x-2 -translate-y-2 pointer-events-none" style={{ transform: 'translateZ(20px)' }} />
-              <span className="font-extrabold text-4xl sm:text-5xl tracking-tighter text-logo-text select-none relative z-10">
+              <Brush className="absolute text-white/20 w-14 h-14 transform -rotate-12 translate-x-1.5 -translate-y-1.5 pointer-events-none" />
+              <span className="font-extrabold text-4xl sm:text-5xl tracking-tighter text-white font-['Fredoka',sans-serif] relative z-10 drop-shadow">
                 Dt
               </span>
-            </motion.div>
+            </div>
             <div>
-              <motion.h1
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-3xl sm:text-4xl font-black tracking-tight title-interactive drop-shadow-sm"
+              <h1
+                className="text-3xl sm:text-4xl font-black tracking-tight font-['Fredoka',sans-serif] text-slate-900 drop-shadow-sm"
               >
-                Draw Together
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="text-slate-600 text-sm font-semibold mt-2 mix-blend-color-burn"
+                Draw <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">Together</span>
+              </h1>
+              <p
+                className="text-slate-600 text-sm font-semibold mt-2"
               >
                 A vibrant real-time collaborative canvas.
-              </motion.p>
+              </p>
             </div>
           </div>
 
@@ -819,13 +798,10 @@ export function LandingPage({
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
+        </div>
       </div>
 
-      <motion.footer
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
+      <footer
         className="w-full max-w-4xl mt-12 mb-6 z-10 flex flex-col gap-6"
       >
         {/* Interactive Review Section */}
@@ -884,7 +860,7 @@ export function LandingPage({
             </a>
           </div>
         </div>
-      </motion.footer>
+      </footer>
     </div>
   );
 }
@@ -1091,7 +1067,6 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const [shapeIsFilled, setShapeIsFilled] = useState(false);
   const [shapeFillColor, setShapeFillColor] = useState("#4f46e5");
 
-  const [showHotkeysModal, setShowHotkeysModal] = useState(false);
   const [isRainbowMode, setIsRainbowMode] = useState(false);
   const hueRef = useRef(0);
   const isTransformModified = transform.x !== 0 || transform.y !== 0 || transform.scale !== 1;
@@ -3588,7 +3563,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                 title="Click to edit nickname"
               />
             </div>
-            <span className="text-xs text-indigo-400 pointer-events-none select-none select-none">✏️</span>
+            <span className="text-xs text-indigo-400 pointer-events-none select-none">✏️</span>
           </div>
         </div>
 
@@ -4938,7 +4913,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                         className={cn(
                           "flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all",
                           isRainbowMode
-                            ? "bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 text-white shadow-lg animate-gradient-x"
+                            ? "bg-gradient-to-r from-red-500 via-yellow-500 via-green-500 via-blue-500 to-purple-500 text-white shadow-md"
                             : "bg-slate-50 text-slate-400 hover:bg-slate-100"
                         )}
                       >
@@ -5609,124 +5584,6 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                       Yes, Wipe
                     </button>
                   </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        {/* Keyboard Shortcuts Modal */}
-        <AnimatePresence>
-          {showHotkeysModal && (
-            <div
-              className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm"
-              onClick={() => {
-                setShowHotkeysModal(false);
-                vibrate(5);
-              }}
-            >
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 15 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 15 }}
-                className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl border border-slate-200/80 relative"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Close Button top-right */}
-                <button
-                  onClick={() => {
-                    setShowHotkeysModal(false);
-                    vibrate(5);
-                  }}
-                  className="absolute top-6 right-6 p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all active:scale-95 animate-duration-150"
-                >
-                  <X size={16} />
-                </button>
-
-                <div className="flex flex-col gap-6">
-                  {/* Header */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner shrink-0">
-                      <Keyboard size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Shortcuts</h3>
-                      <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider">Discovery & Controls</p>
-                    </div>
-                  </div>
-
-                  <div className="h-[1px] bg-slate-100 w-full" />
-
-                  {/* Shortcuts List */}
-                  <div className="space-y-4">
-                    {/* Undo */}
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white rounded-xl border border-slate-200 text-slate-500 shrink-0">
-                          <Undo2 size={16} />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-bold text-slate-800">Undo Action</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide truncate">Revert canvas change</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 border-b-[3px] border-b-slate-300 rounded-md text-[10px] font-mono font-bold text-slate-700 shadow-sm">Ctrl</kbd>
-                        <span className="text-slate-400 text-xs font-bold font-mono">+</span>
-                        <kbd className="px-1.5 py-0.5 bg-white border border-slate-300 border-b-[3px] border-b-slate-300 rounded-md text-[10px] font-mono font-bold text-slate-700 shadow-sm">Z</kbd>
-                      </div>
-                    </div>
-
-                    {/* Redo */}
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white rounded-xl border border-slate-200 text-slate-500 shrink-0">
-                          <Redo2 size={16} />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-bold text-slate-800">Redo Action</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide truncate">Apply discarded change</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 border-b-[3px] border-b-slate-300 rounded-md text-[10px] font-mono font-bold text-slate-700 shadow-sm">Ctrl</kbd>
-                        <span className="text-slate-400 text-xs font-bold font-mono">+</span>
-                        <kbd className="px-1 py-0.5 bg-white border border-slate-200 border-b-[3px] border-b-slate-300 rounded-md text-[9px] font-mono font-bold text-slate-700 shadow-sm">Shift</kbd>
-                        <span className="text-slate-400 text-xs font-bold font-mono">+</span>
-                        <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 border-b-[3px] border-b-slate-300 rounded-md text-[10px] font-mono font-bold text-slate-700 shadow-sm">Z</kbd>
-                      </div>
-                    </div>
-
-                    {/* Pan Mode */}
-                    <div className="flex items-center justify-between p-3.5 rounded-2xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-all">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-white rounded-xl border border-slate-200 text-slate-500 shrink-0">
-                          <Hand size={16} />
-                        </div>
-                        <div className="flex flex-col min-w-0">
-                          <span className="text-sm font-bold text-slate-800">Pan Canvas</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wide truncate">Hold space to move drawing view</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <span className="text-slate-400 text-[9px] font-bold uppercase tracking-widest mr-1">Hold</span>
-                        <kbd className="px-2 py-0.5 bg-white border border-slate-200 border-b-[3px] border-b-slate-300 rounded-md text-[10px] font-mono font-bold text-slate-700 shadow-sm">Space</kbd>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="h-[1px] bg-slate-100 w-full" />
-
-                  {/* Got it action button */}
-                  <button
-                    onClick={() => {
-                      setShowHotkeysModal(false);
-                      vibrate(5);
-                    }}
-                    className="w-full py-4 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 hover:shadow-lg hover:shadow-indigo-100 transition-all active:scale-[0.98] text-sm"
-                  >
-                    Alright, Got It!
-                  </button>
                 </div>
               </motion.div>
             </div>
