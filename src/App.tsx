@@ -1058,6 +1058,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const [textAlign, setTextAlign] = useState<"left" | "center" | "right">("center");
   const [placedTexts, setPlacedTexts] = useState<PlacedText[]>([]);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const editingTextIdRef = useRef<string | null>(null);
+  editingTextIdRef.current = editingTextId;
 
   const placedTextsRef = useRef<PlacedText[]>([]);
   placedTextsRef.current = placedTexts;
@@ -1746,25 +1748,53 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     if (tool === "text" && editingTextId) {
       saveToHistory();
     }
-    if (tool === "shape" && editingShapeId) {
+    if ((tool === "shape" || tool === "stamp") && editingShapeId) {
       saveToHistory();
     }
     setTool(newTool);
     if (newTool !== "text") {
       setEditingTextId(null);
     }
-    if (newTool !== "shape") {
+    if (newTool !== "shape" && newTool !== "stamp") {
       setEditingShapeId(null);
+      setSelectedShapeIds([]);
+      selectedShapeIdsRef.current = [];
     }
     vibrate(10);
     emitCursorUpdate();
+    setTimeout(() => compositeLayers(), 10);
   };
 
   // Hand tool toggle logic
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !e.repeat && document.activeElement?.tagName !== "INPUT") {
+      if (e.code === "Space" && !e.repeat && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
         setIsHandTool(true);
+      }
+
+      // Delete/Backspace shortcut for active sticker, text, or shape
+      if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+        if (editingTextIdRef.current) {
+          const next = placedTextsRef.current.filter(t => t.id !== editingTextIdRef.current);
+          setPlacedTexts(next);
+          placedTextsRef.current = next;
+          setEditingTextId(null);
+          socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+          saveToHistory(next);
+          vibrate(15);
+          setTimeout(() => compositeLayers(), 10);
+        } else if (editingShapeIdRef.current) {
+          const next = placedShapesRef.current.filter(s => s.id !== editingShapeIdRef.current);
+          setPlacedShapes(next);
+          placedShapesRef.current = next;
+          setEditingShapeId(null);
+          setSelectedShapeIds([]);
+          selectedShapeIdsRef.current = [];
+          socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+          saveToHistory(undefined, next);
+          vibrate(15);
+          setTimeout(() => compositeLayers(), 10);
+        }
       }
 
       // Undo/Redo shortcuts
@@ -2513,6 +2543,93 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       return;
     }
 
+    if (tool === "stamp") {
+      drawingState.current.isDrawing = false;
+      const { x, y } = getCoordinates(e);
+
+      // Check if user clicked on an existing sticker to select/drag it
+      let matchedSticker: PlacedShape | null = null;
+      for (let i = placedShapesRef.current.length - 1; i >= 0; i--) {
+        const s = placedShapesRef.current[i];
+        if (s.layerId !== activeLayerId || s.type !== "sticker") continue;
+
+        const dx = x - s.x;
+        const dy = y - s.y;
+        const halfW = s.width / 2;
+        const halfH = s.height / 2;
+
+        const angleRad = -(s.rotation || 0) * Math.PI / 180;
+        const rx = dx * Math.cos(angleRad) - dy * Math.sin(angleRad);
+        const ry = dx * Math.sin(angleRad) + dy * Math.cos(angleRad);
+
+        if (rx >= -halfW - 15 && rx <= halfW + 15 && ry >= -halfH - 15 && ry <= halfH + 15) {
+          matchedSticker = s;
+          break;
+        }
+      }
+
+      if (matchedSticker) {
+        setEditingShapeId(matchedSticker.id);
+        setSelectedShapeIds([matchedSticker.id]);
+        selectedShapeIdsRef.current = [matchedSticker.id];
+        if (matchedSticker.emoji) setStampEmoji(matchedSticker.emoji);
+
+        // Setup drag-move
+        drawingState.current.isDraggingShape = true;
+        drawingState.current.dragShapeId = matchedSticker.id;
+        (drawingState.current as any).dragStartPositions = [{ id: matchedSticker.id, x: matchedSticker.x, y: matchedSticker.y }];
+        drawingState.current.dragStartX = x;
+        drawingState.current.dragStartY = y;
+        vibrate(15);
+      } else {
+        if (editingShapeId) {
+          saveToHistory();
+          setEditingShapeId(null);
+          setSelectedShapeIds([]);
+          selectedShapeIdsRef.current = [];
+        } else {
+          // Tap once places the sticker!
+          const stickerSize = Math.max(50, Math.min(180, size * 7));
+          const newStickerId = `sticker-${nanoid(6)}`;
+          const newSticker: PlacedShape = {
+            id: newStickerId,
+            type: "sticker",
+            x,
+            y,
+            width: stickerSize,
+            height: stickerSize,
+            color: color,
+            rotation: 0,
+            lineWidth: 1,
+            isFilled: false,
+            fillColor: "transparent",
+            layerId: activeLayerId,
+            emoji: stampEmoji || "✨"
+          };
+
+          const nextShapes = [...placedShapesRef.current, newSticker];
+          setPlacedShapes(nextShapes);
+          placedShapesRef.current = nextShapes;
+          setEditingShapeId(newStickerId);
+          setSelectedShapeIds([newStickerId]);
+          selectedShapeIdsRef.current = [newStickerId];
+
+          socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+          saveToHistory(undefined, nextShapes);
+
+          drawingState.current.isDraggingShape = true;
+          drawingState.current.dragShapeId = newStickerId;
+          (drawingState.current as any).dragStartPositions = [{ id: newStickerId, x, y }];
+          drawingState.current.dragStartX = x;
+          drawingState.current.dragStartY = y;
+
+          vibrate(15);
+          setTimeout(() => compositeLayers(), 10);
+        }
+      }
+      return;
+    }
+
     if (tool === "shape") {
       drawingState.current.isDrawing = false;
       const { x, y } = getCoordinates(e);
@@ -2595,15 +2712,17 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           setSelectedShapeIds([]);
           selectedShapeIdsRef.current = [];
         } else {
-          // Create new shape at clicked position!
+          // Create new shape at clicked position with instant proportional size!
           const newShapeId = `shape-${nanoid(6)}`;
+          const defaultW = Math.max(70, shapeWidth || 100);
+          const defaultH = Math.max(70, shapeHeight || 100);
           const newShape: PlacedShape = {
             id: newShapeId,
             type: shapeType,
             x,
             y,
-            width: 0,
-            height: 0,
+            width: defaultW,
+            height: defaultH,
             color: color,
             rotation: shapeRotation,
             lineWidth: shapeLineWidth,
@@ -2619,8 +2738,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           setSelectedShapeIds([newShapeId]);
           selectedShapeIdsRef.current = [newShapeId];
 
-          drawingState.current.isCreatingShape = true;
+          socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextPlacedShapes });
+          saveToHistory(undefined, nextPlacedShapes);
+
+          drawingState.current.isDraggingShape = true;
           drawingState.current.dragShapeId = newShapeId;
+          (drawingState.current as any).dragStartPositions = [{ id: newShapeId, x, y }];
           drawingState.current.dragStartX = x;
           drawingState.current.dragStartY = y;
 
@@ -2679,10 +2802,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       if (matchedText) {
         // Selection!
         if (editingTextId && editingTextId !== matchedText.id) {
-          // We were editing another text, save its final state first!
           saveToHistory();
         } else if (!editingTextId) {
-          // If we weren't editing, save the current state before we start editing this text!
           saveToHistory();
         }
 
@@ -2698,11 +2819,20 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         setOutlineColor(matchedText.outlineColor || "#000000");
         setTextOutlineWidth(matchedText.outlineWidth || 2);
         setTextRotation(matchedText.rotation || 0);
+
+        // Setup drag-move
+        (drawingState.current as any).isDraggingText = true;
+        (drawingState.current as any).dragTextId = matchedText.id;
+        (drawingState.current as any).dragStartTextX = matchedText.x;
+        (drawingState.current as any).dragStartTextY = matchedText.y;
+        drawingState.current.dragStartX = x;
+        drawingState.current.dragStartY = y;
+
         vibrate(15);
       } else {
         // If they click empty space:
         if (editingTextId) {
-          saveToHistory(); // Save final edited text state
+          saveToHistory();
           setEditingTextId(null);
         } else {
           // If NOT editing, create a new text at this location!
@@ -2712,7 +2842,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
             x,
             y,
             color,
-            size,
+            size: Math.max(14, size * 2.5),
             rotation: textRotation,
             fontFamily,
             isBold,
@@ -2726,10 +2856,19 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
           const nextPlacedTexts = [...placedTextsRef.current, newText];
           setPlacedTexts(nextPlacedTexts);
-          placedTextsRef.current = nextPlacedTexts; // immediate sync
+          placedTextsRef.current = nextPlacedTexts;
           setEditingTextId(newText.id);
-          saveToHistory(nextPlacedTexts); // Save new text to history
+          saveToHistory(nextPlacedTexts);
           socket?.emit("sync-placed-texts", { roomId, placedTexts: nextPlacedTexts });
+
+          // Setup drag-move
+          (drawingState.current as any).isDraggingText = true;
+          (drawingState.current as any).dragTextId = newText.id;
+          (drawingState.current as any).dragStartTextX = x;
+          (drawingState.current as any).dragStartTextY = y;
+          drawingState.current.dragStartX = x;
+          drawingState.current.dragStartY = y;
+
           vibrate(15);
           setTimeout(() => {
             compositeLayers();
@@ -2770,7 +2909,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       return;
     }
 
-    if (tool === "shape") {
+    if (tool === "shape" || tool === "stamp") {
       const { x, y } = getCoordinates(e);
 
       if ((drawingState.current as any).isResizingShape && drawingState.current.dragShapeId) {
@@ -2799,23 +2938,43 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           let shiftY = 0;
 
           if (corner === "br") {
-            newWidth = Math.max(10, startWidth + localDx);
-            newHeight = Math.max(10, startHeight + localDy);
+            newWidth = Math.max(15, startWidth + localDx);
+            newHeight = Math.max(15, startHeight + localDy);
+            if (s.type === "sticker") {
+              const maxDim = Math.max(newWidth, newHeight);
+              newWidth = maxDim;
+              newHeight = maxDim;
+            }
             shiftX = (newWidth - startWidth) / 2;
             shiftY = (newHeight - startHeight) / 2;
           } else if (corner === "bl") {
-            newWidth = Math.max(10, startWidth - localDx);
-            newHeight = Math.max(10, startHeight + localDy);
+            newWidth = Math.max(15, startWidth - localDx);
+            newHeight = Math.max(15, startHeight + localDy);
+            if (s.type === "sticker") {
+              const maxDim = Math.max(newWidth, newHeight);
+              newWidth = maxDim;
+              newHeight = maxDim;
+            }
             shiftX = -(newWidth - startWidth) / 2;
             shiftY = (newHeight - startHeight) / 2;
           } else if (corner === "tr") {
-            newWidth = Math.max(10, startWidth + localDx);
-            newHeight = Math.max(10, startHeight - localDy);
+            newWidth = Math.max(15, startWidth + localDx);
+            newHeight = Math.max(15, startHeight - localDy);
+            if (s.type === "sticker") {
+              const maxDim = Math.max(newWidth, newHeight);
+              newWidth = maxDim;
+              newHeight = maxDim;
+            }
             shiftX = (newWidth - startWidth) / 2;
             shiftY = -(newHeight - startHeight) / 2;
           } else if (corner === "tl") {
-            newWidth = Math.max(10, startWidth - localDx);
-            newHeight = Math.max(10, startHeight - localDy);
+            newWidth = Math.max(15, startWidth - localDx);
+            newHeight = Math.max(15, startHeight - localDy);
+            if (s.type === "sticker") {
+              const maxDim = Math.max(newWidth, newHeight);
+              newWidth = maxDim;
+              newHeight = maxDim;
+            }
             shiftX = -(newWidth - startWidth) / 2;
             shiftY = -(newHeight - startHeight) / 2;
           }
@@ -2837,9 +2996,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
             return sh;
           });
 
-          // Do not update React state on every mouse move to avoid re-renders (latency)
           placedShapesRef.current = nextShapes;
-
           requestAnimationFrame(() => compositeLayers());
         }
       } else if (drawingState.current.isDraggingShape && drawingState.current.dragShapeId) {
@@ -2861,36 +3018,47 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         });
         placedShapesRef.current = nextShapes;
         requestAnimationFrame(() => compositeLayers());
-      } else if (drawingState.current.isCreatingShape && drawingState.current.dragShapeId) {
-        // Drag-resize shape during creation
-        const startX = drawingState.current.dragStartX;
-        const startY = drawingState.current.dragStartY;
+      }
+      return;
+    }
 
-        const width = Math.abs(x - startX);
-        const height = Math.abs(y - startY);
-        const centerX = (startX + x) / 2;
-        const centerY = (startY + y) / 2;
+    if (tool === "text") {
+      const { x, y } = getCoordinates(e);
+      if ((drawingState.current as any).isResizingText && (drawingState.current as any).dragTextId) {
+        const dx = x - drawingState.current.dragStartX;
+        const dy = y - drawingState.current.dragStartY;
+        const corner = (drawingState.current as any).resizeTextCorner;
+        const startSize = (drawingState.current as any).dragStartTextSize || 20;
+        const delta = (corner === "br" || corner === "tr") ? (dx + dy) / 4 : (-dx - dy) / 4;
+        const newSize = Math.max(8, Math.min(150, Math.round(startSize + delta)));
 
-        const nextShapes = placedShapesRef.current.map(s => {
-          if (s.id === drawingState.current.dragShapeId) {
-            return {
-              ...s,
-              x: centerX,
-              y: centerY,
-              width,
-              height
-            };
+        const nextTexts = placedTextsRef.current.map(t => {
+          if (t.id === (drawingState.current as any).dragTextId) {
+            return { ...t, size: newSize };
           }
-          return s;
+          return t;
         });
-        placedShapesRef.current = nextShapes;
+        placedTextsRef.current = nextTexts;
+        requestAnimationFrame(() => compositeLayers());
+      } else if ((drawingState.current as any).isDraggingText && (drawingState.current as any).dragTextId) {
+        const dx = x - drawingState.current.dragStartX;
+        const dy = y - drawingState.current.dragStartY;
+        const startX = (drawingState.current as any).dragStartTextX;
+        const startY = (drawingState.current as any).dragStartTextY;
+
+        const nextTexts = placedTextsRef.current.map(t => {
+          if (t.id === (drawingState.current as any).dragTextId) {
+            return { ...t, x: startX + dx, y: startY + dy };
+          }
+          return t;
+        });
+        placedTextsRef.current = nextTexts;
         requestAnimationFrame(() => compositeLayers());
       }
       return;
     }
 
     if (!drawingState.current.isDrawing) return;
-    if (tool === "text") return;
     const { x: rawX, y: rawY } = getCoordinates(e);
 
     let x = rawX;
@@ -2953,27 +3121,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       return;
     }
 
-    if (tool === "shape") {
-      if (drawingState.current.isCreatingShape && drawingState.current.dragShapeId) {
-        const shapes = placedShapesRef.current;
-        const created = shapes.find(s => s.id === drawingState.current.dragShapeId);
-        if (created && (created.width < 10 || created.height < 10)) {
-          // Click placed! Give it default 120x120 size
-          const updatedShapes = shapes.map(s => {
-            if (s.id === drawingState.current.dragShapeId) {
-              return { ...s, width: 120, height: 120 };
-            }
-            return s;
-          });
-          setPlacedShapes(updatedShapes);
-          placedShapesRef.current = updatedShapes;
-          setShapeWidth(120);
-          setShapeHeight(120);
-          socket?.emit("sync-placed-shapes", { roomId, placedShapes: updatedShapes });
-        }
-        saveToHistory();
-      } else if (drawingState.current.isDraggingShape || (drawingState.current as any).isResizingShape) {
-        // Officially update React state and emit to socket after drag/resize finishes
+    if (tool === "shape" || tool === "stamp") {
+      if ((drawingState.current as any).isDraggingShape || (drawingState.current as any).isResizingShape) {
         setPlacedShapes(placedShapesRef.current);
         socket?.emit("sync-placed-shapes", { roomId, placedShapes: placedShapesRef.current });
         saveToHistory();
@@ -2983,6 +3132,18 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       (drawingState.current as any).isResizingShape = false;
       drawingState.current.dragShapeId = null;
       requestAnimationFrame(() => compositeLayers());
+      return;
+    }
+
+    if (tool === "text") {
+      if ((drawingState.current as any).isDraggingText || (drawingState.current as any).isResizingText) {
+        (drawingState.current as any).isDraggingText = false;
+        (drawingState.current as any).isResizingText = false;
+        (drawingState.current as any).dragTextId = null;
+        setPlacedTexts(placedTextsRef.current);
+        socket?.emit("sync-placed-texts", { roomId, placedTexts: placedTextsRef.current });
+        saveToHistory();
+      }
       return;
     }
 
@@ -3229,6 +3390,48 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     (drawingState.current as any).dragStartCenterY = shape.y;
 
     vibrate(10);
+  };
+
+  const startTextResize = (e: any, corner: "tl" | "tr" | "bl" | "br", textItem: PlacedText) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const coords = getCoordinates(e.nativeEvent || e);
+
+    (drawingState.current as any).isResizingText = true;
+    (drawingState.current as any).resizeTextCorner = corner;
+    (drawingState.current as any).dragTextId = textItem.id;
+    drawingState.current.dragStartX = coords.x;
+    drawingState.current.dragStartY = coords.y;
+    (drawingState.current as any).dragStartTextSize = textItem.size;
+    (drawingState.current as any).dragStartTextX = textItem.x;
+    (drawingState.current as any).dragStartTextY = textItem.y;
+
+    vibrate(10);
+  };
+
+  const deleteEditingText = (textId: string) => {
+    const next = placedTextsRef.current.filter(t => t.id !== textId);
+    setPlacedTexts(next);
+    placedTextsRef.current = next;
+    setEditingTextId(null);
+    socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+    saveToHistory(next);
+    vibrate(15);
+    setTimeout(() => compositeLayers(), 10);
+  };
+
+  const deleteEditingShape = (shapeId: string) => {
+    const next = placedShapesRef.current.filter(s => s.id !== shapeId);
+    setPlacedShapes(next);
+    placedShapesRef.current = next;
+    setEditingShapeId(null);
+    setSelectedShapeIds([]);
+    selectedShapeIdsRef.current = [];
+    socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+    saveToHistory(undefined, next);
+    vibrate(15);
+    setTimeout(() => compositeLayers(), 10);
   };
 
   const undo = () => {
@@ -3728,15 +3931,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               height: canvasRef.current?.height || '100%'
             }}
           >
-            {/* If editingTextId exists, draw dashed border and label around it */}
+            {/* If editingTextId exists, draw dashed border, resize handles, and delete cross button */}
             {(() => {
               if (!editingTextId) return null;
               const t = placedTexts.find(x => x.id === editingTextId);
               if (!t || t.layerId !== activeLayerId) return null;
 
-              const textLength = t.text.length;
+              const textLength = Math.max(1, t.text.length);
               const height = t.size * 3;
-              const width = textLength * t.size * 1.6;
+              const width = Math.max(40, textLength * t.size * 1.6);
               const px = t.x;
               const py = t.y;
 
@@ -3748,7 +3951,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
               return (
                 <div
-                  className="absolute border border-dashed border-indigo-500 bg-indigo-50/15 rounded pointer-events-none"
+                  key={t.id}
+                  className="absolute border-2 border-dashed border-[#7E3BED] bg-[#7E3BED]/5 rounded-lg pointer-events-none"
                   style={{
                     left: `${minX}px`,
                     top: `${minY}px`,
@@ -3758,14 +3962,63 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     transformOrigin: 'center center'
                   }}
                 >
-                  <div className="absolute -top-5 left-0 bg-indigo-500 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
-                    Editing Text
+                  {/* Label Badge */}
+                  <div className="absolute -top-6 left-0 bg-[#7E3BED] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider flex items-center gap-1 select-none pointer-events-none">
+                    <Type size={11} />
+                    <span>Text</span>
+                  </div>
+
+                  {/* Corner Delete Cross Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteEditingText(t.id);
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      deleteEditingText(t.id);
+                    }}
+                    title="Delete text"
+                    className="absolute -top-3.5 -right-3.5 w-7 h-7 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md pointer-events-auto cursor-pointer hover:scale-115 active:scale-95 transition-all z-30"
+                  >
+                    <X size={14} strokeWidth={2.5} />
+                  </button>
+
+                  {/* Corner Resize Handles */}
+                  <div
+                    className="absolute -top-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
+                    onMouseDown={(e) => startTextResize(e, "tl", t)}
+                    onTouchStart={(e) => startTextResize(e, "tl", t)}
+                  >
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                  </div>
+                  <div
+                    className="absolute -top-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
+                    onMouseDown={(e) => startTextResize(e, "tr", t)}
+                    onTouchStart={(e) => startTextResize(e, "tr", t)}
+                  >
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                  </div>
+                  <div
+                    className="absolute -bottom-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nesw-resize pointer-events-auto group/handle z-20"
+                    onMouseDown={(e) => startTextResize(e, "bl", t)}
+                    onTouchStart={(e) => startTextResize(e, "bl", t)}
+                  >
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
+                  </div>
+                  <div
+                    className="absolute -bottom-2.5 -right-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
+                    onMouseDown={(e) => startTextResize(e, "br", t)}
+                    onTouchStart={(e) => startTextResize(e, "br", t)}
+                  >
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
                   </div>
                 </div>
               );
             })()}
 
-            {/* If editingShapeId exists, draw dashed border and handles */}
+            {/* If editingShapeId exists, draw dashed border, handles, and delete cross button */}
             {(() => {
               if (!editingShapeId) return null;
               const s = placedShapes.find(x => x.id === editingShapeId);
@@ -3775,10 +4028,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
               const h = s.height;
               const left = s.x - w / 2;
               const top = s.y - h / 2;
+              const isSticker = s.type === "sticker";
 
               return (
                 <div
-                  className="absolute border border-dashed border-indigo-600 bg-indigo-50/10 rounded pointer-events-none animate-fade-in"
+                  key={s.id}
+                  className="absolute border-2 border-dashed border-[#7E3BED] bg-[#7E3BED]/5 rounded-lg pointer-events-none animate-fade-in"
                   style={{
                     left: `${left}px`,
                     top: `${top}px`,
@@ -3788,16 +4043,45 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     transformOrigin: 'center center'
                   }}
                 >
-                  <div className="absolute -top-5 left-0 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black uppercase tracking-wider whitespace-nowrap pointer-events-none">
-                    {s.type} Shape
+                  {/* Label Badge */}
+                  <div className="absolute -top-6 left-0 bg-[#7E3BED] text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs uppercase tracking-wider whitespace-nowrap pointer-events-none flex items-center gap-1 select-none">
+                    {isSticker ? (
+                      <>
+                        <Sticker size={11} />
+                        <span>Sticker {s.emoji || ''}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shapes size={11} />
+                        <span>{s.type} Shape</span>
+                      </>
+                    )}
                   </div>
+
+                  {/* Corner Delete Cross Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteEditingShape(s.id);
+                    }}
+                    onTouchStart={(e) => {
+                      e.stopPropagation();
+                      deleteEditingShape(s.id);
+                    }}
+                    title={isSticker ? "Delete sticker" : "Delete shape"}
+                    className="absolute -top-3.5 -right-3.5 w-7 h-7 bg-rose-500 hover:bg-rose-600 text-white rounded-full flex items-center justify-center shadow-md pointer-events-auto cursor-pointer hover:scale-115 active:scale-95 transition-all z-30"
+                  >
+                    <X size={14} strokeWidth={2.5} />
+                  </button>
+
                   {/* Top Left Resize Handle */}
                   <div
                     className="absolute -top-2.5 -left-2.5 w-5 h-5 flex items-center justify-center cursor-nwse-resize pointer-events-auto group/handle z-20"
                     onMouseDown={(e) => startResize(e, "tl", s)}
                     onTouchStart={(e) => startResize(e, "tl", s)}
                   >
-                    <div className="w-3 h-3 bg-white border-2 border-indigo-600 rounded-full group-hover/handle:scale-125 transition-transform shadow-sm" />
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
                   </div>
                   {/* Top Right Resize Handle */}
                   <div
@@ -3805,7 +4089,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     onMouseDown={(e) => startResize(e, "tr", s)}
                     onTouchStart={(e) => startResize(e, "tr", s)}
                   >
-                    <div className="w-3 h-3 bg-white border-2 border-indigo-600 rounded-full group-hover/handle:scale-125 transition-transform shadow-sm" />
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
                   </div>
                   {/* Bottom Left Resize Handle */}
                   <div
@@ -3813,7 +4097,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     onMouseDown={(e) => startResize(e, "bl", s)}
                     onTouchStart={(e) => startResize(e, "bl", s)}
                   >
-                    <div className="w-3 h-3 bg-white border-2 border-indigo-600 rounded-full group-hover/handle:scale-125 transition-transform shadow-sm" />
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
                   </div>
                   {/* Bottom Right Resize Handle */}
                   <div
@@ -3821,7 +4105,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     onMouseDown={(e) => startResize(e, "br", s)}
                     onTouchStart={(e) => startResize(e, "br", s)}
                   >
-                    <div className="w-3 h-3 bg-white border-2 border-indigo-600 rounded-full group-hover/handle:scale-125 transition-transform shadow-sm" />
+                    <div className="w-3.5 h-3.5 bg-white border-2 border-[#7E3BED] rounded-full group-hover/handle:scale-125 transition-transform shadow-xs" />
                   </div>
                 </div>
               );
@@ -4792,16 +5076,36 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                 {/* Stamp Tool Config */}
                 {tool === "stamp" && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} className="space-y-6 pt-2">
+                    <div className="bg-[#7E3BED]/5 border border-[#7E3BED]/20 rounded-2xl p-3 text-[11px] text-slate-600 space-y-1">
+                      <p className="font-bold text-[#7E3BED] flex items-center gap-1.5">
+                        <Sticker size={13} />
+                        Sticker Tip
+                      </p>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        Tap anywhere on the canvas to place a sticker. Drag to reposition, use corner handles to resize, or tap the red <span className="font-bold text-rose-500">✕</span> to delete!
+                      </p>
+                    </div>
+
                     <div className="space-y-3">
-                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Emoji Stamps</label>
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Emoji Stickers</label>
                       <div className="grid grid-cols-5 gap-2 bg-slate-50 p-3 rounded-[1.5rem]">
                         {["✨", "🔥", "❤️", "⭐", "🎨", "🚀", "🌈", "🦋", "🍄", "🐱", "🧿", "🍀", "💎", "🍭", "👾"].map(emoji => (
                           <button
                             key={emoji}
-                            onClick={() => { setStampEmoji(emoji); vibrate(5); }}
+                            onClick={() => {
+                              setStampEmoji(emoji);
+                              vibrate(5);
+                              if (editingShapeId) {
+                                const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, emoji } : s);
+                                setPlacedShapes(next);
+                                placedShapesRef.current = next;
+                                socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                                compositeLayers();
+                              }
+                            }}
                             className={cn(
                               "aspect-square text-lg flex items-center justify-center rounded-xl transition-all active:scale-75",
-                              stampEmoji === emoji ? "bg-white shadow-md scale-110" : "hover:bg-white/50"
+                              stampEmoji === emoji ? "bg-white shadow-md scale-110 ring-2 ring-[#7E3BED]/30" : "hover:bg-white/50"
                             )}
                           >
                             {emoji}
@@ -4815,26 +5119,45 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                       <input
                         type="text"
                         value={stampEmoji}
-                        onChange={(e) => setStampEmoji(e.target.value.substring(0, 4))} // Handle composite emojis
-                        className="w-full bg-slate-50 border border-slate-100 rounded-2xl p-4 font-bold text-center text-2xl focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        onChange={(e) => {
+                          const val = e.target.value.substring(0, 4);
+                          setStampEmoji(val);
+                          if (editingShapeId) {
+                            const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, emoji: val } : s);
+                            setPlacedShapes(next);
+                            placedShapesRef.current = next;
+                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            compositeLayers();
+                          }
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200/90 rounded-2xl p-3 font-bold text-center text-2xl focus:outline-none focus:ring-2 focus:ring-[#7E3BED]/20 focus:border-[#7E3BED] focus:bg-white transition-all"
                         placeholder="Drop any emoji..."
                       />
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Rotation</label>
-                        <span className="text-[10px] font-bold text-indigo-500 tabular-nums">{textRotation}°</span>
+                    {editingShapeId && (
+                      <div className="space-y-3 bg-[#7E3BED]/5 p-4 rounded-3xl border border-[#7E3BED]/20 flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[9px] font-black text-[#7E3BED] uppercase tracking-widest">
+                            ● Selected Sticker
+                          </span>
+                          <button
+                            onClick={() => { saveToHistory(); setEditingShapeId(null); setSelectedShapeIds([]); selectedShapeIdsRef.current = []; vibrate(10); }}
+                            className="text-[9px] font-black text-slate-400 hover:text-slate-600 uppercase tracking-wider"
+                          >
+                            Deselect
+                          </button>
+                        </div>
+
+                        <button
+                          onClick={() => deleteEditingShape(editingShapeId)}
+                          className="w-full py-2.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-1.5"
+                        >
+                          <Trash2 size={13} />
+                          Delete Sticker
+                        </button>
                       </div>
-                      <input
-                        type="range"
-                        min="-180"
-                        max="180"
-                        value={textRotation}
-                        onChange={(e) => setTextRotation(parseInt(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                      />
-                    </div>
+                    )}
                   </motion.div>
                 )}
 
