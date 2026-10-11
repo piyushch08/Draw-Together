@@ -145,12 +145,34 @@ async function startServer() {
     res.json({ rooms: publicRooms });
   });
 
+  app.get("/api/network-info", (req, res) => {
+    const interfaces = os.networkInterfaces();
+    const addresses: string[] = [];
+    for (const name of Object.keys(interfaces)) {
+      for (const iface of interfaces[name] || []) {
+        if (iface.family === "IPv4" && !iface.internal) {
+          addresses.push(iface.address);
+        }
+      }
+    }
+    addresses.sort((a, b) => {
+      if (a.startsWith("192.168.") && !b.startsWith("192.168.")) return -1;
+      if (!a.startsWith("192.168.") && b.startsWith("192.168.")) return 1;
+      return 0;
+    });
+    res.json({
+      port: PORT,
+      addresses,
+      primaryHost: addresses[0] ? `${addresses[0]}:${PORT}` : `localhost:${PORT}`
+    });
+  });
+
   // Socket.io Real-Time Event Handlers
   io.on("connection", (socket: Socket) => {
     console.log(`[Socket Connected] ID: ${socket.id} on Worker ${isProd ? cluster.worker?.id : "dev"}`);
 
     socket.on("join-room", ({ roomId, username, color }: { roomId: string; username: string; color?: string }) => {
-      const cleanRoomId = (roomId || "default-room").trim();
+      const cleanRoomId = (roomId || "default-room").trim().toUpperCase();
       const cleanUsername = (username || "Anonymous Artist").trim();
 
       socket.join(cleanRoomId);
@@ -182,55 +204,58 @@ async function startServer() {
       socket.to(cleanRoomId).emit("user-joined", user);
 
       const otherUserIds = Array.from(room.users.keys()).filter(id => id !== socket.id);
-      if (otherUserIds.length > 0 && !room.canvasData) {
+      if (otherUserIds.length > 0) {
         io.to(otherUserIds[0]).emit("request-canvas-snapshot", { requesterId: socket.id, roomId: cleanRoomId });
       }
     });
 
     socket.on("cursor-move", (data: { roomId: string; x: number; y: number; tool?: string; color?: string; isDrawing?: boolean }) => {
       if (!data?.roomId) return;
-      if (!checkRateLimit(socket.id, 15)) return; // Max 15 cursor updates per second per user for scale
-      const room = rooms.get(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = rooms.get(targetRoom);
       if (room && room.users.has(socket.id)) {
         const user = room.users.get(socket.id)!;
         user.cursorX = data.x;
         user.cursorY = data.y;
       }
-      socket.volatile.to(data.roomId).emit("cursor-move", { ...data, userId: socket.id });
+      socket.to(targetRoom).emit("cursor-move", { ...data, roomId: targetRoom, userId: socket.id });
     });
 
     socket.on("drawing", (data: any) => {
       if (!data?.roomId) return;
-      if (!checkRateLimit(socket.id + "_draw", 60)) return;
-      const room = rooms.get(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = rooms.get(targetRoom);
       if (room) room.lastActivity = Date.now();
-      socket.volatile.to(data.roomId).emit("drawing", data);
+      socket.to(targetRoom).emit("drawing", { ...data, roomId: targetRoom });
     });
 
     socket.on("drawing-batch", (data: { roomId: string; segments: any[] }) => {
-      if (!data?.roomId) return;
-      const room = rooms.get(data.roomId);
+      if (!data?.roomId || !data?.segments?.length) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = rooms.get(targetRoom);
       if (room) room.lastActivity = Date.now();
-      socket.volatile.to(data.roomId).emit("drawing-batch", data);
+      socket.to(targetRoom).emit("drawing-batch", { ...data, roomId: targetRoom });
     });
 
     socket.on("laser-pointer", (data: { roomId: string; x: number; y: number; color?: string; username?: string }) => {
       if (!data?.roomId) return;
-      if (!checkRateLimit(socket.id + "_laser", 30)) return;
-      socket.volatile.to(data.roomId).emit("laser-pointer", { ...data, userId: socket.id });
+      const targetRoom = data.roomId.trim().toUpperCase();
+      socket.to(targetRoom).emit("laser-pointer", { ...data, roomId: targetRoom, userId: socket.id });
     });
 
     socket.on("sync-canvas", (data: { roomId: string; canvasData: string }) => {
       if (!data?.roomId || !data?.canvasData) return;
-      const room = getOrCreateRoom(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
       room.canvasData = data.canvasData;
       room.lastActivity = Date.now();
-      socket.to(data.roomId).emit("sync-canvas", data);
+      socket.to(targetRoom).emit("sync-canvas", { ...data, roomId: targetRoom });
     });
 
     socket.on("canvas-snapshot-reply", (data: { requesterId: string; canvasData: string; roomId: string }) => {
       if (data.requesterId && data.canvasData) {
-        const room = rooms.get(data.roomId);
+        const targetRoom = (data.roomId || "").trim().toUpperCase();
+        const room = rooms.get(targetRoom);
         if (room) room.canvasData = data.canvasData;
         io.to(data.requesterId).emit("sync-canvas", { canvasData: data.canvasData });
       }
@@ -238,46 +263,52 @@ async function startServer() {
 
     socket.on("sync-placed-shapes", (data: { roomId: string; placedShapes: any[] }) => {
       if (!data?.roomId) return;
-      const room = getOrCreateRoom(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
       room.placedShapes = data.placedShapes || [];
       room.lastActivity = Date.now();
-      socket.to(data.roomId).emit("sync-placed-shapes", data);
+      socket.to(targetRoom).emit("sync-placed-shapes", { ...data, roomId: targetRoom });
     });
 
     socket.on("sync-placed-texts", (data: { roomId: string; placedTexts: any[] }) => {
       if (!data?.roomId) return;
-      const room = getOrCreateRoom(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
       room.placedTexts = data.placedTexts || [];
       room.lastActivity = Date.now();
-      socket.to(data.roomId).emit("sync-placed-texts", data);
+      socket.to(targetRoom).emit("sync-placed-texts", { ...data, roomId: targetRoom });
     });
 
     socket.on("sync-layers", (data: { roomId: string; layers: any[]; activeLayerId?: string }) => {
       if (!data?.roomId) return;
-      const room = getOrCreateRoom(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
       if (data.layers) room.layers = data.layers;
       if (data.activeLayerId) room.activeLayerId = data.activeLayerId;
       room.lastActivity = Date.now();
-      socket.to(data.roomId).emit("sync-layers", data);
+      socket.to(targetRoom).emit("sync-layers", { ...data, roomId: targetRoom });
     });
 
     socket.on("chat-message", (data: ChatMessage & { roomId: string }) => {
       if (!data?.roomId || !data?.message) return;
-      const room = getOrCreateRoom(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
       room.chat.push(data);
       if (room.chat.length > 100) room.chat.shift();
       room.lastActivity = Date.now();
-      io.to(data.roomId).emit("chat-message", data);
+      io.to(targetRoom).emit("chat-message", { ...data, roomId: targetRoom });
     });
 
     socket.on("typing", (data: { roomId: string; username: string; isTyping: boolean }) => {
       if (!data?.roomId) return;
-      socket.to(data.roomId).emit("typing", data);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      socket.to(targetRoom).emit("typing", { ...data, roomId: targetRoom });
     });
 
     socket.on("message-reaction", (data: { roomId: string; messageId: string; emoji: string; username: string }) => {
       if (!data?.roomId) return;
-      const room = rooms.get(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = rooms.get(targetRoom);
       if (room) {
         const msg = room.chat.find(m => m.id === data.messageId);
         if (msg) {
@@ -291,28 +322,31 @@ async function startServer() {
           }
         }
       }
-      io.to(data.roomId).emit("message-reaction", data);
+      io.to(targetRoom).emit("message-reaction", { ...data, roomId: targetRoom });
     });
 
-    socket.on("clear-canvas", (roomId: string) => {
-      if (!roomId) return;
-      const room = rooms.get(roomId);
+    socket.on("clear-canvas", (data: any) => {
+      const rawRoom = typeof data === "string" ? data : data?.roomId;
+      if (!rawRoom) return;
+      const targetRoom = rawRoom.trim().toUpperCase();
+      const room = rooms.get(targetRoom);
       if (room) {
         room.canvasData = undefined;
         room.placedShapes = [];
         room.placedTexts = [];
         room.lastActivity = Date.now();
       }
-      io.to(roomId).emit("clear-canvas");
+      io.to(targetRoom).emit("clear-canvas");
     });
 
     socket.on("update-room-settings", (data: { roomId: string; backgroundColor: string; aspectRatio: string }) => {
       if (!data?.roomId) return;
-      const room = getOrCreateRoom(data.roomId);
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
       room.backgroundColor = data.backgroundColor;
       room.aspectRatio = data.aspectRatio;
       room.lastActivity = Date.now();
-      io.to(data.roomId).emit("room-settings-updated", data);
+      io.to(targetRoom).emit("room-settings-updated", { ...data, roomId: targetRoom });
     });
 
     socket.on("disconnecting", () => {

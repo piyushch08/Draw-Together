@@ -59,7 +59,10 @@ import {
   MessageCircleHeart,
   Minimize,
   Grid,
-  Instagram
+  Instagram,
+  QrCode,
+  Share2,
+  Smartphone
 } from "lucide-react";
 import { cn } from "./lib/utils";
 
@@ -376,7 +379,7 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
         transformOrigin: '0 0'
       }}
     >
-      {(Object.values(remoteCursors) as UserPresence[]).filter(u => u.id !== socket?.id && u.cursorX !== undefined).map(u => {
+      {(Object.values(remoteCursors) as UserPresence[]).filter(u => u.id !== socket?.id && typeof u.cursorX === 'number' && !isNaN(u.cursorX) && isFinite(u.cursorX) && typeof u.cursorY === 'number' && !isNaN(u.cursorY) && isFinite(u.cursorY)).map(u => {
         const activeTrail = (u.trail || []).filter(t => now - t.timestamp < TRAIL_LIFETIME);
         return (
           <React.Fragment key={u.id}>
@@ -448,6 +451,10 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
                     {u.tool === "spray" && <CloudRain size={12} style={{ color: u.color }} />}
                     {u.tool === "smudge" && <Fingerprint size={12} style={{ color: u.color }} />}
                     {u.tool === "eraser" && <Eraser size={12} className="text-slate-400" />}
+                    {u.tool === "shape" && <Shapes size={12} style={{ color: u.color }} />}
+                    {u.tool === "text" && <Type size={12} style={{ color: u.color }} />}
+                    {u.tool === "stamp" && <Sticker size={12} style={{ color: u.color }} />}
+                    {u.tool === "picker" && <Pipette size={12} style={{ color: u.color }} />}
                   </div>
                 </motion.div>
 
@@ -517,6 +524,7 @@ export default function App() {
       setRoomId(initialRoom);
       setJoinCode(initialRoom);
       setIsJoining(true); // default to joining view if URL contains a code
+      setIsEntered(true); // auto-enter so mobile users opening link jump straight into the canvas room
     }
 
     // Register hashchange so user can transition Rooms dynamically by editing URL
@@ -873,7 +881,7 @@ export function LandingPage({
   );
 }
 
-function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullscreen, toggleFullscreen, isNewRoom }: {
+function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnter, isFullscreen, toggleFullscreen, isNewRoom }: {
   roomId: string;
   username: string;
   setUsername: (v: string) => void;
@@ -883,7 +891,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   toggleFullscreen: () => void;
   isNewRoom: boolean;
 }) {
+  const roomId = (rawRoomId || "DEFAULT-ROOM").trim().toUpperCase();
+  const [networkInfo, setNetworkInfo] = useState<{ primaryHost?: string; addresses?: string[] } | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const hasLocalDrawnRef = useRef(false);
+
+  useEffect(() => {
+    fetch("/api/network-info")
+      .then(res => res.json())
+      .then(data => setNetworkInfo(data))
+      .catch(() => {});
+  }, []);
+
   const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  socketRef.current = socket;
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [showTemplateModal, setShowTemplateModal] = useState(isNewRoom);
   
@@ -900,7 +922,9 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
   const fitToScreen = () => {
     const container = containerRef.current;
     if (!container) return;
-    const { clientWidth, clientHeight } = container;
+    const clientWidth = container.clientWidth || window.innerWidth;
+    const clientHeight = container.clientHeight || window.innerHeight;
+    if (clientWidth <= 0 || clientHeight <= 0) return;
     
     let boardW = 1920; let boardH = 1080;
     if (roomSettingsRef.current.aspectRatio === "4:3") { boardW = 1440; boardH = 1080; }
@@ -910,7 +934,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     
     const scaleX = clientWidth / boardW;
     const scaleY = clientHeight / boardH;
-    const fitScale = Math.min(scaleX, scaleY) * 0.95; // 5% padding
+    let fitScale = Math.min(scaleX, scaleY) * 0.95; // 5% padding
+    if (isNaN(fitScale) || fitScale < 0.05) fitScale = 0.5;
     
     const targetX = (clientWidth - boardW * fitScale) / 2;
     const targetY = (clientHeight - boardH * fitScale) / 2;
@@ -1024,12 +1049,16 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     if (typeof update === 'function') {
       _setTransform((prev: any) => {
         const next = update(prev);
-        transformRef.current = next;
-        return next;
+        const safeScale = (!next.scale || isNaN(next.scale) || next.scale <= 0.01) ? 1 : Math.max(0.05, Math.min(10, next.scale));
+        const safeNext = { ...next, scale: safeScale };
+        transformRef.current = safeNext;
+        return safeNext;
       });
     } else {
-      _setTransform(update);
-      transformRef.current = update;
+      const safeScale = (!update.scale || isNaN(update.scale) || update.scale <= 0.01) ? 1 : Math.max(0.05, Math.min(10, update.scale));
+      const safeUpdate = { ...update, scale: safeScale };
+      _setTransform(safeUpdate);
+      transformRef.current = safeUpdate;
     }
   };
 
@@ -1115,56 +1144,26 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
 
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawingQueue = useRef<DrawingData[]>([]);
   const networkQueueRef = useRef<DrawingData[]>([]);
-  const rafId = useRef<number | null>(null);
-  const isDrawingScheduledRef = useRef(false);
   const networkIntervalId = useRef<number | null>(null);
 
-  const scheduleDrawingQueue = () => {
-    if (isDrawingScheduledRef.current) return;
-    isDrawingScheduledRef.current = true;
-    rafId.current = requestAnimationFrame(processDrawingQueue);
-  };
-
-  const processDrawingQueue = () => {
-    isDrawingScheduledRef.current = false;
-    if (drawingQueue.current.length > 0) {
-      const segments = [...drawingQueue.current];
-      drawingQueue.current = [];
-
-      if (segments.length > 0) {
-        // Draw all segments to layer canvas without individual compositing
-        for (let i = 0; i < segments.length; i++) {
-          drawOnCanvas(segments[i], false);
-        }
-        // Composite once for the entire batch
-        compositeLayers();
-        networkQueueRef.current.push(...segments);
+  const flushNetworkQueue = useCallback(() => {
+    if (networkQueueRef.current.length > 0) {
+      const segments = [...networkQueueRef.current];
+      networkQueueRef.current = [];
+      const s = socketRef.current || socket;
+      if (s && roomId) {
+        s.emit("drawing-batch", { roomId, segments });
       }
     }
-    if (drawingQueue.current.length > 0) {
-      isDrawingScheduledRef.current = true;
-      rafId.current = requestAnimationFrame(processDrawingQueue);
-    }
-  };
+  }, [roomId, socket]);
 
   useEffect(() => {
-    const processNetworkQueue = () => {
-      if (networkQueueRef.current.length > 0) {
-        const segments = [...networkQueueRef.current];
-        networkQueueRef.current = [];
-        socket?.emit("drawing-batch", { roomId, segments });
-      }
-    };
-
-    networkIntervalId.current = window.setInterval(processNetworkQueue, 33); // ~30fps smooth broadcast (prevents mobile bufferbloat)
-    
+    networkIntervalId.current = window.setInterval(flushNetworkQueue, 25);
     return () => {
-      if (rafId.current) cancelAnimationFrame(rafId.current);
       if (networkIntervalId.current) clearInterval(networkIntervalId.current);
     };
-  }, [socket, roomId]);
+  }, [flushNetworkQueue]);
 
   // --- LAYER TYPES & HELPERS ---
   interface LayerHistoryState {
@@ -1480,6 +1479,17 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     vibrate(10);
   };
 
+  const syncLayersToRoom = (updatedLayers: Layer[], updatedActiveId?: string) => {
+    const s = socketRef.current || socket;
+    if (s && roomId) {
+      s.emit("sync-layers", {
+        roomId,
+        layers: updatedLayers,
+        activeLayerId: updatedActiveId || activeLayerIdRef.current
+      });
+    }
+  };
+
   const handleAddLayer = () => {
     const id = nanoid();
     const newLayerName = `Layer ${layersRef.current.length + 1}`;
@@ -1490,6 +1500,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     setLayers(newLayers);
     setActiveLayerId(id);
     vibrate(10);
+    syncLayersToRoom(newLayers, id);
     setTimeout(() => saveToHistoryStack(newLayers, id), 10);
   };
 
@@ -1506,6 +1517,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     setActiveLayerId(nextActiveId);
 
     vibrate(12);
+    syncLayersToRoom(nextLayers, nextActiveId);
     setTimeout(() => {
       saveToHistoryStack(nextLayers, nextActiveId);
       compositeLayers();
@@ -1516,6 +1528,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     const nextLayers = layersRef.current.map(l => l.id === id ? { ...l, visible: !l.visible } : l);
     setLayers(nextLayers);
     vibrate(5);
+    syncLayersToRoom(nextLayers);
     setTimeout(() => {
       saveToHistoryStack(nextLayers, activeLayerIdRef.current);
       compositeLayers();
@@ -1527,6 +1540,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     setLayers(nextLayers);
     layersRef.current = nextLayers;
     compositeLayers();
+    syncLayersToRoom(nextLayers);
   };
 
   const handleBlendModeChange = (id: string, blendMode: string) => {
@@ -1534,6 +1548,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     setLayers(nextLayers);
     layersRef.current = nextLayers;
     compositeLayers();
+    syncLayersToRoom(nextLayers);
     setTimeout(() => {
       saveToHistoryStack(nextLayers, activeLayerIdRef.current);
     }, 10);
@@ -1550,6 +1565,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
     setLayers(nextLayers);
     vibrate(8);
+    syncLayersToRoom(nextLayers);
     setTimeout(() => {
       saveToHistoryStack(nextLayers, activeLayerIdRef.current);
       compositeLayers();
@@ -1585,6 +1601,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     delete layerCanvasesRef.current[topLayer.id];
 
     vibrate(15);
+    syncLayersToRoom(nextLayers, nextActiveId);
     setTimeout(() => {
       saveToHistoryStack(nextLayers, nextActiveId);
       compositeLayers();
@@ -1729,10 +1746,11 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     let targetX = x;
     let targetY = y;
 
-    if (targetX === undefined || targetY === undefined) {
-      // We need current mouse pos for relative coordinates
-      // Since we removed mousePos state, we'll fetch them from the event or a ref if available
-      // But usually this is called within move handlers which have the data.
+    if (targetX === undefined || targetY === undefined || isNaN(targetX) || isNaN(targetY)) {
+      targetX = drawingState.current.lastX;
+      targetY = drawingState.current.lastY;
+    }
+    if (targetX === undefined || targetY === undefined || isNaN(targetX) || isNaN(targetY)) {
       return;
     }
 
@@ -1841,9 +1859,17 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
   useEffect(() => {
     const s = io();
+    socketRef.current = s;
     setSocket(s);
 
-    s.emit("join-room", { roomId, username });
+    const onConnect = () => {
+      s.emit("join-room", { roomId, username });
+    };
+
+    s.on("connect", onConnect);
+    if (s.connected) {
+      onConnect();
+    }
 
     s.on("drawing", (data: DrawingData) => {
       drawOnCanvas(data, true);
@@ -1862,7 +1888,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     });
 
     s.on("typing", ({ username: typingUser, isTyping: typingStatus }: { username: string, isTyping: boolean }) => {
-      // Just a placeholder if we need global state, but ChatSection handles its own
+      // Handled by ChatSection
     });
 
     s.on("message-reaction", ({ messageId, emoji, username: reactingUser }: { messageId: string, emoji: string, username: string }) => {
@@ -1893,6 +1919,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       placedTexts?: PlacedText[];
       canvasData?: string;
       chat?: ChatMessage[];
+      layers?: Layer[];
+      activeLayerId?: string;
       backgroundColor?: string;
       aspectRatio?: string;
     }) => {
@@ -1918,6 +1946,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       const ar = data.aspectRatio || "16:9";
       setRoomSettings({ backgroundColor: bg, aspectRatio: ar });
       setTimeout(() => fitToScreen(), 100);
+
+      if (data.layers && Array.isArray(data.layers) && data.layers.length > 0) {
+        setLayers(data.layers);
+        layersRef.current = data.layers;
+      }
+      if (data.activeLayerId) {
+        setActiveLayerId(data.activeLayerId);
+        activeLayerIdRef.current = data.activeLayerId;
+      }
       
       if (data.placedShapes && Array.isArray(data.placedShapes) && data.placedShapes.length > 0) {
         setPlacedShapes(data.placedShapes);
@@ -1942,6 +1979,8 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           }
         };
         img.src = data.canvasData;
+      } else {
+        compositeLayers();
       }
     });
 
@@ -1984,19 +2023,27 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     });
 
     s.on("sync-placed-texts", ({ placedTexts: remotePlacedTexts }: { placedTexts: PlacedText[] }) => {
-      setPlacedTexts(remotePlacedTexts);
-      placedTextsRef.current = remotePlacedTexts;
-      setTimeout(() => {
-        compositeLayers();
-      }, 20);
+      setPlacedTexts(remotePlacedTexts || []);
+      placedTextsRef.current = remotePlacedTexts || [];
+      compositeLayers();
     });
 
     s.on("sync-placed-shapes", ({ placedShapes: remotePlacedShapes }: { placedShapes: PlacedShape[] }) => {
-      setPlacedShapes(remotePlacedShapes);
-      placedShapesRef.current = remotePlacedShapes;
-      setTimeout(() => {
+      setPlacedShapes(remotePlacedShapes || []);
+      placedShapesRef.current = remotePlacedShapes || [];
+      compositeLayers();
+    });
+
+    s.on("sync-layers", ({ layers: remoteLayers, activeLayerId: remoteActiveLayerId }: { layers: Layer[], activeLayerId?: string }) => {
+      if (remoteLayers && Array.isArray(remoteLayers) && remoteLayers.length > 0) {
+        setLayers(remoteLayers);
+        layersRef.current = remoteLayers;
+        if (remoteActiveLayerId) {
+          setActiveLayerId(remoteActiveLayerId);
+          activeLayerIdRef.current = remoteActiveLayerId;
+        }
         compositeLayers();
-      }, 20);
+      }
     });
 
     s.on("sync-canvas", ({ canvasData }: { canvasData: string }) => {
@@ -2007,8 +2054,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
           const offscreen = getOrCreateLayerCanvas(activeLayerIdRef.current, canvas.width, canvas.height);
           const offCtx = offscreen.getContext("2d");
           if (offCtx) {
-            offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
-            offCtx.drawImage(img, 0, 0);
+            if (hasLocalDrawnRef.current) {
+              const tempCanvas = document.createElement("canvas");
+              tempCanvas.width = offscreen.width;
+              tempCanvas.height = offscreen.height;
+              const tempCtx = tempCanvas.getContext("2d");
+              if (tempCtx) {
+                tempCtx.drawImage(offscreen, 0, 0);
+              }
+              offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+              offCtx.drawImage(img, 0, 0);
+              offCtx.drawImage(tempCanvas, 0, 0);
+            } else {
+              offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+              offCtx.drawImage(img, 0, 0);
+            }
           }
 
           compositeLayers();
@@ -2036,6 +2096,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
     return () => {
       s.disconnect();
+      socketRef.current = null;
     };
   }, [roomId, username]);
 
@@ -2107,7 +2168,28 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     const masterCanvas = canvasRef.current;
     if (!masterCanvas) return;
 
+    if (data.x === undefined || data.x === null || isNaN(data.x) ||
+        data.y === undefined || data.y === null || isNaN(data.y)) {
+      return;
+    }
+
+    const safePrevX = (data.prevX !== undefined && data.prevX !== null && !isNaN(data.prevX)) ? data.prevX : data.x;
+    const safePrevY = (data.prevY !== undefined && data.prevY !== null && !isNaN(data.prevY)) ? data.prevY : data.y;
+    data.prevX = safePrevX;
+    data.prevY = safePrevY;
+
     const targetLayerId = data.layerId || activeLayerIdRef.current;
+    if (!layersRef.current.some(l => l.id === targetLayerId)) {
+      const newLayer: Layer = {
+        id: targetLayerId,
+        name: `Layer ${layersRef.current.length + 1}`,
+        visible: true,
+        opacity: 1
+      };
+      const nextLayers = [...layersRef.current, newLayer];
+      layersRef.current = nextLayers;
+      setLayers(nextLayers);
+    }
     const canvas = getOrCreateLayerCanvas(targetLayerId, masterCanvas.width, masterCanvas.height);
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
@@ -2367,9 +2449,21 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
         }
         ctx.restore();
       } else {
-        ctx.moveTo(px, py);
-        ctx.lineTo(finalX, finalY);
-        ctx.stroke();
+        if (Math.abs(px - finalX) < 0.5 && Math.abs(py - finalY) < 0.5) {
+          ctx.beginPath();
+          if (data.brushStyle === "square") {
+            ctx.fillStyle = isEraser ? "rgba(0,0,0,1)" : data.color;
+            ctx.fillRect(finalX - data.size / 2, finalY - data.size / 2, data.size, data.size);
+          } else {
+            ctx.fillStyle = isEraser ? "rgba(0,0,0,1)" : data.color;
+            ctx.arc(finalX, finalY, Math.max(0.5, data.size / 2), 0, Math.PI * 2);
+            ctx.fill();
+          }
+        } else {
+          ctx.moveTo(px, py);
+          ctx.lineTo(finalX, finalY);
+          ctx.stroke();
+        }
       }
       ctx.shadowBlur = 0;
     };
@@ -2453,8 +2547,42 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     };
   }, []);
 
+  const fallbackCopy = (text: string) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      document.execCommand("copy");
+    } catch (err) {
+      console.error("Copy failed", err);
+    }
+    document.body.removeChild(textArea);
+  };
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).catch(() => {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  };
+
+  const getShareUrl = () => {
+    if (networkInfo?.primaryHost && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+      return `http://${networkInfo.primaryHost}/#${roomId}`;
+    }
+    return `${window.location.origin}${window.location.pathname}#${roomId}`;
+  };
+
   const handleCopyCode = () => {
-    navigator.clipboard.writeText(roomId);
+    const url = getShareUrl();
+    copyToClipboard(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -2478,27 +2606,52 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     };
     updateRect();
     window.addEventListener('resize', updateRect);
+    window.addEventListener('orientationchange', updateRect);
     window.addEventListener('scroll', updateRect, true);
     return () => {
       window.removeEventListener('resize', updateRect);
+      window.removeEventListener('orientationchange', updateRect);
       window.removeEventListener('scroll', updateRect, true);
     };
   }, []);
 
   function getCoordinates(e: any) {
-    if (!containerRectRef.current) return { x: 0, y: 0 };
+    const rect = containerRef.current?.getBoundingClientRect() || containerRectRef.current;
+    if (!rect) return { x: 0, y: 0 };
 
-    const clientX = e.clientX ?? (e.touches?.[0]?.clientX) ?? 0;
-    const clientY = e.clientY ?? (e.touches?.[0]?.clientY) ?? 0;
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+
+    if (clientX === undefined || clientY === undefined) {
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+        clientY = e.changedTouches[0].clientY;
+      } else {
+        clientX = 0;
+        clientY = 0;
+      }
+    }
 
     // Get position relative to container
-    const mouseX = clientX - containerRectRef.current.left;
-    const mouseY = clientY - containerRectRef.current.top;
+    const mouseX = clientX - rect.left;
+    const mouseY = clientY - rect.top;
+
+    const scale = (transformRef.current.scale && !isNaN(transformRef.current.scale) && transformRef.current.scale > 0.01)
+      ? transformRef.current.scale
+      : 1;
+    const tx = isNaN(transformRef.current.x) ? 0 : transformRef.current.x;
+    const ty = isNaN(transformRef.current.y) ? 0 : transformRef.current.y;
 
     // Convert to world coordinates (Undo the transform)
+    const worldX = (mouseX - tx) / scale;
+    const worldY = (mouseY - ty) / scale;
+
     return {
-      x: (mouseX - transformRef.current.x) / transformRef.current.scale,
-      y: (mouseY - transformRef.current.y) / transformRef.current.scale
+      x: isNaN(worldX) ? 0 : worldX,
+      y: isNaN(worldY) ? 0 : worldY
     };
   }
 
@@ -2883,11 +3036,53 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     }
 
     drawingState.current.isDrawing = true;
+    hasLocalDrawnRef.current = true;
     const { x, y } = getCoordinates(e);
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
     drawingState.current.lastScreenX = clientX;
     drawingState.current.lastScreenY = clientY;
+
+    if (tool !== "shape" && tool !== "text" && tool !== "stamp" && tool !== "picker") {
+      let currentColor = color;
+      if (isRainbowMode) {
+        hueRef.current = (hueRef.current + 5) % 360;
+        currentColor = `hsl(${hueRef.current}, 100%, 50%)`;
+      }
+
+      const initialDot: DrawingData = {
+        roomId,
+        x,
+        y,
+        prevX: x,
+        prevY: y,
+        color: currentColor,
+        size: tool === "eraser" ? eraserSize : size,
+        tool,
+        brushStyle,
+        symmetryMode,
+        opacity,
+        density,
+        hardness,
+        flow,
+        jitter,
+        smudgeIntensity,
+        text: textValue,
+        stamp: stampEmoji,
+        rotation: textRotation,
+        fontFamily: fontFamily,
+        isBold,
+        isItalic,
+        hasOutline,
+        outlineColor,
+        outlineWidth: textOutlineWidth,
+        layerId: activeLayerId
+      };
+
+      drawOnCanvas(initialDot, true);
+      networkQueueRef.current.push(initialDot);
+    }
+
     emitCursorUpdate(x, y, true);
   }
 
@@ -3088,18 +3283,18 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     }
 
     if (!drawingState.current.isDrawing) return;
+    hasLocalDrawnRef.current = true;
     const { x: rawX, y: rawY } = getCoordinates(e);
 
     let x = rawX;
     let y = rawY;
 
-    const isTouchInput = e.identifier !== undefined || e.pointerType === "touch";
+    const isTouchInput = e.identifier !== undefined || e.pointerType === "touch" || (e.touches && e.touches.length > 0);
     if (isSmoothingEnabled && !isTouchInput) {
-      // Enhanced exponential lerp: use higher precision lerp for responsiveness
-      // Factor is 1 - smoothing (e.g. 0.9 smoothing means 0.1 factor per update)
-      const factor = Math.max(0.01, 1 - smoothing);
-      x = drawingState.current.lastX + (rawX - drawingState.current.lastX) * factor;
-      y = drawingState.current.lastY + (rawY - drawingState.current.lastY) * factor;
+      // Responsive smoothing: keeps line silky smooth while staying tightly locked to cursor
+      const alpha = 0.5 + (1 - smoothing) * 0.5;
+      x = drawingState.current.lastX + (rawX - drawingState.current.lastX) * alpha;
+      y = drawingState.current.lastY + (rawY - drawingState.current.lastY) * alpha;
     }
 
     let currentColor = color;
@@ -3137,8 +3332,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       layerId: activeLayerId
     };
 
-    drawingQueue.current.push(data);
-    scheduleDrawingQueue();
+    // Instant local drawing for zero-latency response!
+    drawOnCanvas(data, false);
+    scheduleCompositeLayers();
+    networkQueueRef.current.push(data);
 
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
@@ -3177,8 +3374,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     }
 
     if (drawingState.current.isDrawing) {
+      flushNetworkQueue();
+      compositeLayers();
       setTimeout(() => saveToHistory(), 0);
-      emitCursorUpdate(undefined, undefined, false);
+      emitCursorUpdate(drawingState.current.lastX, drawingState.current.lastY, false);
     }
     drawingState.current.isDrawing = false;
   }
@@ -3695,6 +3894,10 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
 
     if (e.touches.length === 1 && !isHandTool) {
       draw(e.touches[0]);
+      if (socket && roomId) {
+        const { x, y } = getCoordinates(e.touches[0]);
+        emitCursorUpdateThrottled(x, y);
+      }
     } else if (e.touches.length === 2) {
       const t1 = e.touches[0];
       const t2 = e.touches[1];
@@ -3874,6 +4077,15 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                 className="p-1 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-500 transition-colors shadow-sm active:scale-90"
               >
                 {copied ? <Check size={11} className="text-green-500" /> : <Copy size={11} />}
+              </button>
+            </Tooltip>
+            <Tooltip label="Connect Phone (QR & Share)" side="bottom">
+              <button
+                onClick={() => setShowShareModal(true)}
+                className="p-1 px-2 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 text-indigo-700 transition-colors shadow-sm active:scale-90 flex items-center gap-1 text-[10px] font-bold"
+              >
+                <QrCode size={11} />
+                <span className="hidden sm:inline">Connect Phone</span>
               </button>
             </Tooltip>
           </div>
@@ -4863,8 +5075,16 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                     <button
                       onClick={handleCopyCode}
                       className="p-2 bg-white border border-slate-200 rounded-xl shadow-sm text-slate-500 hover:text-indigo-600 active:scale-90 transition-all shrink-0"
+                      title="Copy Invite Link"
                     >
                       {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+                    </button>
+                    <button
+                      onClick={() => setShowShareModal(true)}
+                      className="p-2 bg-indigo-50 border border-indigo-200 rounded-xl shadow-sm text-indigo-600 hover:bg-indigo-100 active:scale-90 transition-all shrink-0"
+                      title="Connect Phone / QR"
+                    >
+                      <QrCode size={16} />
                     </button>
                   </div>
                 </div>
@@ -6354,6 +6574,82 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
                 </div>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Connect Phone / Share Modal */}
+        <AnimatePresence>
+          {showShareModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="w-full max-w-sm bg-white rounded-[2rem] p-6 sm:p-8 shadow-2xl border border-slate-200"
+              >
+                <div className="flex flex-col items-center text-center gap-5">
+                  <div className="w-full flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                        <Smartphone size={18} />
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Connect Phone</h3>
+                    </div>
+                    <button
+                      onClick={() => setShowShareModal(false)}
+                      className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <p className="text-slate-500 text-xs font-medium leading-relaxed">
+                    Scan with your phone's camera or share the link. You can draw on your phone while viewing in real-time on PC!
+                  </p>
+
+                  {/* QR Code */}
+                  <div className="p-3 bg-white rounded-2xl border-2 border-indigo-100 shadow-sm flex items-center justify-center">
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(getShareUrl())}`}
+                      alt="Room QR Code"
+                      className="w-44 h-44 rounded-lg"
+                      loading="lazy"
+                    />
+                  </div>
+
+                  {/* Room Code Pill */}
+                  <div className="w-full space-y-2">
+                    <div className="flex justify-between items-center text-[10px] font-bold uppercase text-slate-400 tracking-wider">
+                      <span>Room Code</span>
+                      <span className="text-indigo-600 font-extrabold">{roomId}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-1.5 px-3">
+                      <input
+                        type="text"
+                        readOnly
+                        value={getShareUrl()}
+                        className="flex-1 bg-transparent text-xs text-slate-600 font-mono outline-none truncate"
+                      />
+                      <button
+                        onClick={handleCopyCode}
+                        className="py-1 px-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow-sm active:scale-95 flex items-center gap-1 shrink-0"
+                      >
+                        {copied ? <Check size={12} className="text-green-300" /> : <Copy size={12} />}
+                        <span>{copied ? "Copied!" : "Copy"}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowShareModal(false)}
+                    className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-all text-xs"
+                  >
+                    Done
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
