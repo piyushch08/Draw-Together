@@ -626,94 +626,94 @@ export function LandingPage({
 }: any) {
   return (
     <div
-      className="min-h-screen bg-indigo-50 flex flex-col items-center justify-center p-4 sm:p-6 font-sans relative overflow-hidden"
+      className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-between p-4 sm:p-8 font-sans relative overflow-x-hidden"
     >
+      {/* Minimal Fullscreen Toggle */}
       <button
         onClick={toggleFullscreen}
-        className="absolute top-4 left-4 z-[9999] w-10 h-10 rounded-xl bg-white/70 backdrop-blur-md border border-slate-200 flex items-center justify-center text-slate-700 hover:bg-white hover:text-indigo-600 shadow-sm transition-all active:scale-95"
+        className="absolute top-4 left-4 z-50 w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm transition-all active:scale-95"
         title="Toggle Fullscreen"
       >
         {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
       </button>
 
-      {/* Ambient Static Glow Background */}
-      <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
-        <div className="absolute -top-[10%] -left-[10%] w-[50%] h-[50%] bg-pink-300/30 rounded-full blur-[100px]"></div>
-        <div className="absolute top-[20%] -right-[10%] w-[60%] h-[60%] bg-purple-300/30 rounded-full blur-[100px]"></div>
-        <div className="absolute -bottom-[20%] left-[20%] w-[50%] h-[50%] bg-indigo-200/40 rounded-full blur-[100px]"></div>
-      </div>
+      {/* Subtle Minimalist Background Grid */}
+      <div
+        className="absolute inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage: "radial-gradient(#E2E8F0 1.2px, transparent 1.2px)",
+          backgroundSize: "28px 28px",
+          opacity: 0.6
+        }}
+      />
 
-      {/* Colorful Interactive Spotlight Grid */}
-      <div className="absolute inset-0 pointer-events-none z-10 hidden sm:block" style={{
-        backgroundImage: 'linear-gradient(rgba(139, 92, 246, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(236, 72, 153, 0.3) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-        maskImage: `radial-gradient(circle 400px at 50% 50%, black, transparent)`,
-        WebkitMaskImage: `radial-gradient(circle 400px at 50% 50%, black, transparent)`
-      }}></div>
-
-      <div className="flex-1 flex items-center justify-center w-full z-10 mt-8 sm:mt-12">
-        <div
-          className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-white/80 p-6 sm:p-10 rounded-3xl shadow-[0_8px_32px_rgba(31,38,135,0.08)] relative overflow-hidden"
-        >
-          {/* Subtle shine inside the glass card */}
-          <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/40 to-transparent pointer-events-none"></div>
-
-          <div className="flex flex-col items-center justify-center text-center gap-4 mb-10 relative z-10">
-            <div
-              className="flex-shrink-0 h-24 w-24 rounded-3xl flex items-center justify-center bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 shadow-xl shadow-pink-500/25 border border-white/50 relative select-none"
-            >
-              <Brush className="absolute text-white/20 w-14 h-14 transform -rotate-12 translate-x-1.5 -translate-y-1.5 pointer-events-none" />
-              <span className="font-extrabold text-4xl sm:text-5xl tracking-tighter text-white font-['Fredoka',sans-serif] relative z-10 drop-shadow">
-                Dt
-              </span>
+      <div className="flex-1 flex flex-col items-center justify-center w-full z-10 py-10">
+        <div className="w-full max-w-md bg-white border border-slate-200/90 p-7 sm:p-9 rounded-2xl shadow-[0_12px_36px_-12px_rgba(0,0,0,0.06)] relative">
+          {/* Brand & Logo Header */}
+          <div className="flex flex-col items-center justify-center text-center gap-3.5 mb-8">
+            <div className="relative select-none">
+              <div className="h-16 w-16 rounded-2xl bg-[#7E3BED] flex items-center justify-center shadow-lg shadow-[#7E3BED]/20 border border-[#7E3BED]/30">
+                <span className="font-extrabold text-3xl tracking-tight text-white font-['Fredoka',sans-serif]">
+                  Dt
+                </span>
+              </div>
+              {/* Lime accent badge dot */}
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#C6FF34] border-2 border-white rounded-full shadow-sm"></span>
             </div>
+
             <div>
-              <h1
-                className="text-3xl sm:text-4xl font-black tracking-tight font-['Fredoka',sans-serif] text-slate-900 drop-shadow-sm"
-              >
-                Draw <span className="bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">Together</span>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200/70 text-[11px] font-semibold text-slate-600 mb-2">
+                <span className="w-2 h-2 rounded-full bg-[#C6FF34] ring-2 ring-[#C6FF34]/40"></span>
+                Real-time Whiteboard
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#000000] font-['Fredoka',sans-serif]">
+                Draw <span className="text-[#7E3BED]">Together</span>
               </h1>
-              <p
-                className="text-slate-600 text-sm font-semibold mt-2"
-              >
-                A vibrant real-time collaborative canvas.
+              <p className="text-slate-500 text-xs sm:text-sm font-medium mt-1">
+                Minimalist collaborative canvas for teams and creators.
               </p>
             </div>
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* User Nickname */}
-            <div className="space-y-2">
-              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Your Nickname</label>
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                Your Nickname
+              </label>
               <input
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="e.g. Picasso"
-                className="w-full bg-white/70 backdrop-blur-sm border-2 border-white/80 rounded-2xl px-4 py-4 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-purple-500/30 focus:border-purple-400 transition-all text-sm shadow-inner placeholder:text-slate-400"
+                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm placeholder:text-slate-400 shadow-sm"
               />
             </div>
 
             {/* Action Tabs Selector */}
-            <div className="flex bg-slate-100 p-1 rounded-2xl">
+            <div className="flex bg-[#F1F5F9] p-1 rounded-xl">
               <button
                 onClick={() => setIsJoining(false)}
                 className={cn(
-                  "flex-1 py-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2",
-                  !isJoining ? "bg-white text-purple-700 shadow-md scale-105" : "text-slate-500 hover:text-purple-600"
+                  "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
+                  !isJoining
+                    ? "bg-white text-[#000000] shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
                 )}
               >
-                <Plus size={14} />
+                <Plus size={14} className={!isJoining ? "text-[#7E3BED]" : ""} />
                 Create Room
               </button>
               <button
                 onClick={() => setIsJoining(true)}
                 className={cn(
-                  "flex-1 py-3 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-2",
-                  isJoining ? "bg-white text-pink-700 shadow-md scale-105" : "text-slate-500 hover:text-pink-600"
+                  "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
+                  isJoining
+                    ? "bg-white text-[#000000] shadow-sm"
+                    : "text-slate-500 hover:text-slate-900"
                 )}
               >
-                <Users size={14} />
+                <Users size={14} className={isJoining ? "text-[#7E3BED]" : ""} />
                 Join Room
               </button>
             </div>
@@ -722,16 +722,20 @@ export function LandingPage({
               {!isJoining ? (
                 <motion.div
                   key="create"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 10 }}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
-                  className="space-y-5"
+                  className="space-y-4"
                 >
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Custom Room Code / Name</label>
-                      <span className="text-[8px] text-slate-400 font-extrabold uppercase bg-slate-100 px-2 py-0.5 rounded-md">Optional</span>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Room Name / Code
+                      </label>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase bg-slate-100 px-2 py-0.5 rounded-md">
+                        Optional
+                      </span>
                     </div>
                     <input
                       type="text"
@@ -742,36 +746,40 @@ export function LandingPage({
                           onCreate();
                         }
                       }}
-                      placeholder="e.g. PIXEL-PARTY"
-                      className="w-full bg-white/70 backdrop-blur-sm border-2 border-white/80 rounded-2xl px-4 py-4 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-purple-500/30 focus:border-purple-400 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400"
+                      placeholder="e.g. DESIGN-SYNC"
+                      className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
                     />
-                    <p className="text-[10px] text-slate-500 font-bold pl-1 leading-relaxed">
-                      Leave blank to automatically generate a random, unique 6-character room code.
+                    <p className="text-[10px] text-slate-400 font-medium pl-0.5">
+                      Leave empty to generate a random 6-character room code.
                     </p>
                   </div>
 
                   <button
                     onClick={onCreate}
                     disabled={!username.trim()}
-                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white p-4.5 rounded-2xl font-bold hover:from-purple-500 hover:to-indigo-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_20px_-10px_rgba(124,58,237,0.8)] hover:shadow-[0_15px_30px_-10px_rgba(124,58,237,0.9)] active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                    className="w-full bg-[#7E3BED] hover:bg-[#6D28D9] text-white p-3.5 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#7E3BED]/20 active:scale-[0.99] flex items-center justify-center gap-2 text-sm"
                   >
-                    <Sparkles size={16} />
+                    <Sparkles size={16} className="text-[#C6FF34]" />
                     Create & Enter Room
                   </button>
                 </motion.div>
               ) : (
                 <motion.div
                   key="join"
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
-                  className="space-y-5"
+                  className="space-y-4"
                 >
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Enter Room Code / Name</label>
-                      <span className="text-[8px] text-slate-400 font-extrabold uppercase bg-slate-100 px-2 py-0.5 rounded-md">Required</span>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Enter Room Code
+                      </label>
+                      <span className="text-[9px] text-[#7E3BED] font-bold uppercase bg-[#7E3BED]/10 px-2 py-0.5 rounded-md">
+                        Required
+                      </span>
                     </div>
                     <input
                       type="text"
@@ -782,16 +790,17 @@ export function LandingPage({
                           onJoin();
                         }
                       }}
-                      placeholder="e.g. PIXEL-PARTY"
-                      className="w-full bg-white/70 backdrop-blur-sm border-2 border-white/80 rounded-2xl px-4 py-4 font-bold text-slate-800 outline-none focus:ring-4 focus:ring-pink-500/30 focus:border-pink-400 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400"
+                      placeholder="e.g. DESIGN-SYNC"
+                      className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
                     />
                   </div>
 
                   <button
                     onClick={onJoin}
                     disabled={!username.trim() || !joinCode.trim()}
-                    className="w-full bg-gradient-to-r from-pink-600 to-rose-500 text-white p-4.5 rounded-2xl font-bold hover:from-pink-500 hover:to-rose-400 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_10px_20px_-10px_rgba(236,72,153,0.8)] hover:shadow-[0_15px_30px_-10px_rgba(236,72,153,0.9)] active:scale-[0.98] flex items-center justify-center gap-2 text-sm"
+                    className="w-full bg-[#000000] hover:bg-slate-900 text-white p-3.5 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-black/10 active:scale-[0.99] flex items-center justify-center gap-2 text-sm"
                   >
+                    <Users size={16} className="text-[#C6FF34]" />
                     Join & Enter Room
                   </button>
                 </motion.div>
@@ -801,62 +810,61 @@ export function LandingPage({
         </div>
       </div>
 
-      <footer
-        className="w-full max-w-4xl mt-12 mb-6 z-10 flex flex-col gap-6"
-      >
-        {/* Interactive Review Section */}
-        <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl border border-white/80 dark:border-slate-700/80 rounded-3xl p-6 shadow-xl shadow-purple-500/10 flex flex-col sm:flex-row items-center justify-between gap-4 transition-all hover:shadow-2xl hover:shadow-pink-500/20 hover:-translate-y-1 hover:bg-white/80 dark:hover:bg-slate-800/80">
+      {/* Minimal Footer Area */}
+      <footer className="w-full max-w-2xl z-10 flex flex-col gap-5 pb-2">
+        {/* Minimal Feedback Bar */}
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center">
+            <div className="h-10 w-10 bg-[#7E3BED]/10 text-[#7E3BED] rounded-xl flex items-center justify-center shrink-0">
               <MessageCircleHeart size={20} />
             </div>
             <div>
-              <h3 className="text-slate-800 dark:text-slate-200 font-semibold text-sm">Enjoying Draw Together?</h3>
-              <p className="text-slate-500 dark:text-slate-400 text-xs">Share your feedback directly via email.</p>
+              <h3 className="text-slate-900 font-bold text-sm">Enjoying Draw Together?</h3>
+              <p className="text-slate-500 text-xs">Share your feedback directly via email.</p>
             </div>
           </div>
           <a
             href="mailto:piyush.ch407@gmail.com?subject=Draw%20Together%20Review"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white text-sm font-bold rounded-2xl hover:from-purple-500 hover:to-pink-400 transition-all flex items-center gap-2 shadow-lg shadow-pink-500/30 hover:scale-105 active:scale-95 whitespace-nowrap"
+            className="px-4 py-2 bg-[#000000] hover:bg-[#7E3BED] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
-            Give me your review
+            Send Feedback
           </a>
         </div>
 
-        {/* Footer Links & Copyright */}
-        <div className="flex flex-col sm:flex-row items-center justify-between px-4 sm:px-8 py-6 mt-12 border-t border-slate-100 dark:border-slate-800/50 gap-6 sm:gap-4">
-          <p className="text-sm text-slate-500 dark:text-slate-400 tracking-wide font-medium text-center sm:text-left leading-relaxed">
-            &copy; 2026 <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent drop-shadow-sm">Piyush Chauhan</span>. All rights reserved. <br className="sm:hidden" />Built with love and passion.
+        {/* Copyright & Social Links */}
+        <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-2 border-t border-slate-200/60 gap-3 text-xs">
+          <p className="text-slate-500 font-medium text-center sm:text-left">
+            &copy; 2026 <span className="font-bold text-slate-800">Piyush Chauhan</span>. Built with passion.
           </p>
-          <div className="flex items-center gap-6 mt-2 sm:mt-0">
+          <div className="flex items-center gap-5">
             <a
               href="https://github.com/piyushch08"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors duration-300 hover:scale-110 active:scale-95"
+              className="text-slate-400 hover:text-[#000000] transition-colors"
               aria-label="GitHub"
             >
-              <Github size={20} strokeWidth={1.5} />
+              <Github size={18} strokeWidth={1.8} />
             </a>
             <a
               href="https://www.linkedin.com/in/piyush-chauhan-353822385/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-300 hover:scale-110 active:scale-95"
+              className="text-slate-400 hover:text-[#7E3BED] transition-colors"
               aria-label="LinkedIn"
             >
-              <Linkedin size={20} strokeWidth={1.5} />
+              <Linkedin size={18} strokeWidth={1.8} />
             </a>
             <a
               href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-pink-600 dark:hover:text-pink-400 transition-colors duration-300 hover:scale-110 active:scale-95"
+              className="text-slate-400 hover:text-[#7E3BED] transition-colors"
               aria-label="Instagram"
             >
-              <Instagram size={20} strokeWidth={1.5} />
+              <Instagram size={18} strokeWidth={1.8} />
             </a>
           </div>
         </div>
@@ -944,6 +952,12 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
     }
     return [
       {
+        id: "violet-lime",
+        name: "Violet & Lime",
+        colors: ["#000000", "#7E3BED", "#FFFFFF", "#C6FF34", "#1E1B4B", "#6D28D9", "#A7F3D0", "#365314"],
+        isPreset: true
+      },
+      {
         id: "retro-sunset",
         name: "Retro Sunset",
         colors: ["#EA580C", "#F97316", "#FB923C", "#FDBA74", "#FFEDD5", "#F43F5E", "#EC4899", "#F472B6"],
@@ -969,7 +983,7 @@ function DrawingRoom({ roomId, username, setUsername, onLeave, onEnter, isFullsc
       }
     ];
   });
-  const [selectedPaletteId, setSelectedPaletteId] = useState<string>("retro-sunset");
+  const [selectedPaletteId, setSelectedPaletteId] = useState<string>("violet-lime");
   const [editingPaletteId, setEditingPaletteId] = useState<string | null>(null);
   const [editingPaletteName, setEditingPaletteName] = useState("");
 
