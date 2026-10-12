@@ -481,6 +481,10 @@ export default function App() {
   const [createCustomName, setCreateCustomName] = useState("");
   const [isJoining, setIsJoining] = useState(false);
   const [isNewRoom, setIsNewRoom] = useState(false);
+  const [creatorSettings, setCreatorSettings] = useState<{ backgroundColor: string; aspectRatio: string }>({
+    backgroundColor: "#FFFFFF",
+    aspectRatio: "16:9"
+  });
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -580,10 +584,13 @@ export default function App() {
           setJoinCode={setJoinCode}
           isJoining={isJoining}
           setIsJoining={setIsJoining}
-          onCreate={() => {
+          onCreate={(settings?: { backgroundColor: string; aspectRatio: string }) => {
             let target = createCustomName.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
             if (!target) {
               target = nanoid(6).toUpperCase();
+            }
+            if (settings) {
+              setCreatorSettings(settings);
             }
             setIsNewRoom(true);
             navigateToRoom(target);
@@ -613,6 +620,7 @@ export default function App() {
         isFullscreen={isFullscreen}
         toggleFullscreen={toggleFullscreen}
         isNewRoom={isNewRoom}
+        initialCanvasSettings={isNewRoom ? creatorSettings : undefined}
       />
     </>
   );
@@ -632,6 +640,14 @@ export function LandingPage({
   isFullscreen,
   toggleFullscreen
 }: any) {
+  const [creatorBgColor, setCreatorBgColor] = useState("#FFFFFF");
+  const [creatorAspectRatio, setCreatorAspectRatio] = useState("16:9");
+
+  const handleCreateSubmit = () => {
+    if (!username.trim()) return;
+    onCreate({ backgroundColor: creatorBgColor, aspectRatio: creatorAspectRatio });
+  };
+
   return (
     <div
       className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-between p-4 sm:p-8 font-sans relative overflow-x-hidden"
@@ -655,35 +671,35 @@ export function LandingPage({
         }}
       />
 
-      <div className="flex-1 flex flex-col items-center justify-center w-full z-10 py-10">
-        <div className="w-full max-w-md bg-white border border-slate-200/90 p-7 sm:p-9 rounded-2xl shadow-[0_12px_36px_-12px_rgba(0,0,0,0.06)] relative">
+      <div className="flex-1 flex flex-col items-center justify-center w-full z-10 py-8">
+        <div className="w-full max-w-md bg-white border border-slate-200/90 p-6 sm:p-8 rounded-3xl shadow-[0_16px_40px_-12px_rgba(0,0,0,0.07)] relative">
           {/* Brand & Logo Header */}
-          <div className="flex flex-col items-center justify-center text-center gap-3.5 mb-8">
+          <div className="flex flex-col items-center justify-center text-center gap-3 mb-6">
             <div className="relative select-none">
-              <div className="h-16 w-16 rounded-2xl bg-[#7E3BED] flex items-center justify-center shadow-lg shadow-[#7E3BED]/20 border border-[#7E3BED]/30">
-                <span className="font-extrabold text-3xl tracking-tight text-white font-['Fredoka',sans-serif]">
+              <div className="h-14 w-14 rounded-2xl bg-[#7E3BED] flex items-center justify-center shadow-lg shadow-[#7E3BED]/25 border border-[#7E3BED]/30">
+                <span className="font-extrabold text-2xl tracking-tight text-white font-['Fredoka',sans-serif]">
                   Dt
                 </span>
               </div>
               {/* Lime accent badge dot */}
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#C6FF34] border-2 border-white rounded-full shadow-sm"></span>
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#C6FF34] border-2 border-white rounded-full shadow-sm"></span>
             </div>
 
             <div>
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 border border-slate-200/70 text-[11px] font-semibold text-slate-600 mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-100 border border-slate-200/70 text-[11px] font-semibold text-slate-600 mb-1.5">
                 <span className="w-2 h-2 rounded-full bg-[#C6FF34] ring-2 ring-[#C6FF34]/40"></span>
                 Real-time Whiteboard
               </div>
-              <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#000000] font-['Fredoka',sans-serif]">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#000000] font-['Fredoka',sans-serif]">
                 Draw <span className="text-[#7E3BED]">Together</span>
               </h1>
-              <p className="text-slate-500 text-xs sm:text-sm font-medium mt-1">
-                Minimalist collaborative canvas for teams and creators.
+              <p className="text-slate-500 text-xs font-medium mt-0.5">
+                Collaborative studio canvas for seamless pair drawing.
               </p>
             </div>
           </div>
 
-          <div className="space-y-5">
+          <div className="space-y-4">
             {/* User Nickname */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
@@ -694,7 +710,7 @@ export function LandingPage({
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="e.g. Picasso"
-                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm placeholder:text-slate-400 shadow-sm"
+                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-2.5 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm placeholder:text-slate-400 shadow-sm"
               />
             </div>
 
@@ -703,7 +719,7 @@ export function LandingPage({
               <button
                 onClick={() => setIsJoining(false)}
                 className={cn(
-                  "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
                   !isJoining
                     ? "bg-white text-[#000000] shadow-sm"
                     : "text-slate-500 hover:text-slate-900"
@@ -715,7 +731,7 @@ export function LandingPage({
               <button
                 onClick={() => setIsJoining(true)}
                 className={cn(
-                  "flex-1 py-2.5 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
+                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
                   isJoining
                     ? "bg-white text-[#000000] shadow-sm"
                     : "text-slate-500 hover:text-slate-900"
@@ -734,9 +750,9 @@ export function LandingPage({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.15 }}
-                  className="space-y-4"
+                  className="space-y-3.5"
                 >
-                  <div className="space-y-1.5">
+                  <div className="space-y-1">
                     <div className="flex justify-between items-center">
                       <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
                         Room Name / Code
@@ -751,21 +767,107 @@ export function LandingPage({
                       onChange={(e) => setCreateCustomName(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && username.trim()) {
-                          onCreate();
+                          handleCreateSubmit();
                         }
                       }}
-                      placeholder="e.g. DESIGN-SYNC"
-                      className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
+                      placeholder="e.g. STUDIO-ROOM"
+                      className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-2.5 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
                     />
-                    <p className="text-[10px] text-slate-400 font-medium pl-0.5">
-                      Leave empty to generate a random 6-character room code.
-                    </p>
+                  </div>
+
+                  {/* Canvas Size / Ratio Selector */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Canvas Size & Ratio
+                      </label>
+                      <span className="text-[9px] font-bold uppercase text-[#7E3BED] bg-[#7E3BED]/10 px-2 py-0.5 rounded-md">
+                        Synced Both Sides
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-5 gap-1">
+                      {[
+                        { id: "16:9", label: "16:9", sub: "Wide" },
+                        { id: "4:3", label: "4:3", sub: "Standard" },
+                        { id: "1:1", label: "1:1", sub: "Square" },
+                        { id: "9:16", label: "9:16", sub: "Mobile" },
+                        { id: "3:4", label: "3:4", sub: "Tablet" }
+                      ].map(ar => (
+                        <button
+                          key={ar.id}
+                          type="button"
+                          onClick={() => setCreatorAspectRatio(ar.id)}
+                          className={cn(
+                            "py-2 px-1 rounded-xl text-center border transition-all flex flex-col items-center justify-center gap-0.5",
+                            creatorAspectRatio === ar.id
+                              ? "bg-[#7E3BED]/10 border-[#7E3BED] text-[#7E3BED] font-bold shadow-xs scale-102"
+                              : "bg-[#F8FAFC] border-slate-200 text-slate-600 hover:bg-slate-100 font-medium"
+                          )}
+                        >
+                          <span className="text-[11px] font-bold leading-tight">{ar.label}</span>
+                          <span className="text-[8px] opacity-70 leading-tight">{ar.sub}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Canvas Color Selector */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                        Canvas Color
+                      </label>
+                      <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold">
+                        {creatorBgColor}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { color: "#FFFFFF", name: "White" },
+                        { color: "#F8FAFC", name: "Soft Slate" },
+                        { color: "#F1F5F9", name: "Muted Gray" },
+                        { color: "#FEF3C7", name: "Warm Cream" },
+                        { color: "#DCFCE7", name: "Pastel Mint" },
+                        { color: "#E0E7FF", name: "Pastel Indigo" },
+                        { color: "#1E293B", name: "Dark Slate" },
+                        { color: "#0F172A", name: "Pitch Black" }
+                      ].map(c => (
+                        <button
+                          key={c.color}
+                          type="button"
+                          onClick={() => setCreatorBgColor(c.color)}
+                          className={cn(
+                            "w-7 h-7 rounded-full border-2 transition-transform shadow-xs",
+                            creatorBgColor.toUpperCase() === c.color.toUpperCase()
+                              ? "border-[#7E3BED] scale-110 ring-2 ring-[#7E3BED]/30"
+                              : "border-slate-300 hover:scale-105"
+                          )}
+                          style={{ backgroundColor: c.color }}
+                          title={c.name}
+                        />
+                      ))}
+                      <label
+                        className={cn(
+                          "w-7 h-7 rounded-full border-2 border-dashed border-slate-300 hover:border-[#7E3BED] flex items-center justify-center cursor-pointer transition-transform relative",
+                          !["#FFFFFF", "#F8FAFC", "#F1F5F9", "#FEF3C7", "#DCFCE7", "#E0E7FF", "#1E293B", "#0F172A"].includes(creatorBgColor.toUpperCase()) && "border-[#7E3BED] ring-2 ring-[#7E3BED]/30"
+                        )}
+                        title="Custom Color"
+                      >
+                        <Palette size={12} className="text-slate-500" />
+                        <input
+                          type="color"
+                          value={creatorBgColor}
+                          onChange={(e) => setCreatorBgColor(e.target.value)}
+                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                        />
+                      </label>
+                    </div>
                   </div>
 
                   <button
-                    onClick={onCreate}
+                    onClick={handleCreateSubmit}
                     disabled={!username.trim()}
-                    className="w-full bg-[#7E3BED] hover:bg-[#6D28D9] text-white p-3.5 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#7E3BED]/20 active:scale-[0.99] flex items-center justify-center gap-2 text-sm"
+                    className="w-full mt-2 bg-[#7E3BED] hover:bg-[#6D28D9] text-white p-3 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#7E3BED]/20 active:scale-[0.99] flex items-center justify-center gap-2 text-sm"
                   >
                     <Sparkles size={16} className="text-[#C6FF34]" />
                     Create & Enter Room
@@ -881,7 +983,7 @@ export function LandingPage({
   );
 }
 
-function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnter, isFullscreen, toggleFullscreen, isNewRoom }: {
+function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnter, isFullscreen, toggleFullscreen, isNewRoom, initialCanvasSettings }: {
   roomId: string;
   username: string;
   setUsername: (v: string) => void;
@@ -890,6 +992,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   isFullscreen: boolean;
   toggleFullscreen: () => void;
   isNewRoom: boolean;
+  initialCanvasSettings?: { backgroundColor: string; aspectRatio: string };
 }) {
   const roomId = (rawRoomId || "DEFAULT-ROOM").trim().toUpperCase();
   const [networkInfo, setNetworkInfo] = useState<{ primaryHost?: string; addresses?: string[] } | null>(null);
@@ -907,16 +1010,57 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const socketRef = useRef<Socket | null>(null);
   socketRef.current = socket;
   const [isChatOpen, setIsChatOpen] = useState(true);
-  const [showTemplateModal, setShowTemplateModal] = useState(isNewRoom);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
   
-  const [roomSettings, _setRoomSettings] = useState({ backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
-  const roomSettingsRef = useRef({ backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
+  const [roomSettings, _setRoomSettings] = useState(initialCanvasSettings || { backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
+  const roomSettingsRef = useRef(initialCanvasSettings || { backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
   const resizeCanvasRef = useRef<(() => void) | null>(null);
 
   const setRoomSettings = (settings: { backgroundColor: string, aspectRatio: string }) => {
     _setRoomSettings(settings);
     roomSettingsRef.current = settings;
+
+    let boardW = 1920;
+    let boardH = 1080;
+    if (settings.aspectRatio === "4:3") { boardW = 1440; boardH = 1080; }
+    else if (settings.aspectRatio === "1:1") { boardW = 1080; boardH = 1080; }
+    else if (settings.aspectRatio === "9:16") { boardW = 1080; boardH = 1920; }
+    else if (settings.aspectRatio === "3:4") { boardW = 1080; boardH = 1440; }
+
+    const masterCanvas = canvasRef.current;
+    if (masterCanvas && (masterCanvas.width !== boardW || masterCanvas.height !== boardH)) {
+      masterCanvas.width = boardW;
+      masterCanvas.height = boardH;
+      const ctx = masterCanvas.getContext("2d");
+      if (ctx) {
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+      }
+    }
+
+    // Resize existing offscreen layer canvases to matching board dimensions
+    Object.keys(layerCanvasesRef.current).forEach((layerId) => {
+      const offscreen = layerCanvasesRef.current[layerId];
+      if (offscreen && (offscreen.width !== boardW || offscreen.height !== boardH)) {
+        const temp = document.createElement("canvas");
+        temp.width = offscreen.width;
+        temp.height = offscreen.height;
+        const tempCtx = temp.getContext("2d");
+        tempCtx?.drawImage(offscreen, 0, 0);
+
+        offscreen.width = boardW;
+        offscreen.height = boardH;
+        const offCtx = offscreen.getContext("2d");
+        if (offCtx) {
+          offCtx.lineJoin = "round";
+          offCtx.lineCap = "round";
+          offCtx.drawImage(temp, 0, 0);
+        }
+      }
+    });
+
     if (resizeCanvasRef.current) resizeCanvasRef.current();
+    else compositeLayers();
   };
 
   const fitToScreen = () => {
@@ -1176,8 +1320,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
   const getOrCreateLayerCanvas = (layerId: string, width: number, height: number): HTMLCanvasElement => {
     let offscreen = layerCanvasesRef.current[layerId];
-    const initialWidth = Math.max(width, window.innerWidth, 1920);
-    const initialHeight = Math.max(height, window.innerHeight, 1080);
+    const initialWidth = width || 1920;
+    const initialHeight = height || 1080;
 
     if (!offscreen) {
       offscreen = document.createElement("canvas");
@@ -1189,30 +1333,26 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         offCtx.lineCap = "round";
       }
       layerCanvasesRef.current[layerId] = offscreen;
-    } else {
+    } else if (offscreen.width !== initialWidth || offscreen.height !== initialHeight) {
       const currentWidth = offscreen.width;
       const currentHeight = offscreen.height;
-      const targetWidth = Math.max(currentWidth, width);
-      const targetHeight = Math.max(currentHeight, height);
 
-      if (targetWidth > currentWidth || targetHeight > currentHeight) {
-        const temp = document.createElement("canvas");
-        temp.width = currentWidth;
-        temp.height = currentHeight;
-        const tempCtx = temp.getContext("2d");
-        if (tempCtx) {
-          tempCtx.drawImage(offscreen, 0, 0);
-        }
+      const temp = document.createElement("canvas");
+      temp.width = currentWidth;
+      temp.height = currentHeight;
+      const tempCtx = temp.getContext("2d");
+      if (tempCtx) {
+        tempCtx.drawImage(offscreen, 0, 0);
+      }
 
-        offscreen.width = targetWidth;
-        offscreen.height = targetHeight;
+      offscreen.width = initialWidth;
+      offscreen.height = initialHeight;
 
-        const offCtx = offscreen.getContext("2d");
-        if (offCtx) {
-          offCtx.lineJoin = "round";
-          offCtx.lineCap = "round";
-          offCtx.drawImage(temp, 0, 0);
-        }
+      const offCtx = offscreen.getContext("2d");
+      if (offCtx) {
+        offCtx.lineJoin = "round";
+        offCtx.lineCap = "round";
+        offCtx.drawImage(temp, 0, 0);
       }
     }
     return offscreen;
@@ -1863,7 +2003,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     setSocket(s);
 
     const onConnect = () => {
-      s.emit("join-room", { roomId, username });
+      s.emit("join-room", { 
+        roomId, 
+        username,
+        isCreator: isNewRoom,
+        backgroundColor: roomSettingsRef.current.backgroundColor,
+        aspectRatio: roomSettingsRef.current.aspectRatio
+      });
     };
 
     s.on("connect", onConnect);
@@ -1942,8 +2088,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         setChat(data.chat);
       }
       
-      const bg = data.backgroundColor || "#FFFFFF";
-      const ar = data.aspectRatio || "16:9";
+      const bg = data.backgroundColor || roomSettingsRef.current.backgroundColor || "#FFFFFF";
+      const ar = data.aspectRatio || roomSettingsRef.current.aspectRatio || "16:9";
       setRoomSettings({ backgroundColor: bg, aspectRatio: ar });
       setTimeout(() => fitToScreen(), 100);
 
@@ -1988,7 +2134,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       const canvas = canvasRef.current;
       if (canvas) {
         const canvasData = canvas.toDataURL("image/png");
-        s.emit("canvas-snapshot-reply", { requesterId, canvasData, roomId: reqRoomId });
+        s.emit("canvas-snapshot-reply", { 
+          requesterId, 
+          canvasData, 
+          roomId: reqRoomId,
+          backgroundColor: roomSettingsRef.current.backgroundColor,
+          aspectRatio: roomSettingsRef.current.aspectRatio
+        });
       }
     });
 
@@ -2046,7 +2198,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       }
     });
 
-    s.on("sync-canvas", ({ canvasData }: { canvasData: string }) => {
+    s.on("sync-canvas", ({ canvasData, backgroundColor: syncBg, aspectRatio: syncAr }: { canvasData: string; backgroundColor?: string; aspectRatio?: string }) => {
+      if (syncBg || syncAr) {
+        const nextBg = syncBg || roomSettingsRef.current.backgroundColor;
+        const nextAr = syncAr || roomSettingsRef.current.aspectRatio;
+        setRoomSettings({ backgroundColor: nextBg, aspectRatio: nextAr });
+      }
       const img = new Image();
       img.onload = () => {
         const canvas = canvasRef.current;
@@ -2121,18 +2278,15 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         if (offscreen) {
           const currentWidth = offscreen.width;
           const currentHeight = offscreen.height;
-          const targetWidth = Math.max(currentWidth, newWidth);
-          const targetHeight = Math.max(currentHeight, newHeight);
-
-          if (targetWidth > currentWidth || targetHeight > currentHeight) {
+          if (currentWidth !== newWidth || currentHeight !== newHeight) {
             const temp = document.createElement("canvas");
             temp.width = currentWidth;
             temp.height = currentHeight;
             const tempCtx = temp.getContext("2d");
             tempCtx?.drawImage(offscreen, 0, 0);
 
-            offscreen.width = targetWidth;
-            offscreen.height = targetHeight;
+            offscreen.width = newWidth;
+            offscreen.height = newHeight;
 
             const offCtx = offscreen.getContext("2d");
             if (offCtx) {
@@ -2460,8 +2614,20 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             ctx.fill();
           }
         } else {
-          ctx.moveTo(px, py);
-          ctx.lineTo(finalX, finalY);
+          ctx.beginPath();
+          ctx.lineCap = data.brushStyle === "square" ? "square" : "round";
+          ctx.lineJoin = data.brushStyle === "square" ? "miter" : "round";
+          const dist = Math.hypot(finalX - px, finalY - py);
+          if (dist > 5 && data.brushStyle !== "square") {
+            const midX = (px + finalX) / 2;
+            const midY = (py + finalY) / 2;
+            ctx.moveTo(px, py);
+            ctx.quadraticCurveTo(px, py, midX, midY);
+            ctx.lineTo(finalX, finalY);
+          } else {
+            ctx.moveTo(px, py);
+            ctx.lineTo(finalX, finalY);
+          }
           ctx.stroke();
         }
       }
@@ -3289,10 +3455,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     let x = rawX;
     let y = rawY;
 
-    const isTouchInput = e.identifier !== undefined || e.pointerType === "touch" || (e.touches && e.touches.length > 0);
-    if (isSmoothingEnabled && !isTouchInput) {
-      // Responsive smoothing: keeps line silky smooth while staying tightly locked to cursor
-      const alpha = 0.5 + (1 - smoothing) * 0.5;
+    if (isSmoothingEnabled) {
+      // Velocity-adaptive exponential smoothing for ultra-smooth strokes with zero lag
+      const dist = Math.hypot(rawX - drawingState.current.lastX, rawY - drawingState.current.lastY);
+      const speedFactor = Math.min(1, dist / 80);
+      const alpha = Math.min(0.92, Math.max(0.2, (0.45 + (1 - smoothing) * 0.5) + speedFactor * 0.25));
       x = drawingState.current.lastX + (rawX - drawingState.current.lastX) * alpha;
       y = drawingState.current.lastY + (rawY - drawingState.current.lastY) * alpha;
     }
@@ -4004,6 +4171,48 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     }
   };
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" || e.pointerType === "pen") {
+      try {
+        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+      } catch {}
+      startDrawing(e.nativeEvent);
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
+    mousePosRef.current = { x: e.clientX, y: e.clientY };
+    if (cursorRef.current) {
+      cursorRef.current.style.left = `${e.clientX}px`;
+      cursorRef.current.style.top = `${e.clientY}px`;
+    }
+
+    const nativeEvent = e.nativeEvent as PointerEvent;
+    const coalesced = nativeEvent.getCoalescedEvents ? nativeEvent.getCoalescedEvents() : null;
+    if (coalesced && coalesced.length > 1 && drawingState.current.isDrawing) {
+      for (let i = 0; i < coalesced.length; i++) {
+        draw(coalesced[i]);
+      }
+    } else {
+      draw(nativeEvent);
+    }
+
+    if (socket && roomId) {
+      const { x, y } = getCoordinates(nativeEvent);
+      emitCursorUpdateThrottled(x, y);
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === "mouse" || e.pointerType === "pen") {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {}
+      stopDrawing();
+    }
+  };
+
   const handleMouseMove = (e: React.MouseEvent) => {
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     // Direct DOM update for custom cursor for 60fps performance without React overhead
@@ -4110,6 +4319,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               />
             </div>
             <span className="text-xs text-indigo-400 pointer-events-none select-none">✏️</span>
+          </div>
+
+          {/* Connected live status badge */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1.5 shrink-0 pointer-events-auto">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)] animate-pulse" />
+            <span className="text-[10px] font-bold text-slate-600 tracking-wide">Connected</span>
           </div>
         </div>
 
@@ -4236,12 +4451,19 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               transformOrigin: '0 0',
               touchAction: 'none'
             }}
-            onMouseDown={(e) => startDrawing(e.nativeEvent)}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onMouseDown={(e) => {
+              if ((e as any).pointerType === undefined) startDrawing(e.nativeEvent);
+            }}
             onMouseMove={handleMouseMove}
             onMouseUp={stopDrawing}
             onMouseLeave={() => {
-              setIsOverCanvas(false);
-              stopDrawing();
+              if (!drawingState.current.isDrawing) {
+                setIsOverCanvas(false);
+              }
             }}
             onMouseEnter={() => setIsOverCanvas(true)}
             onTouchStart={handleTouchStart}
@@ -6698,18 +6920,58 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   
                   <div className="space-y-3">
                     <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Background Color</label>
-                    <div className="flex flex-wrap gap-2">
-                      {["#FFFFFF", "#F8FAFC", "#F1F5F9", "#E2E8F0", "#FEF3C7", "#DCFCE7", "#E0E7FF"].map(c => (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {[
+                        { label: "Pure White", val: "#FFFFFF" },
+                        { label: "Soft Slate", val: "#F8FAFC" },
+                        { label: "Cloud Gray", val: "#F1F5F9" },
+                        { label: "Warm Beige", val: "#FEF3C7" },
+                        { label: "Mint Green", val: "#DCFCE7" },
+                        { label: "Lavender", val: "#E0E7FF" },
+                        { label: "Dark Slate", val: "#1E293B" },
+                        { label: "Onyx Black", val: "#0F172A" }
+                      ].map(c => (
                         <button
-                          key={c}
-                          onClick={() => setRoomSettings({ ...roomSettingsRef.current, backgroundColor: c })}
+                          key={c.val}
+                          type="button"
+                          title={c.label}
+                          onClick={() => {
+                            const next = { ...roomSettingsRef.current, backgroundColor: c.val };
+                            setRoomSettings(next);
+                            if (socket && roomId) {
+                              socket.emit("update-room-settings", {
+                                roomId,
+                                backgroundColor: next.backgroundColor,
+                                aspectRatio: next.aspectRatio
+                              });
+                            }
+                          }}
                           className={cn(
-                            "w-8 h-8 rounded-full border-2 transition-transform",
-                            roomSettingsRef.current.backgroundColor === c ? "border-indigo-600 scale-110" : "border-slate-200 hover:scale-105"
+                            "w-8 h-8 rounded-full border-2 transition-transform shadow-xs",
+                            roomSettingsRef.current.backgroundColor === c.val ? "border-indigo-600 scale-110 ring-2 ring-indigo-200" : "border-slate-300 hover:scale-105"
                           )}
-                          style={{ backgroundColor: c }}
+                          style={{ backgroundColor: c.val }}
                         />
                       ))}
+                      <label title="Custom Color" className="w-8 h-8 rounded-full border-2 border-slate-300 hover:border-indigo-500 cursor-pointer overflow-hidden flex items-center justify-center relative shadow-xs">
+                        <input
+                          type="color"
+                          value={roomSettingsRef.current.backgroundColor.startsWith("#") ? roomSettingsRef.current.backgroundColor : "#FFFFFF"}
+                          onChange={(e) => {
+                            const next = { ...roomSettingsRef.current, backgroundColor: e.target.value };
+                            setRoomSettings(next);
+                            if (socket && roomId) {
+                              socket.emit("update-room-settings", {
+                                roomId,
+                                backgroundColor: next.backgroundColor,
+                                aspectRatio: next.aspectRatio
+                              });
+                            }
+                          }}
+                          className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
+                        />
+                        <span className="text-[10px]">🎨</span>
+                      </label>
                     </div>
                   </div>
                   
@@ -6725,7 +6987,19 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                       ].map(ar => (
                         <button
                           key={ar.id}
-                          onClick={() => setRoomSettings({ ...roomSettingsRef.current, aspectRatio: ar.id })}
+                          type="button"
+                          onClick={() => {
+                            const next = { ...roomSettingsRef.current, aspectRatio: ar.id };
+                            setRoomSettings(next);
+                            if (socket && roomId) {
+                              socket.emit("update-room-settings", {
+                                roomId,
+                                backgroundColor: next.backgroundColor,
+                                aspectRatio: next.aspectRatio
+                              });
+                            }
+                            setTimeout(() => fitToScreen(), 50);
+                          }}
                           className={cn(
                             "py-3 px-4 rounded-xl text-xs font-bold transition-all border",
                             roomSettingsRef.current.aspectRatio === ar.id 
@@ -6811,23 +7085,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         </AnimatePresence>
       </div>
 
-      {/* Footer status bar */}
-      <footer className="min-h-[40px] bg-white/80 dark:bg-slate-900/80 backdrop-blur-md flex flex-wrap items-center px-4 sm:px-6 justify-between text-slate-500 dark:text-slate-400 shrink-0 z-50 relative pb-safe border-t border-slate-200 dark:border-slate-800 py-2 sm:py-0 gap-y-2">
-        <div className="flex items-center gap-3 text-[10px] font-medium tracking-wide">
-          <span className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.4)]"></div>
-            <span className="opacity-80">Connected</span>
-          </span>
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-3 sm:gap-4 text-[10px] font-medium tracking-wide">
-          <span className="hidden md:inline">&copy; 2026 <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">Piyush Chauhan</span>. All rights reserved. Built with love and passion.</span>
-          <span className="inline md:hidden">&copy; 2026 <span className="font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent">Piyush Chauhan</span></span>
-          <a href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-slate-400 hover:text-pink-600 dark:hover:text-pink-400 transition-colors">
-            <Instagram size={12} strokeWidth={2} />
-            <span className="hidden sm:inline">Instagram</span>
-          </a>
-        </div>
-      </footer>
+
     </div>
   );
 }

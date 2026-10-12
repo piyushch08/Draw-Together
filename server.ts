@@ -171,12 +171,35 @@ async function startServer() {
   io.on("connection", (socket: Socket) => {
     console.log(`[Socket Connected] ID: ${socket.id} on Worker ${isProd ? cluster.worker?.id : "dev"}`);
 
-    socket.on("join-room", ({ roomId, username, color }: { roomId: string; username: string; color?: string }) => {
+    socket.on("join-room", ({ 
+      roomId, 
+      username, 
+      color,
+      isCreator,
+      backgroundColor,
+      aspectRatio
+    }: { 
+      roomId: string; 
+      username: string; 
+      color?: string;
+      isCreator?: boolean;
+      backgroundColor?: string;
+      aspectRatio?: string;
+    }) => {
       const cleanRoomId = (roomId || "default-room").trim().toUpperCase();
       const cleanUsername = (username || "Anonymous Artist").trim();
 
       socket.join(cleanRoomId);
       const room = getOrCreateRoom(cleanRoomId);
+
+      // Lock in creator's canvas settings if room was just created or if creator is setting them
+      if (backgroundColor && (isCreator || !room.backgroundColor)) {
+        room.backgroundColor = backgroundColor;
+      }
+      if (aspectRatio && (isCreator || !room.aspectRatio)) {
+        room.aspectRatio = aspectRatio;
+      }
+
       const user: ConnectedUser = {
         id: socket.id,
         username: cleanUsername,
@@ -243,21 +266,37 @@ async function startServer() {
       socket.to(targetRoom).emit("laser-pointer", { ...data, roomId: targetRoom, userId: socket.id });
     });
 
-    socket.on("sync-canvas", (data: { roomId: string; canvasData: string }) => {
+    socket.on("sync-canvas", (data: { roomId: string; canvasData: string; backgroundColor?: string; aspectRatio?: string }) => {
       if (!data?.roomId || !data?.canvasData) return;
       const targetRoom = data.roomId.trim().toUpperCase();
       const room = getOrCreateRoom(targetRoom);
       room.canvasData = data.canvasData;
+      if (data.backgroundColor) room.backgroundColor = data.backgroundColor;
+      if (data.aspectRatio) room.aspectRatio = data.aspectRatio;
       room.lastActivity = Date.now();
       socket.to(targetRoom).emit("sync-canvas", { ...data, roomId: targetRoom });
     });
 
-    socket.on("canvas-snapshot-reply", (data: { requesterId: string; canvasData: string; roomId: string }) => {
+    socket.on("canvas-snapshot-reply", (data: { 
+      requesterId: string; 
+      canvasData: string; 
+      roomId: string; 
+      backgroundColor?: string; 
+      aspectRatio?: string; 
+    }) => {
       if (data.requesterId && data.canvasData) {
         const targetRoom = (data.roomId || "").trim().toUpperCase();
         const room = rooms.get(targetRoom);
-        if (room) room.canvasData = data.canvasData;
-        io.to(data.requesterId).emit("sync-canvas", { canvasData: data.canvasData });
+        if (room) {
+          room.canvasData = data.canvasData;
+          if (data.backgroundColor) room.backgroundColor = data.backgroundColor;
+          if (data.aspectRatio) room.aspectRatio = data.aspectRatio;
+        }
+        io.to(data.requesterId).emit("sync-canvas", { 
+          canvasData: data.canvasData,
+          backgroundColor: room?.backgroundColor || data.backgroundColor,
+          aspectRatio: room?.aspectRatio || data.aspectRatio
+        });
       }
     });
 
