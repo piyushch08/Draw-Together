@@ -87,7 +87,7 @@ export const getCanvasDimensions = (aspectRatio?: string): { width: number; heig
 
 
 const COLORS = [
-  "#000000", "#FFFFFF", "#64748B", "#EF4444", "#F97316", "#F59E0B", "#10B981", "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899"
+  "#000000", "#FF0000", "#00FF00", "#0000FF"
 ];
 
 const EMOJIS = ["😂", "😢", "💖", "⭐", "💎", "🔥", "👍", "👎", "🎉", "👏", "😡", "🤔", "😮", "💯", "✨", "🚀", "💡", "🎨", "👀", "🙌"];
@@ -1788,8 +1788,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const [exportName, setExportName] = useState("my-artwork");
   const [copied, setCopied] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [isEditingNameModal, setIsEditingNameModal] = useState(false);
-  const [tempUsername, setTempUsername] = useState("");
 
 
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -2341,54 +2339,21 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     }
   }, [isChatOpen]);
 
-  const closeAllDrawers = () => {
-    setShowInvite(false);
-    setIsPaletteOpen(false);
-    setIsLayersOpen(false);
-    setIsChatOpen(false);
-  };
-
   const toggleChat = () => {
     const newState = !isChatOpen;
-    if (newState) {
-      setShowInvite(false);
-      setIsPaletteOpen(false);
-      setIsLayersOpen(false);
-    }
     setIsChatOpen(newState);
+    if (newState && window.innerWidth < 1024) {
+      setShowInvite(false);
+    }
     vibrate(15);
   };
 
   const toggleTools = () => {
     const newState = !showInvite;
-    if (newState) {
-      setIsChatOpen(false);
-      setIsPaletteOpen(false);
-      setIsLayersOpen(false);
-    }
     setShowInvite(newState);
-    vibrate(10);
-  };
-
-  const toggleLayers = () => {
-    const newState = !isLayersOpen;
-    if (newState) {
-      setShowInvite(false);
-      setIsPaletteOpen(false);
+    if (newState && window.innerWidth < 1024) {
       setIsChatOpen(false);
     }
-    setIsLayersOpen(newState);
-    vibrate(10);
-  };
-
-  const togglePalettes = () => {
-    const newState = !isPaletteOpen;
-    if (newState) {
-      setShowInvite(false);
-      setIsLayersOpen(false);
-      setIsChatOpen(false);
-    }
-    setIsPaletteOpen(newState);
     vibrate(10);
   };
 
@@ -5114,7 +5079,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         users={users}
       />
       {/* Floating Header */}
-      <header className="absolute top-[calc(env(safe-area-inset-top,0px)+0.4rem)] left-1.5 right-1.5 sm:top-4 sm:left-4 sm:right-4 z-50 flex items-center justify-between gap-1 sm:gap-2.5 pointer-events-none select-none">
+      <header className="absolute top-[calc(env(safe-area-inset-top,0px)+0.5rem)] left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex items-center justify-between gap-1 sm:gap-3 pointer-events-none">
         <div className="flex items-center gap-1 sm:gap-2 md:gap-3 pointer-events-auto min-w-0 shrink">
           {/* Logo / Home */}
           <button
@@ -5168,7 +5133,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           </div>
 
           {/* Mobile/Tablet Compact Room Code Pill */}
-          <div className="lg:hidden flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-1 shrink min-w-0 max-w-[65px] xs:max-w-[90px]">
+          <div className="lg:hidden flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-1 shrink min-w-0 max-w-[70px] xs:max-w-[100px]">
             <button
               onClick={handleCopyCode}
               className="flex items-center gap-1 text-[10px] font-mono font-bold text-indigo-600 tracking-wide active:scale-95 transition-transform truncate w-full"
@@ -5179,28 +5144,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </button>
           </div>
 
-          {/* QR Code / Share Button on Mobile & Tablet */}
-          <Tooltip label="Share Room / Connect Phone" side="bottom">
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="lg:hidden p-1 xs:p-1.5 bg-indigo-50/95 border border-indigo-200/90 rounded-lg text-indigo-700 hover:bg-indigo-100 transition-all shadow-xs active:scale-90 flex items-center justify-center shrink-0"
-              title="Share Room / Connect Phone"
-            >
-              <QrCode size={12} className="text-indigo-600" />
-            </button>
-          </Tooltip>
-
-          {/* Live Artists Count - VISIBLE ON ALL SCREENS */}
-          <Tooltip label={`Live Artists (${Object.keys(users).length})`} side="bottom">
-            <div className="flex items-center gap-1 px-1.5 py-1 sm:px-2.5 sm:py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
-              <Users size={11} className="text-indigo-500 sm:w-3.5 sm:h-3.5" />
-              <span className="text-[10px] sm:text-xs font-black tracking-wider text-slate-600 tabular-nums">
-                {Object.keys(users).length}
-              </span>
-            </div>
-          </Tooltip>
-
-          {/* Nickname capsule - desktop inline edit */}
+          {/* Nickname capsule - visible on md and up */}
           <div className="hidden md:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1 shrink-0 pointer-events-auto">
             <div className="flex flex-col items-start leading-none">
               <span className="text-[8px] uppercase font-bold text-indigo-400 tracking-widest leading-none mb-0.5">Badge</span>
@@ -5221,19 +5165,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </div>
             <span className="text-xs text-indigo-400 pointer-events-none select-none">✏️</span>
           </div>
-
-          {/* Nickname pill - mobile quick tap to edit */}
-          <button
-            onClick={() => {
-              setTempUsername(username);
-              setIsEditingNameModal(true);
-              vibrate(8);
-            }}
-            className="md:hidden flex items-center gap-1 bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-1 shrink min-w-0 max-w-[65px] xs:max-w-[85px] active:scale-95"
-            title="Tap to change your Nickname"
-          >
-            <span className="text-[10px] font-bold text-indigo-600 truncate">{username}</span>
-          </button>
         </div>
 
         <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 pointer-events-auto shrink-0">
@@ -5274,7 +5205,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 toggleFullscreen();
                 vibrate(5);
               }}
-              className="p-1 xs:p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
+              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
               title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
               {isFullscreen ? <Minimize size={13} className="sm:w-4 sm:h-4" /> : <Maximize size={13} className="sm:w-4 sm:h-4" />}
@@ -5289,7 +5220,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 vibrate(5);
               }}
               className={cn(
-                "p-1 xs:p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center",
+                "p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center",
                 showGrid
                   ? "bg-indigo-600 border-indigo-500 text-white"
                   : "bg-white/95 border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-slate-300"
@@ -5305,7 +5236,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             <button
               onClick={toggleTools}
               className={cn(
-                "flex items-center gap-1 p-1 xs:p-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0",
+                "flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0",
                 showInvite
                   ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
                   : "bg-white/95 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -5324,17 +5255,27 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 setShowTemplateModal(true);
                 vibrate(5);
               }}
-              className="p-1 xs:p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
+              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
               title="Canvas Ratio & Color"
             >
               <SlidersHorizontal size={13} className="sm:w-4 sm:h-4" />
             </button>
           </Tooltip>
 
+          {/* Live Artists Count (shown on screens >= 768px) */}
+          <Tooltip label="Live Artists" side="bottom">
+            <div className="hidden md:flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
+              <Users size={13} className="text-indigo-500" />
+              <span className="text-[10px] font-black tracking-wider text-slate-600">
+                {Object.keys(users).length}
+              </span>
+            </div>
+          </Tooltip>
+
           {/* Leave Button - VISIBLE ON ALL SCREENS */}
           <button
             onClick={onLeave}
-            className="flex items-center justify-center p-1 xs:p-1.5 sm:px-3 sm:py-2 bg-rose-50/95 text-rose-600 hover:bg-rose-100 hover:text-rose-700 rounded-lg sm:rounded-xl font-bold transition-all text-xs border border-rose-200/80 shadow-xs active:scale-90 shrink-0 pointer-events-auto"
+            className="flex items-center justify-center p-1.5 sm:px-3 sm:py-2 bg-rose-50/95 text-rose-600 hover:bg-rose-100 hover:text-rose-700 rounded-lg sm:rounded-xl font-bold transition-all text-xs border border-rose-200/80 shadow-xs active:scale-90 shrink-0 pointer-events-auto"
             title="Leave Canvas"
           >
             <LogOut size={13} className="sm:w-4 sm:h-4 text-rose-500" />
@@ -5941,88 +5882,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         </div>
 
         {/* Floating Toolbar (Centered Bottom) */}
-        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 z-30 pointer-events-none group w-full max-w-[98vw] sm:max-w-[95vw] px-1">
-          {/* Mobile Quick Color & View Ribbon (Row 1 on Mobile) */}
-          <div className="flex md:hidden items-center justify-between gap-1.5 bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-xl rounded-2xl px-2.5 py-1.5 pointer-events-auto w-full max-w-[96vw] xs:max-w-md mx-auto">
-            {/* Active Tool & Size Pill */}
-            <div className="flex items-center gap-1 shrink-0">
-              <span className="text-[10px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100/80 px-1.5 py-0.5 rounded-lg flex items-center gap-1">
-                {tool === "brush" ? <Brush size={12} /> : tool === "eraser" ? <Eraser size={12} /> : tool === "spray" ? <CloudRain size={12} /> : tool === "smudge" ? <Fingerprint size={12} /> : tool === "text" ? <Type size={12} /> : tool === "shape" ? <Shapes size={12} /> : tool === "picker" ? <Pipette size={12} /> : <Sticker size={12} />}
-                <span>{tool === "eraser" ? eraserSize : size}px</span>
-              </span>
-              <button
-                onClick={() => {
-                  const sizes = [6, 14, 28, 48];
-                  const current = tool === "eraser" ? eraserSize : size;
-                  const nextIdx = (sizes.indexOf(current) + 1) % sizes.length;
-                  const nextSize = sizes[nextIdx !== -1 ? nextIdx : 1];
-                  if (tool === "eraser") setEraserSize(nextSize);
-                  else setSize(nextSize);
-                  vibrate(8);
-                }}
-                className="text-[9px] font-black text-slate-600 bg-slate-100 hover:bg-slate-200 active:scale-90 rounded-md px-1.5 py-0.5 border border-slate-200/80"
-                title="Cycle stroke size (S/M/L/XL)"
-              >
-                Size
-              </button>
-            </div>
-
-            {/* Quick Color Swatches with Active Indicator */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <Tooltip label="Pick Color" side="top">
-                <label
-                  className="w-6 h-6 rounded-md border-2 border-white shadow-xs ring-1 ring-slate-300 relative cursor-pointer overflow-hidden shrink-0 flex items-center justify-center active:scale-90"
-                  style={{ backgroundColor: color }}
-                  title="Custom Color"
-                >
-                  <input
-                    type="color"
-                    value={color}
-                    onChange={(e) => {
-                      setColor(e.target.value);
-                      vibrate(5);
-                    }}
-                    className="opacity-0 absolute inset-0 cursor-pointer"
-                  />
-                </label>
-              </Tooltip>
-              {COLORS.slice(0, 6).map(c => (
-                <button
-                  key={c}
-                  onClick={() => { setColor(c); vibrate(5); }}
-                  className={cn(
-                    "w-5 h-5 rounded-full border border-slate-200 transition-transform active:scale-75 shrink-0",
-                    color === c && "ring-2 ring-indigo-500 ring-offset-1 scale-110"
-                  )}
-                  style={{ backgroundColor: c }}
-                  title={`Color: ${c}`}
-                />
-              ))}
-            </div>
-
-            {/* Quick View Controls: Fit & Hand */}
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                onClick={() => { fitToScreen(); vibrate(10); }}
-                className="px-1.5 py-0.5 rounded-md text-slate-600 hover:text-indigo-600 bg-slate-50 border border-slate-200 text-[9px] font-black uppercase active:scale-90"
-                title="Reset View to 100%"
-              >
-                Fit
-              </button>
-              <button
-                onClick={() => { setIsHandTool(!isHandTool); vibrate(10); }}
-                className={cn(
-                  "p-1 rounded-md border text-[9px] font-bold flex items-center justify-center active:scale-90",
-                  isHandTool ? "bg-indigo-600 text-white border-indigo-600 shadow-xs" : "bg-slate-50 text-slate-600 border-slate-200"
-                )}
-                title="Hand Pan Canvas"
-              >
-                <Hand size={12} />
-              </button>
-            </div>
-          </div>
-
-          {/* Main Tools & Features Bar (Row 2 on Mobile, Single Sleek Dock on Tablet/Desktop) */}
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex items-end gap-2 sm:gap-3 z-30 pointer-events-none group w-full max-w-[98vw] sm:max-w-[95vw] justify-center px-1">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -6030,28 +5890,28 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           >
             <div className="flex items-center gap-1 sm:gap-1.5 pr-2 sm:pr-3 border-r border-slate-100 flex-nowrap shrink-0 ml-1">
               <Tooltip label="Brush" side="top">
-                <ToolButton active={tool === "brush"} onClick={() => handleToolChange("brush")} icon={<Brush size={17} />} label="Brush" color="bg-[#7E3BED]/10 text-[#7E3BED] ring-2 ring-[#7E3BED]/20 border-[#7E3BED]/30 shadow-sm" />
+                <ToolButton active={tool === "brush"} onClick={() => handleToolChange("brush")} icon={<Brush size={18} />} label="Brush" color="bg-[#7E3BED]/10 text-[#7E3BED] ring-2 ring-[#7E3BED]/20 border-[#7E3BED]/30 shadow-sm" />
               </Tooltip>
               <Tooltip label="Spray" side="top">
-                <ToolButton active={tool === "spray"} onClick={() => handleToolChange("spray")} icon={<CloudRain size={17} />} label="Spray" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
+                <ToolButton active={tool === "spray"} onClick={() => handleToolChange("spray")} icon={<CloudRain size={18} />} label="Spray" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
               </Tooltip>
               <Tooltip label="Smudge" side="top">
-                <ToolButton active={tool === "smudge"} onClick={() => handleToolChange("smudge")} icon={<Fingerprint size={17} />} label="Smudge" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
+                <ToolButton active={tool === "smudge"} onClick={() => handleToolChange("smudge")} icon={<Fingerprint size={18} />} label="Smudge" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
               </Tooltip>
               <Tooltip label="Eraser" side="top">
-                <ToolButton active={tool === "eraser"} onClick={() => handleToolChange("eraser")} icon={<Eraser size={17} />} label="Eraser" color="bg-slate-900 text-white shadow-xl ring-2 ring-slate-800/20" />
+                <ToolButton active={tool === "eraser"} onClick={() => handleToolChange("eraser")} icon={<Eraser size={18} />} label="Eraser" color="bg-slate-900 text-white shadow-xl ring-2 ring-slate-800/20" />
               </Tooltip>
               <Tooltip label="Text Tool" side="top">
-                <ToolButton active={tool === "text"} onClick={() => handleToolChange("text")} icon={<Type size={17} />} label="Text" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
+                <ToolButton active={tool === "text"} onClick={() => handleToolChange("text")} icon={<Type size={18} />} label="Text" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
               </Tooltip>
               <Tooltip label="Shapes Tool" side="top">
-                <ToolButton active={tool === "shape"} onClick={() => handleToolChange("shape")} icon={<Shapes size={17} />} label="Shapes" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
+                <ToolButton active={tool === "shape"} onClick={() => handleToolChange("shape")} icon={<Shapes size={18} />} label="Shapes" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
               </Tooltip>
               <Tooltip label="Eye Dropper" side="top">
-                <ToolButton active={tool === "picker"} onClick={() => handleToolChange("picker")} icon={<Pipette size={17} />} label="Picker" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
+                <ToolButton active={tool === "picker"} onClick={() => handleToolChange("picker")} icon={<Pipette size={18} />} label="Picker" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
               </Tooltip>
               <Tooltip label="Emoji Stamps" side="top">
-                <ToolButton active={tool === "stamp"} onClick={() => handleToolChange("stamp")} icon={<Sticker size={17} />} label="Stickers" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
+                <ToolButton active={tool === "stamp"} onClick={() => handleToolChange("stamp")} icon={<Sticker size={18} />} label="Stickers" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
               </Tooltip>
               <div className="w-[1px] h-6 bg-slate-100 mx-1 shrink-0" />
 
@@ -6073,7 +5933,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                     vibrate(12);
                   }}
                   className={cn(
-                    "flex items-center gap-1 px-1.5 py-1.5 sm:px-2.5 sm:py-2 rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0 select-none",
+                    "flex items-center gap-1 px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0 select-none",
                     isSmoothingEnabled && smoothing > 0.05
                       ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm shadow-indigo-100"
                       : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
@@ -6162,8 +6022,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 <div className="relative">
                   <ToolButton
                     active={isLayersOpen}
-                    onClick={toggleLayers}
-                    icon={<Layers size={17} />}
+                    onClick={() => {
+                      setIsLayersOpen(prev => !prev);
+                      setIsPaletteOpen(false);
+                    }}
+                    icon={<Layers size={18} />}
                     label="Layers"
                     color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20"
                   />
@@ -6171,7 +6034,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 min-w-[18px] h-4.5 bg-indigo-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none px-0.5"
+                      className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none"
                     >
                       {layers.length}
                     </motion.div>
@@ -6185,8 +6048,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 <div className="relative">
                   <ToolButton
                     active={isPaletteOpen}
-                    onClick={togglePalettes}
-                    icon={<Palette size={17} />}
+                    onClick={() => {
+                      setIsPaletteOpen(prev => !prev);
+                      setIsLayersOpen(false);
+                      vibrate(10);
+                    }}
+                    icon={<Palette size={18} />}
                     label="Palettes"
                     color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20"
                   />
@@ -6194,7 +6061,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 min-w-[18px] h-4.5 bg-indigo-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none px-0.5"
+                      className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none"
                     >
                       {palettes.length}
                     </motion.div>
@@ -6209,7 +6076,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   <ToolButton
                     active={isChatOpen}
                     onClick={toggleChat}
-                    icon={<MessageSquare size={17} />}
+                    icon={<MessageSquare size={18} />}
                     label="Chat"
                     color="bg-indigo-600 text-white shadow-lg shadow-indigo-100 ring-2 ring-indigo-400/20"
                   />
@@ -6217,7 +6084,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                     <motion.div
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none"
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white shadow-sm pointer-events-none"
                     >
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </motion.div>
@@ -6226,13 +6093,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               </Tooltip>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2.5 px-1.5 sm:px-3 shrink-0 mr-1">
+            <div className="flex items-center gap-1.5 sm:gap-3 px-1.5 sm:px-4 shrink-0 mr-1">
               <Tooltip label="Custom Color Picker" side="top">
                 <label
-                  className="w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 flex items-center justify-center border-2 sm:border-3 border-white rounded-lg sm:rounded-xl shadow-md ring-1 ring-slate-200 hover:scale-105 active:scale-90 transition-all cursor-pointer overflow-hidden relative shrink-0 group"
+                  className="w-8 h-8 xs:w-9 xs:h-9 sm:w-11 sm:h-11 flex items-center justify-center border-2 sm:border-4 border-white rounded-lg sm:rounded-xl shadow-md ring-1 ring-slate-200 hover:scale-105 active:scale-90 transition-all cursor-pointer overflow-hidden relative shrink-0 group"
                   style={{ backgroundColor: color }}
                 >
-                  <Palette size={13} className={cn("sm:w-4 sm:h-4 transition-opacity", color === "#ffffff" ? "text-slate-800" : "text-white")} />
+                  <Palette size={14} className={cn("sm:w-4 sm:h-4 transition-opacity", color === "#ffffff" ? "text-slate-800" : "text-white")} />
                   <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <input
                     type="color"
@@ -6253,8 +6120,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   />
                 </label>
               </Tooltip>
-              <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                {COLORS.map(c => (
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+                {COLORS.slice(0, 12).map(c => (
                   <button
                     key={c}
                     onClick={() => {
@@ -6270,8 +6137,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                       }
                     }}
                     className={cn(
-                      "w-4 h-4 xs:w-5 xs:h-5 sm:w-5.5 sm:h-5.5 rounded-full border border-slate-200 transition-all hover:scale-125 active:scale-75 shrink-0",
-                      color === c && "ring-2 ring-indigo-500 ring-offset-1 scale-110"
+                      "w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6 rounded-full border border-slate-200 transition-all hover:scale-125 active:scale-75 shrink-0",
+                      color === c && "ring-2 ring-indigo-500 ring-offset-1 sm:ring-offset-2 scale-110"
                     )}
                     style={{ backgroundColor: c }}
                   />
@@ -6296,7 +6163,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 initial={{ x: -20, opacity: 0, scale: 0.95 }}
                 animate={{ x: 0, opacity: 1, scale: 1 }}
                 exit={{ x: -20, opacity: 0, scale: 0.95 }}
-                className="fixed left-2 right-2 sm:left-6 sm:right-auto top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5.2rem)] sm:bottom-28 sm:w-80 md:w-88 bg-white border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] z-40 p-3.5 sm:p-6 md:p-8 flex flex-col gap-3.5 sm:gap-6 md:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
+                className="fixed left-2 right-2 sm:left-6 sm:right-auto top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 bg-white border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] z-40 p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
               >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
@@ -7519,20 +7386,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         {/* Palettes Section */}
         <AnimatePresence>
           {isPaletteOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-35 lg:hidden"
-                onClick={() => setIsPaletteOpen(false)}
-              />
-              <motion.div
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                className="fixed left-2 right-2 sm:right-auto sm:left-6 top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5.2rem)] sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
-              >
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -20, opacity: 0 }}
+              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
+            >
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div className="flex items-center gap-2">
@@ -7708,27 +7567,18 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 </div>
               </div>
             </motion.div>
-          </>
           )}
         </AnimatePresence>
 
         {/* Layers Section */}
         <AnimatePresence>
           {isLayersOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-35 lg:hidden"
-                onClick={() => setIsLayersOpen(false)}
-              />
-              <motion.div
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: -20, opacity: 0 }}
-                className="fixed left-2 right-2 sm:right-auto sm:left-6 top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5.2rem)] sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
-              >
+            <motion.div
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -20, opacity: 0 }}
+              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
+            >
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div className="flex items-center gap-2">
@@ -7937,7 +7787,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 </div>
               </div>
             </motion.div>
-          </>
           )}
         </AnimatePresence>
 
@@ -8015,121 +7864,25 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         {/* Chat Section */}
         <AnimatePresence>
           {isChatOpen && (
-            <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-35 lg:hidden"
-                onClick={() => setIsChatOpen(false)}
-              />
-              <motion.div
-                initial={{ x: 24, opacity: 0, scale: 0.98 }}
-                animate={{ x: 0, opacity: 1, scale: 1 }}
-                exit={{ x: 24, opacity: 0, scale: 0.98 }}
-                transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                className="fixed left-2 right-2 sm:left-auto sm:right-6 top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5.2rem)] sm:bottom-28 sm:w-[350px] z-40 pointer-events-none"
-              >
-                <div className="pointer-events-auto h-full flex flex-col bg-white border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.14)] rounded-2xl sm:rounded-3xl overflow-hidden ring-1 ring-black/5">
-                  <ChatSection
-                    roomId={roomId}
-                    username={username}
-                    socket={socket}
-                    chat={chat}
-                    setChat={setChat}
-                    vibrate={vibrate}
-                    onClose={() => setIsChatOpen(false)}
-                  />
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
-        {/* Mobile Nickname Edit Modal */}
-        <AnimatePresence>
-          {isEditingNameModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="w-full max-w-sm bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-7 shadow-2xl border border-slate-200 my-auto"
-              >
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                        ✏️
-                      </div>
-                      <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">Your Nickname</h3>
-                    </div>
-                    <button
-                      onClick={() => setIsEditingNameModal(false)}
-                      className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  <p className="text-slate-500 text-xs font-medium leading-relaxed">
-                    Set the name displayed to other artists in this room.
-                  </p>
-
-                  <div className="space-y-1.5">
-                    <input
-                      type="text"
-                      autoFocus
-                      maxLength={15}
-                      value={tempUsername}
-                      onChange={(e) => setTempUsername(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && tempUsername.trim()) {
-                          const val = tempUsername.trim();
-                          setUsername(val);
-                          if (socket) {
-                            socket.emit("join-room", { roomId, username: val });
-                          }
-                          setIsEditingNameModal(false);
-                          vibrate(8);
-                        }
-                      }}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 font-bold text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                      placeholder="Enter your name"
-                    />
-                    <div className="text-[10px] text-slate-400 text-right font-medium">Max 15 characters</div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingNameModal(false)}
-                      className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-all text-xs"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!tempUsername.trim()}
-                      onClick={() => {
-                        const val = tempUsername.trim();
-                        if (val) {
-                          setUsername(val);
-                          if (socket) {
-                            socket.emit("join-room", { roomId, username: val });
-                          }
-                          setIsEditingNameModal(false);
-                          vibrate(8);
-                        }
-                      }}
-                      className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-all text-xs shadow-md shadow-indigo-100 disabled:opacity-50"
-                    >
-                      Save Name
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
+            <motion.div
+              initial={{ x: 24, opacity: 0, scale: 0.98 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: 24, opacity: 0, scale: 0.98 }}
+              transition={{ type: "spring", stiffness: 350, damping: 28 }}
+              className="fixed left-2 right-2 sm:left-auto sm:right-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-[350px] z-40 pointer-events-none"
+            >
+              <div className="pointer-events-auto h-full flex flex-col bg-white border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.14)] rounded-2xl sm:rounded-3xl overflow-hidden ring-1 ring-black/5">
+                <ChatSection
+                  roomId={roomId}
+                  username={username}
+                  socket={socket}
+                  chat={chat}
+                  setChat={setChat}
+                  vibrate={vibrate}
+                  onClose={() => setIsChatOpen(false)}
+                />
+              </div>
+            </motion.div>
           )}
         </AnimatePresence>
 
@@ -8329,7 +8082,7 @@ function ToolButton({ active, onClick, icon, label, color }: any) {
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "w-8 h-8 xs:w-9 xs:h-9 sm:w-10 sm:h-10 md:w-10 md:h-10 lg:w-11 lg:h-11 flex items-center justify-center transition-all rounded-lg sm:rounded-xl border border-slate-200 shadow-sm shrink-0 active:scale-95 touch-manipulation select-none",
+        "w-9 h-9 xs:w-10 xs:h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center transition-all rounded-lg sm:rounded-xl border border-slate-200 shadow-sm shrink-0",
         active ? `${color} shadow-indigo-100` : "bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600"
       )}
     >
