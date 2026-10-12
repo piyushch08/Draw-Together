@@ -1472,7 +1472,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null);
   socketRef.current = socket;
-  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatOpen, setIsChatOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   
   const getInitialSettings = () => {
@@ -4734,8 +4734,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         users={users}
       />
       {/* Floating Header */}
-      <header className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex flex-row items-center justify-between gap-1 sm:gap-3 pointer-events-none">
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 pointer-events-auto min-w-0">
+      <header className="absolute top-[calc(env(safe-area-inset-top,0px)+0.5rem)] left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex items-center justify-between gap-1 sm:gap-3 pointer-events-none">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 pointer-events-auto min-w-0 shrink">
           {/* Logo / Home */}
           <button
             onClick={onLeave}
@@ -4745,17 +4745,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             <img src="/favicon.svg" alt="Draw Together Logo" className="w-full h-full object-cover" />
           </button>
 
-          {/* Fullscreen (Desktop/Tablet) */}
-          <button
-            onClick={toggleFullscreen}
-            className="hidden sm:flex w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm items-center justify-center text-slate-700 hover:text-indigo-600 hover:bg-white transition-all active:scale-95 shrink-0"
-            title="Toggle Fullscreen"
-          >
-            {isFullscreen ? <Minimize size={15} className="sm:w-[18px] sm:h-[18px]" /> : <Maximize size={15} className="sm:w-[18px] sm:h-[18px]" />}
-          </button>
-
           {/* Desktop Room Code Box (lg and up) */}
-          <div className="hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3 py-1 border border-slate-200 shadow-sm">
+          <div className="hidden lg:flex items-center gap-2 bg-white/95 backdrop-blur-md rounded-xl px-3 py-1 border border-slate-200 shadow-sm shrink-0">
             <div className="flex flex-col items-start leading-none shrink-0">
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-widest leading-none mb-0.5">Room Code / Name</span>
               <input
@@ -4797,28 +4788,19 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           </div>
 
           {/* Mobile/Tablet Compact Room Code Pill */}
-          <div className="lg:hidden flex items-center gap-1 bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-1 shrink-0">
-            <span className="text-[10px] font-mono font-black text-indigo-600 max-w-[68px] sm:max-w-none truncate tracking-wide">
-              #{roomId}
-            </span>
+          <div className="lg:hidden flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-1 shrink min-w-0 max-w-[70px] xs:max-w-[100px]">
             <button
               onClick={handleCopyCode}
-              title="Copy Room Link"
-              className="p-1 text-slate-400 hover:text-indigo-600 active:scale-90 transition-transform"
+              className="flex items-center gap-1 text-[10px] font-mono font-bold text-indigo-600 tracking-wide active:scale-95 transition-transform truncate w-full"
+              title="Click to copy Room Link"
             >
-              {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-            </button>
-            <button
-              onClick={() => setShowShareModal(true)}
-              title="QR Code & Share"
-              className="p-1 text-indigo-500 hover:text-indigo-700 active:scale-90 transition-transform"
-            >
-              <QrCode size={12} />
+              <span className="truncate">#{roomId}</span>
+              {copied ? <Check size={10} className="text-emerald-500 shrink-0" /> : <Copy size={10} className="text-slate-400 shrink-0" />}
             </button>
           </div>
 
-          {/* Nickname capsule - visible on sm and up so mobile header remains clean and uncrowded */}
-          <div className="hidden sm:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1 shrink-0 pointer-events-auto">
+          {/* Nickname capsule - visible on md and up */}
+          <div className="hidden md:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1 shrink-0 pointer-events-auto">
             <div className="flex flex-col items-start leading-none">
               <span className="text-[8px] uppercase font-bold text-indigo-400 tracking-widest leading-none mb-0.5">Badge</span>
               <input
@@ -4838,15 +4820,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </div>
             <span className="text-xs text-indigo-400 pointer-events-none select-none">✏️</span>
           </div>
-
-          {/* Connected live status badge */}
-          <div className="hidden xl:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1.5 shrink-0 pointer-events-auto">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)] animate-pulse" />
-            <span className="text-[10px] font-bold text-slate-600 tracking-wide">Connected</span>
-          </div>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2.5 pointer-events-auto shrink-0">
+        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 pointer-events-auto shrink-0">
           {/* Undo / Redo */}
           <div className="flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg sm:rounded-xl p-0.5 shrink-0">
             <Tooltip label="Undo" side="bottom">
@@ -4859,7 +4835,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 className="p-1 sm:p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed"
                 title="Undo"
               >
-                <Undo2 size={15} className="sm:w-4 sm:h-4" />
+                <Undo2 size={13} className="sm:w-4 sm:h-4" />
               </button>
             </Tooltip>
             <Tooltip label="Redo" side="bottom">
@@ -4872,29 +4848,26 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 className="p-1 sm:p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed"
                 title="Redo"
               >
-                <Redo2 size={15} className="sm:w-4 sm:h-4" />
+                <Redo2 size={13} className="sm:w-4 sm:h-4" />
               </button>
             </Tooltip>
           </div>
 
-          {/* Tools Toggle Button */}
-          <Tooltip label={showInvite ? "Close Tools" : "Open Tools"} side="bottom">
+          {/* Fullscreen Toggle Button - VISIBLE ON ALL SCREENS */}
+          <Tooltip label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} side="bottom">
             <button
-              onClick={toggleTools}
-              className={cn(
-                "flex items-center gap-1 p-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0",
-                showInvite
-                  ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
-                  : "bg-white/95 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
-              )}
-              title="Drawing Tools"
+              onClick={() => {
+                toggleFullscreen();
+                vibrate(5);
+              }}
+              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
+              title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
-              <Palette size={15} className="sm:w-4 sm:h-4" />
-              <span className="text-[10px] uppercase font-black tracking-widest hidden md:inline">Tools</span>
+              {isFullscreen ? <Minimize size={13} className="sm:w-4 sm:h-4" /> : <Maximize size={13} className="sm:w-4 sm:h-4" />}
             </button>
           </Tooltip>
 
-          {/* Grid Toggle Button */}
+          {/* Grid Toggle Button - VISIBLE ON ALL SCREENS */}
           <Tooltip label="Toggle Grid" side="bottom">
             <button
               onClick={() => {
@@ -4909,11 +4882,28 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               )}
               title="Toggle Grid"
             >
-              <Grid size={15} className="sm:w-4 sm:h-4" />
+              <Grid size={13} className="sm:w-4 sm:h-4" />
             </button>
           </Tooltip>
 
-          {/* Canvas Settings / Aspect Ratio Button */}
+          {/* Tools Toggle Button (Stroke Configs & Presets) - VISIBLE ON ALL SCREENS */}
+          <Tooltip label={showInvite ? "Close Tools" : "Tools"} side="bottom">
+            <button
+              onClick={toggleTools}
+              className={cn(
+                "flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0",
+                showInvite
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
+                  : "bg-white/95 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+              )}
+              title="Stroke & Brush Tools"
+            >
+              <Palette size={13} className="sm:w-4 sm:h-4" />
+              <span className="text-[10px] uppercase font-black tracking-widest hidden md:inline">Tools</span>
+            </button>
+          </Tooltip>
+
+          {/* Canvas Settings / Aspect Ratio Button - VISIBLE ON ALL SCREENS */}
           <Tooltip label="Canvas Ratio & Color" side="bottom">
             <button
               onClick={() => {
@@ -4921,15 +4911,15 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 vibrate(5);
               }}
               className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
-              title="Canvas Ratio & Settings"
+              title="Canvas Ratio & Color"
             >
-              <SlidersHorizontal size={15} className="sm:w-4 sm:h-4" />
+              <SlidersHorizontal size={13} className="sm:w-4 sm:h-4" />
             </button>
           </Tooltip>
 
-          {/* Live Artists Count (shown on screens >= 640px) */}
+          {/* Live Artists Count (shown on screens >= 768px) */}
           <Tooltip label="Live Artists" side="bottom">
-            <div className="hidden sm:flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
+            <div className="hidden md:flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
               <Users size={13} className="text-indigo-500" />
               <span className="text-[10px] font-black tracking-wider text-slate-600">
                 {Object.keys(users).length}
@@ -4937,14 +4927,14 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </div>
           </Tooltip>
 
-          {/* Leave Button */}
+          {/* Leave Button - VISIBLE ON ALL SCREENS */}
           <button
             onClick={onLeave}
-            className="flex items-center justify-center p-1.5 sm:px-3 sm:py-2 bg-white/95 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-lg sm:rounded-xl font-bold transition-all text-xs border border-slate-200 shadow-xs active:scale-90 shrink-0 pointer-events-auto"
-            title="Leave Room"
+            className="flex items-center justify-center p-1.5 sm:px-3 sm:py-2 bg-rose-50/95 text-rose-600 hover:bg-rose-100 hover:text-rose-700 rounded-lg sm:rounded-xl font-bold transition-all text-xs border border-rose-200/80 shadow-xs active:scale-90 shrink-0 pointer-events-auto"
+            title="Leave Canvas"
           >
-            <LogOut size={15} className="sm:w-4 sm:h-4" />
-            <span className="hidden lg:inline ml-1.5 uppercase text-[10px] tracking-widest">Leave</span>
+            <LogOut size={13} className="sm:w-4 sm:h-4 text-rose-500" />
+            <span className="hidden lg:inline ml-1.5 uppercase text-[10px] tracking-widest text-rose-700 font-bold">Leave</span>
           </button>
         </div>
       </header>
@@ -5548,7 +5538,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         </div>
 
         {/* Floating Toolbar (Centered Bottom) */}
-        <div className="fixed bottom-2.5 xs:bottom-4 sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex items-end gap-2 sm:gap-3 z-30 pointer-events-none group w-full max-w-[98vw] sm:max-w-[95vw] justify-center px-1">
+        <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+0.6rem)] sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex items-end gap-2 sm:gap-3 z-30 pointer-events-none group w-full max-w-[98vw] sm:max-w-[95vw] justify-center px-1">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -5783,12 +5773,20 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         {/* Floating Options Drawer (Left Side) */}
         <AnimatePresence>
           {showInvite && (
-            <motion.div
-              initial={{ x: -20, opacity: 0, scale: 0.95 }}
-              animate={{ x: 0, opacity: 1, scale: 1 }}
-              exit={{ x: -20, opacity: 0, scale: 0.95 }}
-              className="fixed left-2 right-2 sm:left-6 sm:right-auto top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 bg-white border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] z-40 p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
-            >
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-slate-900/20 backdrop-blur-[1px] z-35 lg:hidden"
+                onClick={() => setShowInvite(false)}
+              />
+              <motion.div
+                initial={{ x: -20, opacity: 0, scale: 0.95 }}
+                animate={{ x: 0, opacity: 1, scale: 1 }}
+                exit={{ x: -20, opacity: 0, scale: 0.95 }}
+                className="fixed left-2 right-2 sm:left-6 sm:right-auto top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 bg-white border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] z-40 p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
+              >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
                   <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-slate-400">Configurations</h3>
@@ -6920,6 +6918,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 <span>Canvas Wipe</span>
               </button>
             </motion.div>
+          </>
           )}
         </AnimatePresence>
 
