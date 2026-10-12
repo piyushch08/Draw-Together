@@ -1075,101 +1075,56 @@ export function LandingPage({
           <div className="absolute top-0 right-0 -mt-12 -mr-12 w-48 h-48 bg-gradient-to-br from-[#7C3AED]/10 via-[#C8F53A]/15 to-transparent rounded-full blur-2xl pointer-events-none" />
 
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
-            {/* Left Column: Review Header & Community Rating */}
+            {/* Left Column: Review Header & Creator Info */}
             <div className="flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 max-w-xl">
               <div className="h-12 w-12 sm:h-14 sm:w-14 bg-gradient-to-br from-[#7C3AED] to-purple-700 text-white rounded-2xl flex items-center justify-center shrink-0 shadow-lg shadow-[#7C3AED]/25">
                 <MessageCircleHeart size={26} className="text-[#C8F53A]" />
               </div>
               <div className="space-y-1">
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-                  <h3 className="text-slate-900 font-extrabold text-base sm:text-lg md:text-xl">
-                    Enjoying Draw Together?
-                  </h3>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold">
-                    <Star size={12} className="fill-amber-400 text-amber-500" />
-                    4.9 / 5 Rating
-                  </span>
-                </div>
+                <h3 className="text-slate-900 font-extrabold text-base sm:text-lg md:text-xl">
+                  Enjoying Draw Together?
+                </h3>
                 <p className="text-slate-500 text-xs sm:text-sm font-medium leading-relaxed">
-                  Rate your collaborative drawing experience or share feature ideas directly with developer <span className="font-bold text-slate-700">Piyush Chauhan</span>.
+                  Share your review, thoughts, and feature suggestions directly with developer <span className="font-bold text-slate-700">Piyush Chauhan</span>.
                 </p>
               </div>
             </div>
 
-            {/* Right Column: Interactive 5-Star Rating & Actions */}
-            <div className="flex flex-col sm:flex-row items-center gap-3.5 w-full lg:w-auto">
-              {/* Interactive Stars */}
-              <div className="flex flex-col items-center sm:items-end gap-1 bg-slate-50 border border-slate-200/80 rounded-2xl p-2.5 sm:px-4 sm:py-2.5">
-                <div className="flex items-center gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => {
-                    const active = (hoverRating !== null ? hoverRating : userRating) >= star;
-                    return (
-                      <button
-                        key={star}
-                        type="button"
-                        onClick={() => {
-                          setUserRating(star);
-                          setIsReviewModalOpen(true);
-                        }}
-                        onMouseEnter={() => setHoverRating(star)}
-                        onMouseLeave={() => setHoverRating(null)}
-                        className="p-1 text-slate-300 hover:scale-125 active:scale-110 transition-transform focus:outline-none"
-                        title={`Rate ${star} Stars`}
-                      >
-                        <Star
-                          size={20}
-                          className={cn(
-                            "transition-colors",
-                            active
-                              ? "text-amber-400 fill-amber-400 drop-shadow-[0_1px_4px_rgba(251,191,36,0.5)]"
-                              : "text-slate-300 hover:text-amber-300"
-                          )}
-                        />
-                      </button>
-                    );
-                  })}
-                </div>
-                <span className="text-[11px] font-bold text-slate-500">
-                  {userRating === 5 ? "Loved it! ⭐⭐⭐⭐⭐" : `${userRating} / 5 Stars`}
-                </span>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setIsReviewModalOpen(true)}
-                  className="flex-1 sm:flex-none text-center px-4 sm:px-5 py-2.5 bg-slate-950 hover:bg-[#7C3AED] text-white text-xs sm:text-sm font-bold rounded-xl sm:rounded-2xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 whitespace-nowrap"
-                >
-                  <Sparkles size={16} className="text-[#C8F53A]" />
-                  Write Review
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCopyEmail}
-                  className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold rounded-xl sm:rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-1.5"
-                  title="Copy Developer Email"
-                >
-                  {copiedEmail ? (
-                    <>
-                      <Check size={16} className="text-emerald-600" />
-                      <span className="text-emerald-700 hidden xs:inline">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={16} className="text-slate-500" />
-                      <span className="hidden xs:inline">Copy Email</span>
-                    </>
-                  )}
-                </button>
-              </div>
+            {/* Right Column: Actions */}
+            <div className="flex items-center gap-2.5 w-full sm:w-auto justify-center">
+              <button
+                type="button"
+                onClick={() => setIsReviewModalOpen(true)}
+                className="flex-1 sm:flex-none text-center px-5 py-3 bg-slate-950 hover:bg-[#7C3AED] text-white text-xs sm:text-sm font-bold rounded-xl sm:rounded-2xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 whitespace-nowrap"
+              >
+                <Sparkles size={16} className="text-[#C8F53A]" />
+                Write Review
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyEmail}
+                className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs sm:text-sm font-bold rounded-xl sm:rounded-2xl transition-all active:scale-95 flex items-center justify-center gap-2"
+                title="Copy Developer Email"
+              >
+                {copiedEmail ? (
+                  <>
+                    <Check size={16} className="text-emerald-600" />
+                    <span className="text-emerald-700 font-bold">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy size={16} className="text-slate-500" />
+                    <span className="font-bold">Copy Email</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
 
         {/* Multi-Column Professional Information Footer */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-6 sm:gap-8 pt-2">
-          {/* Col 1: Brand & Status (5 cols) */}
+          {/* Col 1: Brand & Description (5 cols) */}
           <div className="lg:col-span-5 space-y-3 text-center sm:text-left">
             <div className="flex items-center justify-center sm:justify-start gap-2.5">
               <BrandLogo className="w-8 h-8 rounded-xl shadow-md ring-2 ring-white" />
@@ -1180,10 +1135,6 @@ export function LandingPage({
             <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-sm mx-auto sm:mx-0">
               High-performance collaborative studio canvas for duos and teams. Real-time dual-cursor sync, custom aspect ratios, and cross-device stylus pairing.
             </p>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 text-[11px] font-semibold text-emerald-800">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-300 animate-pulse" />
-              Ultra-Low Latency Engine • 99.9% Active
-            </div>
           </div>
 
           {/* Col 2: Studio Capabilities (4 cols) */}
@@ -1261,15 +1212,11 @@ export function LandingPage({
           </div>
         </div>
 
-        {/* Bottom Copyright & Security Strip */}
-        <div className="flex flex-col sm:flex-row items-center justify-between pt-4 pb-2 border-t border-slate-200/80 gap-3 text-xs text-slate-500">
-          <p className="text-center sm:text-left font-medium">
-            &copy; 2026 <span className="font-bold text-slate-800">Piyush Chauhan</span>. Built with passion for digital creators.
+        {/* Bottom Copyright Strip - Centered and Bold for Clear Visibility */}
+        <div className="w-full pt-6 pb-3 border-t border-slate-200/90 flex items-center justify-center text-center">
+          <p className="text-sm sm:text-base md:text-lg font-black text-slate-900 tracking-wide">
+            &copy; 2026 Piyush Chauhan. Built with passion for digital creators.
           </p>
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-            <span>Ephemeral Canvas • No Permanent Tracking</span>
-          </div>
         </div>
       </footer>
 
