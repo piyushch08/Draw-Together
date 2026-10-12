@@ -77,6 +77,8 @@ async function startServer() {
       origin: "*",
       methods: ["GET", "POST"]
     },
+    transports: ["websocket", "polling"],
+    perMessageDeflate: false,
     maxHttpBufferSize: 1e7 // 10MB payload limit for canvas data snapshots
   });
 

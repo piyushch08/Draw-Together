@@ -3,6 +3,7 @@ import React from "react";
 import { nanoid } from "nanoid";
 import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "motion/react";
+import QRCode from "qrcode";
 import { Tool, BrushStyle, DrawingData, ChatMessage, UserPresence, CursorUpdate, Layer, CustomPalette, PlacedText, PlacedShape } from "./types";
 import {
   Palette,
@@ -266,11 +267,10 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
     if (!socket) return;
 
     let pendingUpdates: Record<string, CursorUpdate> = {};
-    let flushTimeout: ReturnType<typeof setTimeout> | null = null;
-    let lastFlush = 0;
+    let rafFlushId: number | null = null;
 
     const flushUpdates = () => {
-      lastFlush = Date.now();
+      rafFlushId = null;
       const updates = { ...pendingUpdates };
       pendingUpdates = {};
 
@@ -293,8 +293,8 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
               const dy = data.y - prevY;
               const dist = Math.hypot(dx, dy);
 
-              if (dist > 15) {
-                const numSteps = Math.min(Math.floor(dist / 15), 4);
+              if (dist > 12) {
+                const numSteps = Math.min(Math.floor(dist / 14), 4);
                 const newPoints = [];
                 for (let i = 1; i <= numSteps; i++) {
                   const ratio = i / (numSteps + 1);
@@ -336,15 +336,8 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
 
     const handleCursorMove = (data: CursorUpdate) => {
       pendingUpdates[data.userId] = data;
-      const currentNow = Date.now();
-      if (currentNow - lastFlush > 33) {
-        if (flushTimeout) clearTimeout(flushTimeout);
-        flushUpdates();
-      } else if (!flushTimeout) {
-        flushTimeout = setTimeout(() => {
-          flushTimeout = null;
-          flushUpdates();
-        }, 33 - (currentNow - lastFlush));
+      if (!rafFlushId) {
+        rafFlushId = requestAnimationFrame(flushUpdates);
       }
     };
 
@@ -363,7 +356,7 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
     return () => {
       socket.off("cursor-move", handleCursorMove);
       socket.off("user-left", handleUserLeft);
-      if (flushTimeout) clearTimeout(flushTimeout);
+      if (rafFlushId) cancelAnimationFrame(rafFlushId);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, [socket, startTickIfNeeded]);
@@ -628,22 +621,35 @@ export default function App() {
 
 export function BrandLogo({ className = "w-16 h-16" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg" aria-label="Draw Together Logo">
-      <rect width="100" height="100" rx="28" fill="#7C3AED" />
-      <path
-        d="M 23.5, 53.5 C 23.5, 57 26.5, 58 28.5, 53 C 29.5, 50.5 32, 49.5 33.5, 48 A 20 25.5 0 0 1 66.5, 48 C 65, 51.5 64, 56.5 66.5, 58 C 68.5, 59 70.5, 56 71.5, 53 C 73, 50 75.5, 50 76.5, 51.5 A 30 35.5 0 0 0 23.5, 53.5 Z"
-        fill="#FFFFFF"
-      />
-      <path
-        d="M 28.5, 53 L 28.5, 79 L 34.5, 73.5 L 40.5, 87 L 45.8, 84.5 L 39.8, 71 L 47, 71 Z"
-        fill="#FFFFFF"
-      />
-      <path
-        d="M 71.5, 53 L 71.5, 79 L 77.5, 73.5 L 83.5, 87 L 88.8, 84.5 L 82.8, 71 L 90, 71 Z"
-        fill="#C8F53A"
-      />
-    </svg>
+    <img
+      src="/favicon.svg"
+      alt="Draw Together Logo"
+      className={className}
+      loading="eager"
+      decoding="async"
+    />
   );
+}
+
+export function LocalQRCode({ url }: { url: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    if (canvasRef.current && url) {
+      QRCode.toCanvas(canvasRef.current, url, {
+        width: 176,
+        margin: 1,
+        color: {
+          dark: "#0F172A",
+          light: "#FFFFFF"
+        }
+      }, (err) => {
+        if (err) console.error("QR Code generation error:", err);
+      });
+    }
+  }, [url]);
+
+  return <canvas ref={canvasRef} className="w-44 h-44 rounded-lg" />;
 }
 
 export function LandingPage({
@@ -1438,7 +1444,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   }, [roomId, socket]);
 
   useEffect(() => {
-    networkIntervalId.current = window.setInterval(flushNetworkQueue, 25);
+    networkIntervalId.current = window.setInterval(flushNetworkQueue, 8);
     return () => {
       if (networkIntervalId.current) clearInterval(networkIntervalId.current);
     };
@@ -2010,7 +2016,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const lastCursorEmitTime = useRef(0);
   const emitCursorUpdateThrottled = (x?: number, y?: number, drawingOverride?: boolean) => {
     const now = Date.now();
-    if (now - lastCursorEmitTime.current < 33 && drawingOverride === undefined) return; // 30fps cursor sync prevents mobile disconnects
+    if (now - lastCursorEmitTime.current < 16 && drawingOverride === undefined) return; // 60fps responsive cursor tracking
     lastCursorEmitTime.current = now;
     emitCursorUpdate(x, y, drawingOverride);
   };
@@ -2133,7 +2139,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   }, [isHandTool]);
 
   useEffect(() => {
-    const s = io();
+    const s = io({
+      transports: ["websocket", "polling"],
+      upgrade: true
+    });
     socketRef.current = s;
     setSocket(s);
 
@@ -3638,6 +3647,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     drawOnCanvas(data, false);
     scheduleCompositeLayers();
     networkQueueRef.current.push(data);
+    if (networkQueueRef.current.length >= 2) {
+      flushNetworkQueue();
+    }
 
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
@@ -4385,6 +4397,14 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       {/* Floating Header */}
       <header className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex flex-row items-center justify-between gap-1.5 sm:gap-3 pointer-events-none">
         <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 pointer-events-auto min-w-0">
+          <button
+            onClick={onLeave}
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl overflow-hidden shadow-xs hover:scale-105 active:scale-95 transition-all shrink-0 ring-1 ring-slate-200 bg-white"
+            title="Draw Together (Return to Home)"
+          >
+            <img src="/favicon.svg" alt="Draw Together Logo" className="w-full h-full object-cover" />
+          </button>
+
           <button
             onClick={toggleFullscreen}
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm flex items-center justify-center text-slate-700 hover:text-indigo-600 hover:bg-white transition-all active:scale-95 shrink-0"
@@ -6971,12 +6991,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
                   {/* QR Code */}
                   <div className="p-3 bg-white rounded-2xl border-2 border-indigo-100 shadow-sm flex items-center justify-center">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(getShareUrl())}`}
-                      alt="Room QR Code"
-                      className="w-44 h-44 rounded-lg"
-                      loading="lazy"
-                    />
+                    <LocalQRCode url={getShareUrl()} />
                   </div>
 
                   {/* Room Code Pill */}
