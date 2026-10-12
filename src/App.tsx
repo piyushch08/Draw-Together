@@ -711,18 +711,18 @@ export function LandingPage({
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between p-4 sm:p-8 lg:p-12 font-sans relative overflow-x-hidden selection:bg-[#7C3AED] selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between p-3 xs:p-4 sm:p-8 lg:p-12 font-sans relative overflow-x-hidden selection:bg-[#7C3AED] selection:text-white">
       {/* Ambient glowing backdrop gradients */}
-      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-200/50 rounded-full blur-[130px] pointer-events-none -z-0" />
-      <div className="absolute bottom-10 right-10 w-[450px] h-[450px] bg-[#C8F53A]/25 rounded-full blur-[130px] pointer-events-none -z-0" />
+      <div className="absolute top-0 left-1/4 w-[300px] sm:w-[500px] h-[300px] sm:h-[500px] bg-purple-200/50 rounded-full blur-[90px] sm:blur-[130px] pointer-events-none -z-0" />
+      <div className="absolute bottom-10 right-4 sm:right-10 w-[280px] sm:w-[450px] h-[280px] sm:h-[450px] bg-[#C8F53A]/25 rounded-full blur-[90px] sm:blur-[130px] pointer-events-none -z-0" />
 
       {/* Minimal Fullscreen Toggle */}
       <button
         onClick={toggleFullscreen}
-        className="absolute top-4 left-4 z-50 w-11 h-11 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm transition-all active:scale-95"
+        className="absolute top-3 left-3 sm:top-4 sm:left-4 z-50 w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm transition-all active:scale-95"
         title="Toggle Fullscreen"
       >
-        {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
+        {isFullscreen ? <Minimize size={18} className="sm:w-5 sm:h-5" /> : <Maximize size={18} className="sm:w-5 sm:h-5" />}
       </button>
 
       {/* Subtle Minimalist Background Grid */}
@@ -730,43 +730,43 @@ export function LandingPage({
         className="absolute inset-0 pointer-events-none z-0"
         style={{
           backgroundImage: "radial-gradient(#CBD5E1 1.2px, transparent 1.2px)",
-          backgroundSize: "32px 32px",
+          backgroundSize: "28px 28px",
           opacity: 0.55
         }}
       />
 
       {/* Main Expansive Content Layout */}
-      <main className="flex-1 flex items-center justify-center w-full z-10 py-6 sm:py-10">
-        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 xl:gap-20 items-center">
+      <main className="flex-1 flex items-center justify-center w-full z-10 py-4 sm:py-8 lg:py-10">
+        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 lg:gap-14 xl:gap-20 items-center">
           
-          {/* Left Column: Grand Brand Header & Feature Showcase */}
-          <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 sm:space-y-8">
+          {/* Left Column: Brand Hero & Features */}
+          <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left space-y-4 sm:space-y-6 lg:space-y-8">
             {/* Big Brand Logo with ambient glow */}
-            <div className="relative select-none group">
-              <div className="absolute -inset-3 bg-gradient-to-r from-[#7C3AED] to-[#C8F53A] rounded-[42px] blur-2xl opacity-40 group-hover:opacity-75 transition duration-500" />
+            <div className="relative select-none group mt-6 sm:mt-0">
+              <div className="absolute -inset-2 sm:-inset-3 bg-gradient-to-r from-[#7C3AED] to-[#C8F53A] rounded-[32px] sm:rounded-[42px] blur-xl sm:blur-2xl opacity-40 group-hover:opacity-75 transition duration-500" />
               <div className="relative hover:scale-105 transition-transform duration-300">
-                <BrandLogo className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 xl:w-48 xl:h-48 rounded-3xl sm:rounded-[36px] shadow-2xl shadow-[#7C3AED]/30 ring-4 ring-white" />
+                <BrandLogo className="w-20 h-20 xs:w-24 xs:h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-44 lg:h-44 xl:w-48 xl:h-48 rounded-2xl xs:rounded-3xl sm:rounded-[36px] shadow-2xl shadow-[#7C3AED]/30 ring-2 sm:ring-4 ring-white" />
               </div>
             </div>
 
             {/* Live Tag & Typography */}
-            <div className="space-y-3 max-w-xl">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-100/90 border border-violet-200/90 text-xs sm:text-sm font-bold text-[#7C3AED] shadow-xs">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#C8F53A] ring-2 ring-[#C8F53A]/50 animate-pulse" />
+            <div className="space-y-2 sm:space-y-3 max-w-xl">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-violet-100/90 border border-violet-200/90 text-[11px] sm:text-xs md:text-sm font-bold text-[#7C3AED] shadow-xs">
+                <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#C8F53A] ring-2 ring-[#C8F53A]/50 animate-pulse" />
                 Real-Time Whiteboard & Vector Studio
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 font-['Fredoka',sans-serif] leading-[1.08]">
+              <h1 className="text-3xl xs:text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 font-['Fredoka',sans-serif] leading-[1.1]">
                 Draw <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] via-purple-600 to-indigo-600">Together</span>
               </h1>
 
-              <p className="text-slate-600 text-sm sm:text-base lg:text-lg font-medium leading-relaxed">
+              <p className="text-slate-600 text-xs xs:text-sm sm:text-base lg:text-lg font-medium leading-relaxed px-2 sm:px-0">
                 Collaborative studio whiteboard for creative duos and teams. Sketch synchronously in 4K, lock canvas aspect ratios, and pair cursors across devices in real time.
               </p>
             </div>
 
-            {/* 4 Feature Highlight Cards filling the screen */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 max-w-xl w-full">
+            {/* Feature Highlight Cards (visible on desktop left column) */}
+            <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 max-w-xl w-full">
               {FEATURES.map((feat, idx) => (
                 <div
                   key={idx}
@@ -783,8 +783,8 @@ export function LandingPage({
               ))}
             </div>
 
-            {/* Dual Cursor Indicator Badge */}
-            <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-slate-950 text-white shadow-lg text-xs font-semibold">
+            {/* Dual Cursor Indicator Badge (desktop) */}
+            <div className="hidden lg:inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-slate-950 text-white shadow-lg text-xs font-semibold">
               <div className="flex -space-x-1.5 items-center">
                 <span className="w-3.5 h-3.5 rounded-full bg-white ring-2 ring-slate-950 shadow-sm" />
                 <span className="w-3.5 h-3.5 rounded-full bg-[#C8F53A] ring-2 ring-slate-950 shadow-sm" />
@@ -793,18 +793,18 @@ export function LandingPage({
             </div>
           </div>
 
-          {/* Right Column: Generous Interactive Controls Console */}
+          {/* Right Column: Interactive Room Console Card */}
           <div className="lg:col-span-6 flex justify-center w-full">
-            <div className="w-full max-w-xl lg:max-w-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 p-6 sm:p-8 lg:p-10 rounded-3xl shadow-[0_20px_60px_-15px_rgba(124,58,237,0.14)] relative">
+            <div className="w-full max-w-xl lg:max-w-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 p-4 xs:p-6 sm:p-8 lg:p-10 rounded-2xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(124,58,237,0.14)] relative">
               
-              <div className="space-y-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* User Nickname Input */}
-                <div className="space-y-2">
+                <div className="space-y-1.5 sm:space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
                       Your Nickname
                     </label>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-md">
+                    <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2 sm:px-2.5 py-0.5 rounded-md">
                       Display Name
                     </span>
                   </div>
@@ -813,34 +813,34 @@ export function LandingPage({
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. Picasso or DaVinci"
-                    className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-2xl px-5 py-3.5 sm:py-4 font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-base sm:text-lg placeholder:text-slate-400 shadow-sm"
+                    className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-sm sm:text-base md:text-lg placeholder:text-slate-400 shadow-sm"
                   />
                 </div>
 
-                {/* Big Action Tabs Selector */}
-                <div className="flex bg-[#F1F5F9] p-1.5 rounded-2xl gap-1.5">
+                {/* Action Tabs Selector */}
+                <div className="flex bg-[#F1F5F9] p-1 sm:p-1.5 rounded-xl sm:rounded-2xl gap-1 sm:gap-1.5">
                   <button
                     onClick={() => setIsJoining(false)}
                     className={cn(
-                      "flex-1 py-3 sm:py-3.5 text-xs sm:text-sm font-black rounded-xl transition-all flex items-center justify-center gap-2",
+                      "flex-1 py-2.5 sm:py-3.5 text-xs sm:text-sm font-black rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
                       !isJoining
                         ? "bg-white text-slate-950 shadow-md"
                         : "text-slate-500 hover:text-slate-900"
                     )}
                   >
-                    <Plus size={16} className={!isJoining ? "text-[#7C3AED]" : ""} />
+                    <Plus size={15} className={!isJoining ? "text-[#7C3AED]" : ""} />
                     Create New Room
                   </button>
                   <button
                     onClick={() => setIsJoining(true)}
                     className={cn(
-                      "flex-1 py-3 sm:py-3.5 text-xs sm:text-sm font-black rounded-xl transition-all flex items-center justify-center gap-2",
+                      "flex-1 py-2.5 sm:py-3.5 text-xs sm:text-sm font-black rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5 sm:gap-2",
                       isJoining
                         ? "bg-white text-slate-950 shadow-md"
                         : "text-slate-500 hover:text-slate-900"
                     )}
                   >
-                    <Users size={16} className={isJoining ? "text-[#7C3AED]" : ""} />
+                    <Users size={15} className={isJoining ? "text-[#7C3AED]" : ""} />
                     Join Existing Room
                   </button>
                 </div>
@@ -853,16 +853,16 @@ export function LandingPage({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
-                      className="space-y-5"
+                      className="space-y-4 sm:space-y-5"
                     >
                       {/* Room Code / Name Input */}
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 sm:space-y-2">
                         <div className="flex justify-between items-center">
                           <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
                             Custom Room Code
                           </label>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase bg-slate-100 px-2.5 py-0.5 rounded-md">
-                            Optional (Auto-generated if empty)
+                          <span className="text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase bg-slate-100 px-2 py-0.5 rounded-md">
+                            Optional
                           </span>
                         </div>
                         <input
@@ -875,36 +875,36 @@ export function LandingPage({
                             }
                           }}
                           placeholder="e.g. STUDIO-ROOM"
-                          className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-2xl px-5 py-3.5 sm:py-4 font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-base uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
+                          className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-sm sm:text-base uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
                         />
                       </div>
 
                       {/* Canvas Size & Aspect Ratio Grid */}
-                      <div className="space-y-2.5">
+                      <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
                             Canvas Size & Ratio
                           </label>
-                          <span className="text-[10px] font-black uppercase text-[#7C3AED] bg-[#7C3AED]/10 px-2.5 py-0.5 rounded-md">
-                            Synced For All Users
+                          <span className="text-[9px] sm:text-[10px] font-black uppercase text-[#7C3AED] bg-[#7C3AED]/10 px-2 py-0.5 rounded-md">
+                            Synced Both Sides
                           </span>
                         </div>
-                        <div className="grid grid-cols-5 gap-2">
+                        <div className="grid grid-cols-5 gap-1 sm:gap-2">
                           {ASPECT_RATIOS.map(ar => (
                             <button
                               key={ar.id}
                               type="button"
                               onClick={() => setCreatorAspectRatio(ar.id)}
                               className={cn(
-                                "py-3 px-1.5 sm:py-3.5 rounded-2xl text-center border-2 transition-all flex flex-col items-center justify-center gap-1.5",
+                                "py-2 px-1 sm:py-3.5 sm:px-2 rounded-xl sm:rounded-2xl text-center border-2 transition-all flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-w-0",
                                 creatorAspectRatio === ar.id
-                                  ? "bg-[#7C3AED]/10 border-[#7C3AED] text-[#7C3AED] font-black shadow-sm scale-[1.03]"
+                                  ? "bg-[#7C3AED]/10 border-[#7C3AED] text-[#7C3AED] font-black shadow-sm scale-[1.02]"
                                   : "bg-[#F8FAFC] border-slate-200/90 text-slate-600 hover:bg-slate-100 font-semibold"
                               )}
                             >
                               <div
                                 className={cn(
-                                  "border-2 rounded transition-colors flex items-center justify-center",
+                                  "border-2 rounded transition-colors flex items-center justify-center shrink-0",
                                   ar.boxW,
                                   ar.boxH,
                                   creatorAspectRatio === ar.id
@@ -912,51 +912,51 @@ export function LandingPage({
                                     : "border-slate-300 bg-white"
                                 )}
                               />
-                              <span className="text-xs font-black leading-tight">{ar.label}</span>
-                              <span className="text-[9px] opacity-70 leading-tight font-medium hidden sm:inline">{ar.name}</span>
+                              <span className="text-[10px] sm:text-xs font-black leading-tight truncate">{ar.label}</span>
+                              <span className="text-[8px] sm:text-[9px] opacity-70 leading-tight font-medium hidden xs:inline truncate">{ar.name}</span>
                             </button>
                           ))}
                         </div>
                       </div>
 
                       {/* Canvas Background Color Presets */}
-                      <div className="space-y-2.5">
+                      <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
-                            Canvas Background Color
+                            Canvas Color
                           </label>
-                          <span className="text-xs font-mono text-slate-500 uppercase font-bold bg-slate-100 px-2 py-0.5 rounded">
+                          <span className="text-[10px] sm:text-xs font-mono text-slate-500 uppercase font-bold bg-slate-100 px-2 py-0.5 rounded">
                             {creatorBgColor}
                           </span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2.5">
+                        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                           {COLOR_PRESETS.map(c => (
                             <button
                               key={c.color}
                               type="button"
                               onClick={() => setCreatorBgColor(c.color)}
                               className={cn(
-                                "w-9 h-9 sm:w-11 sm:h-11 rounded-2xl border-2 transition-all shadow-sm flex items-center justify-center",
+                                "w-8 h-8 xs:w-9 xs:h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 transition-all shadow-sm flex items-center justify-center shrink-0",
                                 creatorBgColor.toUpperCase() === c.color.toUpperCase()
-                                  ? "border-[#7C3AED] scale-110 ring-4 ring-[#7C3AED]/25 shadow-md"
+                                  ? "border-[#7C3AED] scale-105 ring-2 sm:ring-4 ring-[#7C3AED]/25 shadow-md"
                                   : "border-slate-200 hover:scale-105"
                               )}
                               style={{ backgroundColor: c.color }}
                               title={c.name}
                             >
                               {creatorBgColor.toUpperCase() === c.color.toUpperCase() && (
-                                <Check size={14} className={c.color === "#FFFFFF" || c.color === "#FEF3C7" || c.color === "#DCFCE7" || c.color === "#E0E7FF" ? "text-slate-900" : "text-white"} />
+                                <Check size={13} className={c.color === "#FFFFFF" || c.color === "#FEF3C7" || c.color === "#DCFCE7" || c.color === "#E0E7FF" ? "text-slate-900" : "text-white"} />
                               )}
                             </button>
                           ))}
                           <label
                             className={cn(
-                              "w-9 h-9 sm:w-11 sm:h-11 rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#7C3AED] flex items-center justify-center cursor-pointer transition-all bg-white relative",
-                              !COLOR_PRESETS.some(cp => cp.color.toUpperCase() === creatorBgColor.toUpperCase()) && "border-[#7C3AED] ring-4 ring-[#7C3AED]/25"
+                              "w-8 h-8 xs:w-9 xs:h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#7C3AED] flex items-center justify-center cursor-pointer transition-all bg-white relative shrink-0",
+                              !COLOR_PRESETS.some(cp => cp.color.toUpperCase() === creatorBgColor.toUpperCase()) && "border-[#7C3AED] ring-2 sm:ring-4 ring-[#7C3AED]/25"
                             )}
                             title="Custom Color"
                           >
-                            <Palette size={16} className="text-slate-500" />
+                            <Palette size={15} className="text-slate-500" />
                             <input
                               type="color"
                               value={creatorBgColor}
@@ -971,9 +971,9 @@ export function LandingPage({
                       <button
                         onClick={handleCreateSubmit}
                         disabled={!username.trim()}
-                        className="w-full mt-3 bg-gradient-to-r from-[#7C3AED] via-[#6D28D9] to-[#4F46E5] hover:opacity-95 text-white py-4 sm:py-4.5 px-6 rounded-2xl font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-[#7C3AED]/25 active:scale-[0.99] flex items-center justify-center gap-2.5 text-base sm:text-lg"
+                        className="w-full mt-2 sm:mt-3 bg-gradient-to-r from-[#7C3AED] via-[#6D28D9] to-[#4F46E5] hover:opacity-95 text-white py-3.5 sm:py-4.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-[#7C3AED]/25 active:scale-[0.99] flex items-center justify-center gap-2 text-sm sm:text-base md:text-lg"
                       >
-                        <Sparkles size={20} className="text-[#C8F53A]" />
+                        <Sparkles size={18} className="text-[#C8F53A] shrink-0" />
                         Create & Enter Studio
                       </button>
                     </motion.div>
@@ -984,14 +984,14 @@ export function LandingPage({
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, y: -6 }}
                       transition={{ duration: 0.18 }}
-                      className="space-y-6"
+                      className="space-y-4 sm:space-y-6"
                     >
-                      <div className="space-y-2">
+                      <div className="space-y-1.5 sm:space-y-2">
                         <div className="flex justify-between items-center">
                           <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
-                            Enter 6-Digit Room Code
+                            Enter Room Code
                           </label>
-                          <span className="text-[10px] text-[#7C3AED] font-bold uppercase bg-[#7C3AED]/10 px-2.5 py-0.5 rounded-md">
+                          <span className="text-[9px] sm:text-[10px] text-[#7C3AED] font-bold uppercase bg-[#7C3AED]/10 px-2 py-0.5 rounded-md">
                             Required
                           </span>
                         </div>
@@ -1005,16 +1005,16 @@ export function LandingPage({
                             }
                           }}
                           placeholder="e.g. DESIGN-SYNC"
-                          className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-2xl px-5 py-4 sm:py-4.5 font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-lg sm:text-xl uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm text-center tracking-widest"
+                          className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-xl sm:rounded-2xl px-4 py-3.5 sm:px-5 sm:py-4.5 font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-base sm:text-lg md:text-xl uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm text-center tracking-widest"
                         />
                       </div>
 
                       <button
                         onClick={onJoin}
                         disabled={!username.trim() || !joinCode.trim()}
-                        className="w-full bg-[#000000] hover:bg-slate-900 text-white py-4 sm:py-4.5 px-6 rounded-2xl font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-black/15 active:scale-[0.99] flex items-center justify-center gap-2.5 text-base sm:text-lg"
+                        className="w-full bg-[#000000] hover:bg-slate-900 text-white py-3.5 sm:py-4.5 px-4 sm:px-6 rounded-xl sm:rounded-2xl font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-black/15 active:scale-[0.99] flex items-center justify-center gap-2 text-sm sm:text-base md:text-lg"
                       >
-                        <Users size={20} className="text-[#C8F53A]" />
+                        <Users size={18} className="text-[#C8F53A] shrink-0" />
                         Join & Enter Studio
                       </button>
                     </motion.div>
@@ -1023,38 +1023,67 @@ export function LandingPage({
               </div>
             </div>
           </div>
+
+          {/* Features Grid for Mobile & Tablet (positioned beneath form on small screens) */}
+          <div className="lg:hidden col-span-1 flex flex-col items-center space-y-4 pt-4 w-full max-w-xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+              {FEATURES.map((feat, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-xl sm:rounded-2xl p-3.5 shadow-sm hover:border-[#7C3AED]/40 transition-all text-left flex items-start gap-3"
+                >
+                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 shrink-0">
+                    {feat.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">{feat.title}</h3>
+                    <p className="text-[11px] text-slate-500 font-medium leading-normal mt-0.5">{feat.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-950 text-white shadow-md text-xs font-semibold">
+              <div className="flex -space-x-1.5 items-center">
+                <span className="w-3 h-3 rounded-full bg-white ring-2 ring-slate-950 shadow-sm" />
+                <span className="w-3 h-3 rounded-full bg-[#C8F53A] ring-2 ring-slate-950 shadow-sm" />
+              </div>
+              <span className="text-slate-300">Dual-Cursor Live Sync • Instant Room Join</span>
+            </div>
+          </div>
+
         </div>
       </main>
 
       {/* Full-width Responsive Footer */}
-      <footer className="w-full max-w-7xl mx-auto z-10 flex flex-col gap-5 pt-8 pb-2">
+      <footer className="w-full max-w-7xl mx-auto z-10 flex flex-col gap-4 sm:gap-5 pt-6 sm:pt-8 pb-2">
         {/* Feedback Bar */}
-        <div className="bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5 text-center sm:text-left">
-            <div className="h-11 w-11 bg-[#7C3AED]/10 text-[#7C3AED] rounded-2xl flex items-center justify-center shrink-0">
-              <MessageCircleHeart size={22} />
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-3 text-center sm:text-left">
+            <div className="h-10 w-10 sm:h-11 sm:w-11 bg-[#7C3AED]/10 text-[#7C3AED] rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
+              <MessageCircleHeart size={20} className="sm:w-[22px] sm:h-[22px]" />
             </div>
             <div>
-              <h3 className="text-slate-900 font-extrabold text-sm sm:text-base">Enjoying Draw Together?</h3>
-              <p className="text-slate-500 text-xs sm:text-sm font-medium">Share your suggestions and ideas directly with the creator.</p>
+              <h3 className="text-slate-900 font-extrabold text-xs sm:text-sm md:text-base">Enjoying Draw Together?</h3>
+              <p className="text-slate-500 text-[11px] sm:text-xs md:text-sm font-medium">Share your suggestions and ideas directly with the creator.</p>
             </div>
           </div>
           <a
             href="mailto:piyush.ch407@gmail.com?subject=Draw%20Together%20Review"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-5 py-2.5 bg-[#000000] hover:bg-[#7C3AED] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap"
+            className="w-full sm:w-auto text-center px-4 sm:px-5 py-2 sm:py-2.5 bg-[#000000] hover:bg-[#7C3AED] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
             Send Feedback
           </a>
         </div>
 
         {/* Copyright & Social Links */}
-        <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-2 border-t border-slate-200/60 gap-3 text-xs sm:text-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-2 border-t border-slate-200/60 gap-2.5 sm:gap-3 text-xs sm:text-sm">
           <p className="text-slate-500 font-medium text-center sm:text-left">
             &copy; 2026 <span className="font-extrabold text-slate-800">Piyush Chauhan</span>. Built with passion for creators.
           </p>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4 sm:gap-5">
             <a
               href="https://github.com/piyushch08"
               target="_blank"
@@ -1062,7 +1091,7 @@ export function LandingPage({
               className="text-slate-400 hover:text-[#000000] transition-colors p-1"
               aria-label="GitHub"
             >
-              <Github size={20} strokeWidth={2} />
+              <Github size={18} strokeWidth={2} className="sm:w-5 sm:h-5" />
             </a>
             <a
               href="https://www.linkedin.com/in/piyush-chauhan-353822385/"
@@ -1071,7 +1100,7 @@ export function LandingPage({
               className="text-slate-400 hover:text-[#7C3AED] transition-colors p-1"
               aria-label="LinkedIn"
             >
-              <Linkedin size={20} strokeWidth={2} />
+              <Linkedin size={18} strokeWidth={2} className="sm:w-5 sm:h-5" />
             </a>
             <a
               href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D"
@@ -1080,7 +1109,7 @@ export function LandingPage({
               className="text-slate-400 hover:text-[#7C3AED] transition-colors p-1"
               aria-label="Instagram"
             >
-              <Instagram size={20} strokeWidth={2} />
+              <Instagram size={18} strokeWidth={2} className="sm:w-5 sm:h-5" />
             </a>
           </div>
         </div>
@@ -4354,16 +4383,17 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         users={users}
       />
       {/* Floating Header */}
-      <header className="absolute top-4 left-4 right-4 z-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pointer-events-none">
-        <div className="flex items-center gap-3 sm:gap-4 md:gap-6 pointer-events-auto">
+      <header className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex flex-row items-center justify-between gap-1.5 sm:gap-3 pointer-events-none">
+        <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 pointer-events-auto min-w-0">
           <button
             onClick={toggleFullscreen}
-            className="w-10 h-10 rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm flex items-center justify-center text-slate-700 hover:text-indigo-600 hover:bg-white transition-all active:scale-95 shrink-0"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm flex items-center justify-center text-slate-700 hover:text-indigo-600 hover:bg-white transition-all active:scale-95 shrink-0"
             title="Toggle Fullscreen"
           >
-            {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+            {isFullscreen ? <Minimize size={15} className="sm:w-[18px] sm:h-[18px]" /> : <Maximize size={15} className="sm:w-[18px] sm:h-[18px]" />}
           </button>
-          {/* Logo container removed per user request */}
+
+          {/* Desktop Room Code Box */}
           <div className="hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3 py-1 border border-slate-200 shadow-sm">
             <div className="flex flex-col items-start leading-none shrink-0">
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-widest leading-none mb-0.5">Room Code / Name</span>
@@ -4405,10 +4435,19 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </Tooltip>
           </div>
 
+          {/* Mobile/Tablet QR Share Quick Button */}
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="lg:hidden p-1.5 sm:p-2 bg-indigo-50/90 backdrop-blur-md border border-indigo-200 rounded-lg sm:rounded-xl text-indigo-700 shadow-sm active:scale-90 transition-all shrink-0"
+            title="Connect Phone / QR Share"
+          >
+            <QrCode size={14} className="sm:w-4 sm:h-4" />
+          </button>
+
           {/* Inline editable Nickname capsule */}
-          <div className="flex items-center gap-2 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-3 py-1.5 shrink-0 pointer-events-auto">
+          <div className="flex items-center gap-1 sm:gap-2 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-lg sm:rounded-xl px-2 py-1 sm:px-3 sm:py-1.5 shrink-0 pointer-events-auto">
             <div className="flex flex-col items-start leading-none">
-              <span className="text-[9px] uppercase font-bold text-indigo-400 tracking-widest leading-none mb-0.5">My Badge</span>
+              <span className="text-[8px] sm:text-[9px] uppercase font-bold text-indigo-400 tracking-widest leading-none mb-0.5">Badge</span>
               <input
                 type="text"
                 value={username}
@@ -4419,23 +4458,23 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                     socket.emit("join-room", { roomId, username: val });
                   }
                 }}
-                className="text-xs font-bold text-indigo-600 bg-transparent border-none p-0 m-0 outline-none focus:ring-0 w-16 sm:w-24 placeholder-indigo-300"
+                className="text-[11px] sm:text-xs font-bold text-indigo-600 bg-transparent border-none p-0 m-0 outline-none focus:ring-0 w-14 xs:w-18 sm:w-24 placeholder-indigo-300 truncate"
                 placeholder="Name"
                 title="Click to edit nickname"
               />
             </div>
-            <span className="text-xs text-indigo-400 pointer-events-none select-none">✏️</span>
+            <span className="text-[10px] sm:text-xs text-indigo-400 pointer-events-none select-none hidden xs:inline">✏️</span>
           </div>
 
           {/* Connected live status badge */}
-          <div className="hidden sm:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1.5 shrink-0 pointer-events-auto">
+          <div className="hidden md:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1.5 shrink-0 pointer-events-auto">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)] animate-pulse" />
             <span className="text-[10px] font-bold text-slate-600 tracking-wide">Connected</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4 pointer-events-auto">
-          <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl p-1 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 pointer-events-auto shrink-0">
+          <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-lg sm:rounded-xl p-0.5 sm:p-1 shrink-0">
             <Tooltip label="Undo" side="bottom">
               <button
                 onClick={() => {
@@ -4443,9 +4482,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   vibrate(5);
                 }}
                 disabled={historyIndex < 0}
-                className="p-2 sm:p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 sm:p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed"
               >
-                <Undo2 size={16} />
+                <Undo2 size={14} className="sm:w-4 sm:h-4" />
               </button>
             </Tooltip>
             <Tooltip label="Redo" side="bottom">
@@ -4455,36 +4494,32 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   vibrate(5);
                 }}
                 disabled={historyIndex >= history.length - 1}
-                className="p-2 sm:p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 sm:p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed"
               >
-                <Redo2 size={16} />
+                <Redo2 size={14} className="sm:w-4 sm:h-4" />
               </button>
             </Tooltip>
           </div>
-
-          {/* Keyboard shortcuts button removed per user request */}
-
-          <div className="h-8 w-[1px] bg-slate-200 mx-0.5 hidden xs:block" />
 
           <Tooltip label={showInvite ? "Close" : "Tools"} side="bottom">
             <button
               onClick={toggleTools}
               className={cn(
-                "flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl font-bold transition-all border active:scale-95 shadow-sm shrink-0",
+                "flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-sm shrink-0",
                 showInvite
                   ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
                   : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
               )}
             >
-              <Palette size={16} />
+              <Palette size={14} className="sm:w-4 sm:h-4" />
               <span className="text-[10px] uppercase font-black tracking-widest hidden sm:inline">Tools</span>
             </button>
           </Tooltip>
 
           <Tooltip label="Live Artists" side="bottom">
-            <div className="flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/90 backdrop-blur-md rounded-xl border border-slate-200 shadow-sm shrink-0 cursor-default">
-              <Users size={14} className="text-indigo-500" />
-              <span className="text-[10px] font-black tracking-widest text-slate-600">
+            <div className="hidden xs:flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 bg-white/90 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-sm shrink-0 cursor-default">
+              <Users size={12} className="text-indigo-500 sm:w-3.5 sm:h-3.5" />
+              <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-slate-600">
                 {Object.keys(users).length} <span className="hidden sm:inline">Artists</span>
               </span>
             </div>
@@ -4498,22 +4533,21 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 vibrate(5);
               }}
               className={cn(
-                "p-2 sm:p-2.5 rounded-xl border transition-all active:scale-95 shadow-sm shrink-0 flex items-center justify-center",
+                "p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border transition-all active:scale-95 shadow-sm shrink-0 flex items-center justify-center",
                 showGrid
                   ? "bg-indigo-600 border-indigo-500 text-white"
                   : "bg-white/90 backdrop-blur-md border-slate-200 text-slate-700 hover:bg-white hover:text-indigo-600 hover:border-slate-300"
               )}
             >
-              <Grid size={16} />
+              <Grid size={14} className="sm:w-4 sm:h-4" />
             </button>
           </Tooltip>
 
-
           <button
             onClick={onLeave}
-            className="flex items-center justify-center w-10 sm:w-auto h-10 sm:px-4 bg-white/90 backdrop-blur-md text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-xl font-bold transition-all text-sm border border-slate-200 shadow-sm active:scale-90 shrink-0 pointer-events-auto"
+            className="flex items-center justify-center h-8 sm:h-10 px-2 sm:px-4 bg-white/90 backdrop-blur-md text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-lg sm:rounded-xl font-bold transition-all text-xs sm:text-sm border border-slate-200 shadow-sm active:scale-90 shrink-0 pointer-events-auto"
           >
-            <LogOut size={16} /> <span className="hidden lg:inline ml-2 uppercase text-[10px] tracking-widest">Leave</span>
+            <LogOut size={14} className="sm:w-4 sm:h-4" /> <span className="hidden lg:inline ml-2 uppercase text-[10px] tracking-widest">Leave</span>
           </button>
         </div>
       </header>
@@ -5120,11 +5154,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         </div>
 
         {/* Floating Toolbar (Centered Bottom) */}
-        <div className="fixed bottom-6 xs:bottom-8 sm:bottom-10 left-1/2 -translate-x-1/2 flex items-end gap-3 z-30 pointer-events-none group w-full max-w-[95vw] justify-center">
+        <div className="fixed bottom-2.5 xs:bottom-4 sm:bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 flex items-end gap-2 sm:gap-3 z-30 pointer-events-none group w-full max-w-[98vw] sm:max-w-[95vw] justify-center px-1">
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="bg-white/90 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] p-1.5 sm:p-2 flex items-center pointer-events-auto overflow-x-auto no-scrollbar scroll-smooth"
+            className="bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-2xl rounded-2xl sm:rounded-[2.5rem] p-1 sm:p-2 flex items-center pointer-events-auto overflow-x-auto no-scrollbar scroll-smooth max-w-full touch-pan-x"
           >
             <div className="flex items-center gap-1 sm:gap-1.5 pr-2 sm:pr-3 border-r border-slate-100 flex-nowrap shrink-0 ml-1">
               <Tooltip label="Brush" side="top">
@@ -5154,7 +5188,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               <div className="w-[1px] h-6 bg-slate-100 mx-1 shrink-0" />
 
               {/* View/Zoom Controls Prominent */}
-              <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-50 border border-slate-100 rounded-xl px-1">
+              <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-50 border border-slate-100 rounded-xl px-1 shrink-0">
                 <Tooltip label="Zoom Out" side="top">
                   <button
                     onClick={() => {
@@ -5163,9 +5197,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                         return { ...prev, scale: newScale };
                       }); vibrate(5);
                     }}
-                    className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all active:scale-90"
+                    className="p-1.5 sm:p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all active:scale-90"
                   >
-                    <Minus size={14} />
+                    <Minus size={13} className="sm:w-3.5 sm:h-3.5" />
                   </button>
                 </Tooltip>
 
@@ -5173,7 +5207,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   <button
                     onClick={() => { fitToScreen(); vibrate(15); }}
                     className={cn(
-                      "px-2 py-1 text-[9px] font-black rounded-lg transition-all tabular-nums min-w-[40px] text-center uppercase tracking-tighter",
+                      "px-1.5 sm:px-2 py-1 text-[8px] sm:text-[9px] font-black rounded-lg transition-all tabular-nums min-w-[32px] sm:min-w-[40px] text-center uppercase tracking-tighter",
                       isTransformModified ? "text-indigo-600 bg-white shadow-sm ring-1 ring-indigo-100" : "text-slate-400"
                     )}
                   >
@@ -5189,9 +5223,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                         return { ...prev, scale: newScale };
                       }); vibrate(5);
                     }}
-                    className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all active:scale-90"
+                    className="p-1.5 sm:p-2 text-slate-500 hover:text-indigo-600 hover:bg-white rounded-lg transition-all active:scale-90"
                   >
-                    <Plus size={14} />
+                    <Plus size={13} className="sm:w-3.5 sm:h-3.5" />
                   </button>
                 </Tooltip>
 
@@ -5199,11 +5233,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   <button
                     onClick={() => { fitToScreen(); vibrate(15); }}
                     className={cn(
-                      "p-2 rounded-lg transition-all active:scale-90",
+                      "p-1.5 sm:p-2 rounded-lg transition-all active:scale-90",
                       !isTransformModified ? "text-slate-300 pointer-events-none" : "text-slate-500 hover:text-indigo-600 hover:bg-white"
                     )}
                   >
-                    <Maximize size={14} />
+                    <Maximize size={13} className="sm:w-3.5 sm:h-3.5" />
                   </button>
                 </Tooltip>
 
@@ -5211,11 +5245,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   <button
                     onClick={() => { setIsHandTool(!isHandTool); vibrate(10); }}
                     className={cn(
-                      "p-2 rounded-lg transition-all active:scale-90",
+                      "p-1.5 sm:p-2 rounded-lg transition-all active:scale-90",
                       isHandTool ? "bg-indigo-600 text-white shadow-md" : "text-slate-500 hover:bg-white"
                     )}
                   >
-                    <Hand size={14} />
+                    <Hand size={13} className="sm:w-3.5 sm:h-3.5" />
                   </button>
                 </Tooltip>
               </div>
@@ -5297,13 +5331,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               </Tooltip>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 px-2 sm:px-4 shrink-0 mr-1">
+            <div className="flex items-center gap-1.5 sm:gap-3 px-1.5 sm:px-4 shrink-0 mr-1">
               <Tooltip label="Custom Color Picker" side="top">
                 <label
-                  className="w-10 h-10 sm:w-11 sm:h-11 flex items-center justify-center border-4 border-white rounded-xl shadow-lg ring-1 ring-slate-200 hover:scale-105 active:scale-90 transition-all cursor-pointer overflow-hidden relative shrink-0 group"
+                  className="w-8 h-8 xs:w-9 xs:h-9 sm:w-11 sm:h-11 flex items-center justify-center border-2 sm:border-4 border-white rounded-lg sm:rounded-xl shadow-md ring-1 ring-slate-200 hover:scale-105 active:scale-90 transition-all cursor-pointer overflow-hidden relative shrink-0 group"
                   style={{ backgroundColor: color }}
                 >
-                  <Palette size={16} className={cn("transition-opacity", color === "#ffffff" ? "text-slate-800" : "text-white")} />
+                  <Palette size={14} className={cn("sm:w-4 sm:h-4 transition-opacity", color === "#ffffff" ? "text-slate-800" : "text-white")} />
                   <div className="absolute inset-0 bg-black/10 opacity-0 group-hover:opacity-100 transition-opacity" />
                   <input
                     type="color"
@@ -5324,7 +5358,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   />
                 </label>
               </Tooltip>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                 {COLORS.slice(0, 12).map(c => (
                   <button
                     key={c}
@@ -5341,8 +5375,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                       }
                     }}
                     className={cn(
-                      "w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-slate-200 transition-all hover:scale-125 active:scale-75 shrink-0",
-                      color === c && "ring-2 ring-indigo-500 ring-offset-2 scale-110"
+                      "w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6 rounded-full border border-slate-200 transition-all hover:scale-125 active:scale-75 shrink-0",
+                      color === c && "ring-2 ring-indigo-500 ring-offset-1 sm:ring-offset-2 scale-110"
                     )}
                     style={{ backgroundColor: c }}
                   />
@@ -5359,7 +5393,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               initial={{ x: -20, opacity: 0, scale: 0.95 }}
               animate={{ x: 0, opacity: 1, scale: 1 }}
               exit={{ x: -20, opacity: 0, scale: 0.95 }}
-              className="fixed left-4 right-4 sm:left-6 top-20 sm:top-24 bottom-28 sm:bottom-32 sm:w-80 bg-white border border-slate-200 shadow-2xl rounded-3xl sm:rounded-[2.5rem] z-40 p-6 sm:p-8 flex flex-col gap-6 sm:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
+              className="fixed left-2 right-2 sm:left-6 sm:right-auto top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 bg-white border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] z-40 p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
             >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
@@ -6505,9 +6539,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className="fixed left-4 right-4 sm:right-auto sm:left-6 top-20 sm:top-24 bottom-28 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
+              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
             >
-              <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-3xl sm:rounded-[2.5rem] overflow-hidden">
+              <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div className="flex items-center gap-2">
                     <Palette className="text-indigo-600" size={16} />
@@ -6692,9 +6726,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className="fixed left-4 right-4 sm:right-auto sm:left-6 top-20 sm:top-24 bottom-28 sm:bottom-32 sm:w-80 z-40 pointer-events-none"
+              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
             >
-              <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-3xl sm:rounded-[2.5rem] overflow-hidden">
+              <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                   <div className="flex items-center gap-2">
                     <Layers className="text-indigo-600" size={16} />
@@ -6908,12 +6942,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         {/* Connect Phone / Share Modal */}
         <AnimatePresence>
           {showShareModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="w-full max-w-sm bg-white rounded-[2rem] p-6 sm:p-8 shadow-2xl border border-slate-200"
+                className="w-full max-w-sm bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 shadow-2xl border border-slate-200 my-auto max-h-[92vh] overflow-y-auto"
               >
                 <div className="flex flex-col items-center text-center gap-5">
                   <div className="w-full flex items-center justify-between">
@@ -6989,9 +7023,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               animate={{ x: 0, opacity: 1, scale: 1 }}
               exit={{ x: 24, opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 350, damping: 28 }}
-              className="fixed left-3 right-3 sm:left-auto sm:right-6 top-16 sm:top-20 bottom-24 sm:bottom-28 sm:w-[350px] z-40 pointer-events-none"
+              className="fixed left-2 right-2 sm:left-auto sm:right-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-[350px] z-40 pointer-events-none"
             >
-              <div className="pointer-events-auto h-full flex flex-col bg-white border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.14)] rounded-3xl overflow-hidden ring-1 ring-black/5">
+              <div className="pointer-events-auto h-full flex flex-col bg-white border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.14)] rounded-2xl sm:rounded-3xl overflow-hidden ring-1 ring-black/5">
                 <ChatSection
                   roomId={roomId}
                   username={username}
@@ -7009,12 +7043,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         {/* Template Settings Modal */}
         <AnimatePresence>
           {showTemplateModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl border border-slate-200"
+                className="w-full max-w-sm bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 shadow-2xl border border-slate-200 my-auto max-h-[92vh] overflow-y-auto"
               >
                 <div className="flex flex-col gap-6">
                   <div className="space-y-2">
@@ -7145,12 +7179,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         {/* Clear Confirmation Modal */}
         <AnimatePresence>
           {isClearConfirmOpen && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-900/60 backdrop-blur-sm">
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-slate-900/60 backdrop-blur-sm">
               <motion.div
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="w-full max-w-sm bg-white rounded-[2rem] p-8 shadow-2xl border border-slate-200"
+                className="w-full max-w-sm bg-white rounded-2xl sm:rounded-[2rem] p-6 sm:p-8 shadow-2xl border border-slate-200 my-auto"
               >
                 <div className="flex flex-col items-center text-center gap-6">
                   <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-2xl flex items-center justify-center">
@@ -7202,7 +7236,7 @@ function ToolButton({ active, onClick, icon, label, color }: any) {
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "w-12 h-12 flex items-center justify-center transition-all rounded-xl border border-slate-200 shadow-sm",
+        "w-9 h-9 xs:w-10 xs:h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center transition-all rounded-lg sm:rounded-xl border border-slate-200 shadow-sm shrink-0",
         active ? `${color} shadow-indigo-100` : "bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600"
       )}
     >
