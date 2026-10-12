@@ -3095,13 +3095,17 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           ctx.beginPath();
           ctx.lineCap = data.brushStyle === "square" ? "square" : "round";
           ctx.lineJoin = data.brushStyle === "square" ? "miter" : "round";
-          const dist = Math.hypot(finalX - px, finalY - py);
-          if (dist > 5 && data.brushStyle !== "square") {
+
+          if (data.brushStyle !== "square" && data.prevMidX !== undefined && data.midX !== undefined) {
+            // True tangent-continuous Bézier spline segment
+            ctx.moveTo(data.prevMidX, data.prevMidY);
+            ctx.quadraticCurveTo(px, py, data.midX, data.midY);
+          } else if (data.brushStyle !== "square") {
             const midX = (px + finalX) / 2;
             const midY = (py + finalY) / 2;
             ctx.moveTo(px, py);
             ctx.quadraticCurveTo(px, py, midX, midY);
-            ctx.lineTo(finalX, finalY);
+            ctx.quadraticCurveTo(midX, midY, finalX, finalY);
           } else {
             ctx.moveTo(px, py);
             ctx.lineTo(finalX, finalY);
@@ -3236,6 +3240,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     isDrawing: false,
     lastX: 0, // World X
     lastY: 0, // World Y
+    lastMidX: 0, // Midpoint X for tangent spline curves
+    lastMidY: 0, // Midpoint Y for tangent spline curves
+    hasStartedStroke: false,
     lastScreenX: 0, // Screen X for panning
     lastScreenY: 0  // Screen Y for panning
   });
@@ -3684,6 +3691,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     const { x, y } = getCoordinates(e);
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
+    drawingState.current.lastMidX = x;
+    drawingState.current.lastMidY = y;
+    drawingState.current.hasStartedStroke = false;
     drawingState.current.lastScreenX = clientX;
     drawingState.current.lastScreenY = clientY;
 
@@ -3700,6 +3710,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         y,
         prevX: x,
         prevY: y,
+        midX: x,
+        midY: y,
+        prevMidX: x,
+        prevMidY: y,
         color: currentColor,
         size: tool === "eraser" ? eraserSize : size,
         tool,
@@ -3930,17 +3944,30 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     hasLocalDrawnRef.current = true;
     const { x: rawX, y: rawY } = getCoordinates(e);
 
+    const prevLastX = drawingState.current.lastX;
+    const prevLastY = drawingState.current.lastY;
+    const dist = Math.hypot(rawX - prevLastX, rawY - prevLastY);
+
+    // Filter tiny sub-pixel sensor jitter (< 0.2px) to prevent stepping
+    if (dist < 0.2) return;
+
     let x = rawX;
     let y = rawY;
 
-    if (isSmoothingEnabled) {
-      // Velocity-adaptive exponential smoothing for ultra-smooth strokes with zero lag
-      const dist = Math.hypot(rawX - drawingState.current.lastX, rawY - drawingState.current.lastY);
-      const speedFactor = Math.min(1, dist / 80);
-      const alpha = Math.min(0.92, Math.max(0.2, (0.45 + (1 - smoothing) * 0.5) + speedFactor * 0.25));
-      x = drawingState.current.lastX + (rawX - drawingState.current.lastX) * alpha;
-      y = drawingState.current.lastY + (rawY - drawingState.current.lastY) * alpha;
+    if (isSmoothingEnabled && smoothing > 0.05) {
+      // Dynamic velocity-sensitive Catmull/Chaikin stabilizer
+      const baseAlpha = 1 - (smoothing * 0.72);
+      const speedBoost = Math.min(0.4, (dist / 60) * 0.4);
+      const alpha = Math.min(1.0, Math.max(0.18, baseAlpha + speedBoost));
+      x = prevLastX + (rawX - prevLastX) * alpha;
+      y = prevLastY + (rawY - prevLastY) * alpha;
     }
+
+    const midX = (prevLastX + x) / 2;
+    const midY = (prevLastY + y) / 2;
+    const prevMidX = drawingState.current.hasStartedStroke ? drawingState.current.lastMidX : prevLastX;
+    const prevMidY = drawingState.current.hasStartedStroke ? drawingState.current.lastMidY : prevLastY;
+    drawingState.current.hasStartedStroke = true;
 
     let currentColor = color;
     if (isRainbowMode) {
@@ -3952,8 +3979,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       roomId,
       x,
       y,
-      prevX: drawingState.current.lastX,
-      prevY: drawingState.current.lastY,
+      prevX: prevLastX,
+      prevY: prevLastY,
+      midX,
+      midY,
+      prevMidX,
+      prevMidY,
       color: currentColor,
       size: tool === "eraser" ? eraserSize : size,
       tool,
@@ -3987,6 +4018,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
+    drawingState.current.lastMidX = midX;
+    drawingState.current.lastMidY = midY;
   }
 
   function stopDrawing() {
@@ -4022,12 +4055,43 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     }
 
     if (drawingState.current.isDrawing) {
+      if (drawingState.current.hasStartedStroke && tool !== "shape" && tool !== "text" && tool !== "stamp" && tool !== "picker") {
+        let currentColor = color;
+        if (isRainbowMode) {
+          currentColor = `hsl(${hueRef.current}, 100%, 50%)`;
+        }
+        // Seamlessly complete final curve to the stroke tip
+        const finishData: DrawingData = {
+          roomId,
+          x: drawingState.current.lastX,
+          y: drawingState.current.lastY,
+          prevX: drawingState.current.lastX,
+          prevY: drawingState.current.lastY,
+          prevMidX: drawingState.current.lastMidX,
+          prevMidY: drawingState.current.lastMidY,
+          midX: drawingState.current.lastX,
+          midY: drawingState.current.lastY,
+          color: currentColor,
+          size: tool === "eraser" ? eraserSize : size,
+          tool,
+          brushStyle,
+          symmetryMode,
+          opacity,
+          density,
+          hardness,
+          flow,
+          layerId: activeLayerId
+        };
+        drawOnCanvas(finishData, false);
+        networkQueueRef.current.push(finishData);
+      }
       flushNetworkQueue();
       compositeLayers();
       setTimeout(() => saveToHistory(), 0);
       emitCursorUpdate(drawingState.current.lastX, drawingState.current.lastY, false);
     }
     drawingState.current.isDrawing = false;
+    drawingState.current.hasStartedStroke = false;
   }
 
   const saveToHistory = (customPlacedTexts?: PlacedText[], customPlacedShapes?: PlacedShape[]) => {
@@ -4658,16 +4722,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    if (e.pointerType === "mouse" || e.pointerType === "pen") {
-      try {
-        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-      } catch {}
-      startDrawing(e.nativeEvent);
-    }
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+    startDrawing(e.nativeEvent);
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse" && e.pointerType !== "pen") return;
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     if (cursorRef.current) {
       cursorRef.current.style.left = `${e.clientX}px`;
@@ -4691,12 +4752,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (e.pointerType === "mouse" || e.pointerType === "pen") {
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {}
-      stopDrawing();
-    }
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+    stopDrawing();
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
@@ -4982,7 +5041,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             onMouseDown={(e) => {
               if ((e as any).pointerType === undefined) startDrawing(e.nativeEvent);
             }}
-            onMouseMove={handleMouseMove}
             onMouseUp={stopDrawing}
             onMouseLeave={() => {
               if (!drawingState.current.isDrawing) {
@@ -5569,6 +5627,40 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               <Tooltip label="Emoji Stamps" side="top">
                 <ToolButton active={tool === "stamp"} onClick={() => handleToolChange("stamp")} icon={<Sticker size={18} />} label="Stickers" color="bg-indigo-50 text-indigo-600 ring-2 ring-indigo-500/20 border-indigo-200" />
               </Tooltip>
+              <div className="w-[1px] h-6 bg-slate-100 mx-1 shrink-0" />
+
+              {/* Quick Smoothness & Stabilizer Cycle Pill */}
+              <Tooltip label={isSmoothingEnabled && smoothing > 0.05 ? `Stabilizer: ${Math.round(smoothing * 100)}% (Tap to cycle: 0% → 35% → 75% → 92%)` : "Stabilizer: Raw (Tap to enable smoothing)"} side="top">
+                <button
+                  onClick={() => {
+                    if (!isSmoothingEnabled || smoothing <= 0.05) {
+                      setIsSmoothingEnabled(true);
+                      setSmoothing(0.35);
+                    } else if (smoothing <= 0.45) {
+                      setSmoothing(0.75);
+                    } else if (smoothing <= 0.8) {
+                      setSmoothing(0.92);
+                    } else {
+                      setIsSmoothingEnabled(false);
+                      setSmoothing(0);
+                    }
+                    vibrate(12);
+                  }}
+                  className={cn(
+                    "flex items-center gap-1 px-2 py-1.5 sm:px-2.5 sm:py-2 rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0 select-none",
+                    isSmoothingEnabled && smoothing > 0.05
+                      ? "bg-indigo-50 border-indigo-200 text-indigo-700 shadow-sm shadow-indigo-100"
+                      : "bg-slate-50 border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  )}
+                  title="Cycle Stroke Smoothing"
+                >
+                  <Sparkles size={14} className={isSmoothingEnabled && smoothing > 0.05 ? "text-indigo-600" : "text-slate-400"} />
+                  <span className="text-[9px] font-black tracking-tight whitespace-nowrap hidden sm:inline">
+                    {isSmoothingEnabled && smoothing > 0.05 ? `${Math.round(smoothing * 100)}%` : "Raw"}
+                  </span>
+                </button>
+              </Tooltip>
+
               <div className="w-[1px] h-6 bg-slate-100 mx-1 shrink-0" />
 
               {/* View/Zoom Controls Prominent */}
@@ -6787,26 +6879,106 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                         <input type="range" min="0.01" max="1" step="0.01" value={smudgeIntensity} onChange={(e) => setSmudgeIntensity(parseFloat(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
                       </div>
                     )}
-                    <div className="space-y-4">
+                    {/* Advanced Stroke Stabilizer & Smoothing Control */}
+                    <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-3.5">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Smoothing</span>
-                        <Tooltip label={isSmoothingEnabled ? "High Precision" : "Raw Input"} side="top">
+                        <div className="flex items-center gap-2">
+                          <div className={cn(
+                            "w-7 h-7 rounded-lg flex items-center justify-center transition-all",
+                            isSmoothingEnabled && smoothing > 0.05 ? "bg-indigo-600 text-white shadow-sm shadow-indigo-200" : "bg-slate-200 text-slate-500"
+                          )}>
+                            <Sparkles size={14} />
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[10px] font-black text-slate-800 uppercase tracking-wider">Stroke Stabilizer</span>
+                            <span className="text-[9px] font-bold text-indigo-600">
+                              {!isSmoothingEnabled || smoothing <= 0.05
+                                ? "Raw (1:1 Direct Input)"
+                                : smoothing > 0.85
+                                ? `${Math.round(smoothing * 100)}% • Studio Silk`
+                                : smoothing > 0.55
+                                ? `${Math.round(smoothing * 100)}% • Smooth Flow`
+                                : `${Math.round(smoothing * 100)}% • Natural Balanced`}
+                            </span>
+                          </div>
+                        </div>
+                        <Tooltip label={isSmoothingEnabled ? "Disable Stabilizer" : "Enable Stabilizer"} side="top">
                           <button
-                            onClick={() => setIsSmoothingEnabled(!isSmoothingEnabled)}
+                            onClick={() => {
+                              setIsSmoothingEnabled(!isSmoothingEnabled);
+                              vibrate(10);
+                            }}
                             className={cn(
-                              "w-10 h-5 rounded-full relative transition-all duration-500 shadow-inner",
+                              "w-11 h-6 rounded-full relative transition-all duration-300 shadow-inner",
                               isSmoothingEnabled ? "bg-indigo-600" : "bg-slate-300"
                             )}
                           >
                             <motion.div
-                              animate={{ x: isSmoothingEnabled ? 20 : 0 }}
+                              animate={{ x: isSmoothingEnabled ? 20 : 2 }}
                               transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                              className="absolute inset-y-1 left-1 w-3 h-3 bg-white rounded-full shadow-sm"
+                              className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm"
                             />
                           </button>
                         </Tooltip>
                       </div>
-                      <input type="range" min="0.1" max="0.95" step="0.01" value={smoothing} disabled={!isSmoothingEnabled} onChange={(e) => setSmoothing(parseFloat(e.target.value))} className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
+
+                      {/* Smoothness Presets */}
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { label: "Raw", value: 0, desc: "0%" },
+                          { label: "Natural", value: 0.35, desc: "35%" },
+                          { label: "Smooth", value: 0.75, desc: "75%" },
+                          { label: "Silk", value: 0.92, desc: "92%" },
+                        ].map((preset) => {
+                          const isActive = isSmoothingEnabled && Math.abs(smoothing - preset.value) < 0.12 && (preset.value > 0 || !isSmoothingEnabled);
+                          return (
+                            <button
+                              key={preset.label}
+                              onClick={() => {
+                                if (preset.value === 0) {
+                                  setIsSmoothingEnabled(false);
+                                  setSmoothing(0);
+                                } else {
+                                  setIsSmoothingEnabled(true);
+                                  setSmoothing(preset.value);
+                                }
+                                vibrate(10);
+                              }}
+                              className={cn(
+                                "py-1.5 px-1 rounded-xl text-[9px] font-black uppercase tracking-wider transition-all border text-center flex flex-col items-center",
+                                isActive
+                                  ? "bg-indigo-600 border-indigo-600 text-white shadow-sm"
+                                  : "bg-white border-slate-200 text-slate-600 hover:border-indigo-300 hover:bg-indigo-50/50"
+                              )}
+                            >
+                              <span>{preset.label}</span>
+                              <span className={cn("text-[8px] font-normal", isActive ? "text-indigo-200" : "text-slate-400")}>{preset.desc}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Precision Range Slider */}
+                      <div className="space-y-1 pt-1">
+                        <div className="flex items-center justify-between text-[9px] font-bold text-slate-400">
+                          <span>Smoothing Intensity</span>
+                          <span className="font-mono text-indigo-600">{Math.round(smoothing * 100)}%</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="0.95"
+                          step="0.01"
+                          value={isSmoothingEnabled ? smoothing : 0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            setSmoothing(val);
+                            if (!isSmoothingEnabled && val > 0) setIsSmoothingEnabled(true);
+                            if (val === 0) setIsSmoothingEnabled(false);
+                          }}
+                          className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-2">

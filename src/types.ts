@@ -37,6 +37,10 @@ export interface DrawingData {
   outlineColor?: string;
   outlineWidth?: number;
   layerId?: string;
+  midX?: number;
+  midY?: number;
+  prevMidX?: number;
+  prevMidY?: number;
 }
 
 export interface ChatMessage {
