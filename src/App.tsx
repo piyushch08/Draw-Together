@@ -626,6 +626,26 @@ export default function App() {
   );
 }
 
+export function BrandLogo({ className = "w-16 h-16" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 100 100" className={className} xmlns="http://www.w3.org/2000/svg" aria-label="Draw Together Logo">
+      <rect width="100" height="100" rx="28" fill="#7C3AED" />
+      <path
+        d="M 23.5, 53.5 C 23.5, 57 26.5, 58 28.5, 53 C 29.5, 50.5 32, 49.5 33.5, 48 A 20 25.5 0 0 1 66.5, 48 C 65, 51.5 64, 56.5 66.5, 58 C 68.5, 59 70.5, 56 71.5, 53 C 73, 50 75.5, 50 76.5, 51.5 A 30 35.5 0 0 0 23.5, 53.5 Z"
+        fill="#FFFFFF"
+      />
+      <path
+        d="M 28.5, 53 L 28.5, 79 L 34.5, 73.5 L 40.5, 87 L 45.8, 84.5 L 39.8, 71 L 47, 71 Z"
+        fill="#FFFFFF"
+      />
+      <path
+        d="M 71.5, 53 L 71.5, 79 L 77.5, 73.5 L 83.5, 87 L 88.8, 84.5 L 82.8, 71 L 90, 71 Z"
+        fill="#C8F53A"
+      />
+    </svg>
+  );
+}
+
 export function LandingPage({
   username,
   setUsername,
@@ -648,333 +668,419 @@ export function LandingPage({
     onCreate({ backgroundColor: creatorBgColor, aspectRatio: creatorAspectRatio });
   };
 
+  const ASPECT_RATIOS = [
+    { id: "16:9", label: "16:9", name: "Wide", sub: "1920 × 1080", boxW: "w-8", boxH: "h-4.5" },
+    { id: "4:3", label: "4:3", name: "Classic", sub: "1440 × 1080", boxW: "w-7", boxH: "h-5" },
+    { id: "1:1", label: "1:1", name: "Square", sub: "1080 × 1080", boxW: "w-6", boxH: "h-6" },
+    { id: "9:16", label: "9:16", name: "Mobile", sub: "1080 × 1920", boxW: "w-4.5", boxH: "h-8" },
+    { id: "3:4", label: "3:4", name: "Tablet", sub: "1080 × 1440", boxW: "w-5", boxH: "h-7" }
+  ];
+
+  const COLOR_PRESETS = [
+    { color: "#FFFFFF", name: "Pure White" },
+    { color: "#F8FAFC", name: "Soft Slate" },
+    { color: "#F1F5F9", name: "Muted Gray" },
+    { color: "#FEF3C7", name: "Warm Cream" },
+    { color: "#DCFCE7", name: "Pastel Mint" },
+    { color: "#E0E7FF", name: "Pastel Indigo" },
+    { color: "#1E293B", name: "Dark Slate" },
+    { color: "#0F172A", name: "Pitch Black" }
+  ];
+
+  const FEATURES = [
+    {
+      icon: <Zap className="w-5 h-5 text-[#7C3AED]" />,
+      title: "Zero-Latency Live Sync",
+      desc: "Sub-millisecond cursor tracking and instant collaborative stroke broadcasting."
+    },
+    {
+      icon: <Palette className="w-5 h-5 text-indigo-600" />,
+      title: "Synced Canvas Studio",
+      desc: "Creator canvas aspect ratios and custom background colors synchronize across all peers."
+    },
+    {
+      icon: <Smartphone className="w-5 h-5 text-emerald-600" />,
+      title: "Mobile Stylus Mode",
+      desc: "Scan instant QR code to turn your smartphone into a wireless drawing pad."
+    },
+    {
+      icon: <Users className="w-5 h-5 text-amber-600" />,
+      title: "Instant Room Codes",
+      desc: "Share lightweight 6-character room codes. No account or installation required."
+    }
+  ];
+
   return (
-    <div
-      className="min-h-screen bg-[#F8FAFC] flex flex-col items-center justify-between p-4 sm:p-8 font-sans relative overflow-x-hidden"
-    >
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between p-4 sm:p-8 lg:p-12 font-sans relative overflow-x-hidden selection:bg-[#7C3AED] selection:text-white">
+      {/* Ambient glowing backdrop gradients */}
+      <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-purple-200/50 rounded-full blur-[130px] pointer-events-none -z-0" />
+      <div className="absolute bottom-10 right-10 w-[450px] h-[450px] bg-[#C8F53A]/25 rounded-full blur-[130px] pointer-events-none -z-0" />
+
       {/* Minimal Fullscreen Toggle */}
       <button
         onClick={toggleFullscreen}
-        className="absolute top-4 left-4 z-50 w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm transition-all active:scale-95"
+        className="absolute top-4 left-4 z-50 w-11 h-11 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 hover:border-slate-300 shadow-sm transition-all active:scale-95"
         title="Toggle Fullscreen"
       >
-        {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
+        {isFullscreen ? <Minimize size={20} /> : <Maximize size={20} />}
       </button>
 
       {/* Subtle Minimalist Background Grid */}
       <div
         className="absolute inset-0 pointer-events-none z-0"
         style={{
-          backgroundImage: "radial-gradient(#E2E8F0 1.2px, transparent 1.2px)",
-          backgroundSize: "28px 28px",
-          opacity: 0.6
+          backgroundImage: "radial-gradient(#CBD5E1 1.2px, transparent 1.2px)",
+          backgroundSize: "32px 32px",
+          opacity: 0.55
         }}
       />
 
-      <div className="flex-1 flex flex-col items-center justify-center w-full z-10 py-8">
-        <div className="w-full max-w-md bg-white border border-slate-200/90 p-6 sm:p-8 rounded-3xl shadow-[0_16px_40px_-12px_rgba(0,0,0,0.07)] relative">
-          {/* Brand & Logo Header */}
-          <div className="flex flex-col items-center justify-center text-center gap-3 mb-6">
-            <div className="relative select-none">
-              <div className="h-14 w-14 rounded-2xl bg-[#7E3BED] flex items-center justify-center shadow-lg shadow-[#7E3BED]/25 border border-[#7E3BED]/30">
-                <span className="font-extrabold text-2xl tracking-tight text-white font-['Fredoka',sans-serif]">
-                  Dt
-                </span>
+      {/* Main Expansive Content Layout */}
+      <main className="flex-1 flex items-center justify-center w-full z-10 py-6 sm:py-10">
+        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 xl:gap-20 items-center">
+          
+          {/* Left Column: Grand Brand Header & Feature Showcase */}
+          <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 sm:space-y-8">
+            {/* Big Brand Logo with ambient glow */}
+            <div className="relative select-none group">
+              <div className="absolute -inset-3 bg-gradient-to-r from-[#7C3AED] to-[#C8F53A] rounded-[42px] blur-2xl opacity-40 group-hover:opacity-75 transition duration-500" />
+              <div className="relative hover:scale-105 transition-transform duration-300">
+                <BrandLogo className="w-28 h-28 sm:w-36 sm:h-36 lg:w-44 lg:h-44 xl:w-48 xl:h-48 rounded-3xl sm:rounded-[36px] shadow-2xl shadow-[#7C3AED]/30 ring-4 ring-white" />
               </div>
-              {/* Lime accent badge dot */}
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-[#C6FF34] border-2 border-white rounded-full shadow-sm"></span>
             </div>
 
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-slate-100 border border-slate-200/70 text-[11px] font-semibold text-slate-600 mb-1.5">
-                <span className="w-2 h-2 rounded-full bg-[#C6FF34] ring-2 ring-[#C6FF34]/40"></span>
-                Real-time Whiteboard
+            {/* Live Tag & Typography */}
+            <div className="space-y-3 max-w-xl">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-violet-100/90 border border-violet-200/90 text-xs sm:text-sm font-bold text-[#7C3AED] shadow-xs">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#C8F53A] ring-2 ring-[#C8F53A]/50 animate-pulse" />
+                Real-Time Whiteboard & Vector Studio
               </div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#000000] font-['Fredoka',sans-serif]">
-                Draw <span className="text-[#7E3BED]">Together</span>
+
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 font-['Fredoka',sans-serif] leading-[1.08]">
+                Draw <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] via-purple-600 to-indigo-600">Together</span>
               </h1>
-              <p className="text-slate-500 text-xs font-medium mt-0.5">
-                Collaborative studio canvas for seamless pair drawing.
+
+              <p className="text-slate-600 text-sm sm:text-base lg:text-lg font-medium leading-relaxed">
+                Collaborative studio whiteboard for creative duos and teams. Sketch synchronously in 4K, lock canvas aspect ratios, and pair cursors across devices in real time.
               </p>
             </div>
+
+            {/* 4 Feature Highlight Cards filling the screen */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 max-w-xl w-full">
+              {FEATURES.map((feat, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:border-[#7C3AED]/40 hover:shadow-md transition-all text-left flex flex-col gap-2 group"
+                >
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 w-fit group-hover:scale-110 transition-transform">
+                    {feat.icon}
+                  </div>
+                  <div>
+                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">{feat.title}</h3>
+                    <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-normal mt-0.5">{feat.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dual Cursor Indicator Badge */}
+            <div className="inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-slate-950 text-white shadow-lg text-xs font-semibold">
+              <div className="flex -space-x-1.5 items-center">
+                <span className="w-3.5 h-3.5 rounded-full bg-white ring-2 ring-slate-950 shadow-sm" />
+                <span className="w-3.5 h-3.5 rounded-full bg-[#C8F53A] ring-2 ring-slate-950 shadow-sm" />
+              </div>
+              <span className="text-slate-300">Dual-Cursor Live Sync • Instant Room Join</span>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            {/* User Nickname */}
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                Your Nickname
-              </label>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="e.g. Picasso"
-                className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-2.5 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm placeholder:text-slate-400 shadow-sm"
-              />
-            </div>
-
-            {/* Action Tabs Selector */}
-            <div className="flex bg-[#F1F5F9] p-1 rounded-xl">
-              <button
-                onClick={() => setIsJoining(false)}
-                className={cn(
-                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
-                  !isJoining
-                    ? "bg-white text-[#000000] shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
-                )}
-              >
-                <Plus size={14} className={!isJoining ? "text-[#7E3BED]" : ""} />
-                Create Room
-              </button>
-              <button
-                onClick={() => setIsJoining(true)}
-                className={cn(
-                  "flex-1 py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5",
-                  isJoining
-                    ? "bg-white text-[#000000] shadow-sm"
-                    : "text-slate-500 hover:text-slate-900"
-                )}
-              >
-                <Users size={14} className={isJoining ? "text-[#7E3BED]" : ""} />
-                Join Room
-              </button>
-            </div>
-
-            <AnimatePresence mode="wait">
-              {!isJoining ? (
-                <motion.div
-                  key="create"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="space-y-3.5"
-                >
-                  <div className="space-y-1">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Room Name / Code
-                      </label>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase bg-slate-100 px-2 py-0.5 rounded-md">
-                        Optional
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      value={createCustomName}
-                      onChange={(e) => setCreateCustomName(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && username.trim()) {
-                          handleCreateSubmit();
-                        }
-                      }}
-                      placeholder="e.g. STUDIO-ROOM"
-                      className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-2.5 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
-                    />
+          {/* Right Column: Generous Interactive Controls Console */}
+          <div className="lg:col-span-6 flex justify-center w-full">
+            <div className="w-full max-w-xl lg:max-w-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 p-6 sm:p-8 lg:p-10 rounded-3xl shadow-[0_20px_60px_-15px_rgba(124,58,237,0.14)] relative">
+              
+              <div className="space-y-6">
+                {/* User Nickname Input */}
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
+                      Your Nickname
+                    </label>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase bg-slate-100 px-2.5 py-0.5 rounded-md">
+                      Display Name
+                    </span>
                   </div>
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="e.g. Picasso or DaVinci"
+                    className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-2xl px-5 py-3.5 sm:py-4 font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-base sm:text-lg placeholder:text-slate-400 shadow-sm"
+                  />
+                </div>
 
-                  {/* Canvas Size / Ratio Selector */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Canvas Size & Ratio
-                      </label>
-                      <span className="text-[9px] font-bold uppercase text-[#7E3BED] bg-[#7E3BED]/10 px-2 py-0.5 rounded-md">
-                        Synced Both Sides
-                      </span>
-                    </div>
-                    <div className="grid grid-cols-5 gap-1">
-                      {[
-                        { id: "16:9", label: "16:9", sub: "Wide" },
-                        { id: "4:3", label: "4:3", sub: "Standard" },
-                        { id: "1:1", label: "1:1", sub: "Square" },
-                        { id: "9:16", label: "9:16", sub: "Mobile" },
-                        { id: "3:4", label: "3:4", sub: "Tablet" }
-                      ].map(ar => (
-                        <button
-                          key={ar.id}
-                          type="button"
-                          onClick={() => setCreatorAspectRatio(ar.id)}
-                          className={cn(
-                            "py-2 px-1 rounded-xl text-center border transition-all flex flex-col items-center justify-center gap-0.5",
-                            creatorAspectRatio === ar.id
-                              ? "bg-[#7E3BED]/10 border-[#7E3BED] text-[#7E3BED] font-bold shadow-xs scale-102"
-                              : "bg-[#F8FAFC] border-slate-200 text-slate-600 hover:bg-slate-100 font-medium"
-                          )}
-                        >
-                          <span className="text-[11px] font-bold leading-tight">{ar.label}</span>
-                          <span className="text-[8px] opacity-70 leading-tight">{ar.sub}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                {/* Big Action Tabs Selector */}
+                <div className="flex bg-[#F1F5F9] p-1.5 rounded-2xl gap-1.5">
+                  <button
+                    onClick={() => setIsJoining(false)}
+                    className={cn(
+                      "flex-1 py-3 sm:py-3.5 text-xs sm:text-sm font-black rounded-xl transition-all flex items-center justify-center gap-2",
+                      !isJoining
+                        ? "bg-white text-slate-950 shadow-md"
+                        : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    <Plus size={16} className={!isJoining ? "text-[#7C3AED]" : ""} />
+                    Create New Room
+                  </button>
+                  <button
+                    onClick={() => setIsJoining(true)}
+                    className={cn(
+                      "flex-1 py-3 sm:py-3.5 text-xs sm:text-sm font-black rounded-xl transition-all flex items-center justify-center gap-2",
+                      isJoining
+                        ? "bg-white text-slate-950 shadow-md"
+                        : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    <Users size={16} className={isJoining ? "text-[#7C3AED]" : ""} />
+                    Join Existing Room
+                  </button>
+                </div>
 
-                  {/* Canvas Color Selector */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Canvas Color
-                      </label>
-                      <span className="text-[10px] font-mono text-slate-400 uppercase font-semibold">
-                        {creatorBgColor}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {[
-                        { color: "#FFFFFF", name: "White" },
-                        { color: "#F8FAFC", name: "Soft Slate" },
-                        { color: "#F1F5F9", name: "Muted Gray" },
-                        { color: "#FEF3C7", name: "Warm Cream" },
-                        { color: "#DCFCE7", name: "Pastel Mint" },
-                        { color: "#E0E7FF", name: "Pastel Indigo" },
-                        { color: "#1E293B", name: "Dark Slate" },
-                        { color: "#0F172A", name: "Pitch Black" }
-                      ].map(c => (
-                        <button
-                          key={c.color}
-                          type="button"
-                          onClick={() => setCreatorBgColor(c.color)}
-                          className={cn(
-                            "w-7 h-7 rounded-full border-2 transition-transform shadow-xs",
-                            creatorBgColor.toUpperCase() === c.color.toUpperCase()
-                              ? "border-[#7E3BED] scale-110 ring-2 ring-[#7E3BED]/30"
-                              : "border-slate-300 hover:scale-105"
-                          )}
-                          style={{ backgroundColor: c.color }}
-                          title={c.name}
-                        />
-                      ))}
-                      <label
-                        className={cn(
-                          "w-7 h-7 rounded-full border-2 border-dashed border-slate-300 hover:border-[#7E3BED] flex items-center justify-center cursor-pointer transition-transform relative",
-                          !["#FFFFFF", "#F8FAFC", "#F1F5F9", "#FEF3C7", "#DCFCE7", "#E0E7FF", "#1E293B", "#0F172A"].includes(creatorBgColor.toUpperCase()) && "border-[#7E3BED] ring-2 ring-[#7E3BED]/30"
-                        )}
-                        title="Custom Color"
-                      >
-                        <Palette size={12} className="text-slate-500" />
+                <AnimatePresence mode="wait">
+                  {!isJoining ? (
+                    <motion.div
+                      key="create"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                      className="space-y-5"
+                    >
+                      {/* Room Code / Name Input */}
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
+                            Custom Room Code
+                          </label>
+                          <span className="text-[10px] text-slate-400 font-bold uppercase bg-slate-100 px-2.5 py-0.5 rounded-md">
+                            Optional (Auto-generated if empty)
+                          </span>
+                        </div>
                         <input
-                          type="color"
-                          value={creatorBgColor}
-                          onChange={(e) => setCreatorBgColor(e.target.value)}
-                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                          type="text"
+                          value={createCustomName}
+                          onChange={(e) => setCreateCustomName(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && username.trim()) {
+                              handleCreateSubmit();
+                            }
+                          }}
+                          placeholder="e.g. STUDIO-ROOM"
+                          className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-2xl px-5 py-3.5 sm:py-4 font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-base uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
                         />
-                      </label>
-                    </div>
-                  </div>
+                      </div>
 
-                  <button
-                    onClick={handleCreateSubmit}
-                    disabled={!username.trim()}
-                    className="w-full mt-2 bg-[#7E3BED] hover:bg-[#6D28D9] text-white p-3 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-[#7E3BED]/20 active:scale-[0.99] flex items-center justify-center gap-2 text-sm"
-                  >
-                    <Sparkles size={16} className="text-[#C6FF34]" />
-                    Create & Enter Room
-                  </button>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="join"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: 0.15 }}
-                  className="space-y-4"
-                >
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Enter Room Code
-                      </label>
-                      <span className="text-[9px] text-[#7E3BED] font-bold uppercase bg-[#7E3BED]/10 px-2 py-0.5 rounded-md">
-                        Required
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      value={joinCode}
-                      onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && username.trim() && joinCode.trim()) {
-                          onJoin();
-                        }
-                      }}
-                      placeholder="e.g. DESIGN-SYNC"
-                      className="w-full bg-[#F8FAFC] border border-slate-200 rounded-xl px-4 py-3 font-semibold text-slate-900 outline-none focus:bg-white focus:border-[#7E3BED] focus:ring-4 focus:ring-[#7E3BED]/15 transition-all text-sm uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
-                    />
-                  </div>
+                      {/* Canvas Size & Aspect Ratio Grid */}
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
+                            Canvas Size & Ratio
+                          </label>
+                          <span className="text-[10px] font-black uppercase text-[#7C3AED] bg-[#7C3AED]/10 px-2.5 py-0.5 rounded-md">
+                            Synced For All Users
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-5 gap-2">
+                          {ASPECT_RATIOS.map(ar => (
+                            <button
+                              key={ar.id}
+                              type="button"
+                              onClick={() => setCreatorAspectRatio(ar.id)}
+                              className={cn(
+                                "py-3 px-1.5 sm:py-3.5 rounded-2xl text-center border-2 transition-all flex flex-col items-center justify-center gap-1.5",
+                                creatorAspectRatio === ar.id
+                                  ? "bg-[#7C3AED]/10 border-[#7C3AED] text-[#7C3AED] font-black shadow-sm scale-[1.03]"
+                                  : "bg-[#F8FAFC] border-slate-200/90 text-slate-600 hover:bg-slate-100 font-semibold"
+                              )}
+                            >
+                              <div
+                                className={cn(
+                                  "border-2 rounded transition-colors flex items-center justify-center",
+                                  ar.boxW,
+                                  ar.boxH,
+                                  creatorAspectRatio === ar.id
+                                    ? "border-[#7C3AED] bg-[#7C3AED]/20"
+                                    : "border-slate-300 bg-white"
+                                )}
+                              />
+                              <span className="text-xs font-black leading-tight">{ar.label}</span>
+                              <span className="text-[9px] opacity-70 leading-tight font-medium hidden sm:inline">{ar.name}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  <button
-                    onClick={onJoin}
-                    disabled={!username.trim() || !joinCode.trim()}
-                    className="w-full bg-[#000000] hover:bg-slate-900 text-white p-3.5 rounded-xl font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-black/10 active:scale-[0.99] flex items-center justify-center gap-2 text-sm"
-                  >
-                    <Users size={16} className="text-[#C6FF34]" />
-                    Join & Enter Room
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      {/* Canvas Background Color Presets */}
+                      <div className="space-y-2.5">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
+                            Canvas Background Color
+                          </label>
+                          <span className="text-xs font-mono text-slate-500 uppercase font-bold bg-slate-100 px-2 py-0.5 rounded">
+                            {creatorBgColor}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2.5">
+                          {COLOR_PRESETS.map(c => (
+                            <button
+                              key={c.color}
+                              type="button"
+                              onClick={() => setCreatorBgColor(c.color)}
+                              className={cn(
+                                "w-9 h-9 sm:w-11 sm:h-11 rounded-2xl border-2 transition-all shadow-sm flex items-center justify-center",
+                                creatorBgColor.toUpperCase() === c.color.toUpperCase()
+                                  ? "border-[#7C3AED] scale-110 ring-4 ring-[#7C3AED]/25 shadow-md"
+                                  : "border-slate-200 hover:scale-105"
+                              )}
+                              style={{ backgroundColor: c.color }}
+                              title={c.name}
+                            >
+                              {creatorBgColor.toUpperCase() === c.color.toUpperCase() && (
+                                <Check size={14} className={c.color === "#FFFFFF" || c.color === "#FEF3C7" || c.color === "#DCFCE7" || c.color === "#E0E7FF" ? "text-slate-900" : "text-white"} />
+                              )}
+                            </button>
+                          ))}
+                          <label
+                            className={cn(
+                              "w-9 h-9 sm:w-11 sm:h-11 rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#7C3AED] flex items-center justify-center cursor-pointer transition-all bg-white relative",
+                              !COLOR_PRESETS.some(cp => cp.color.toUpperCase() === creatorBgColor.toUpperCase()) && "border-[#7C3AED] ring-4 ring-[#7C3AED]/25"
+                            )}
+                            title="Custom Color"
+                          >
+                            <Palette size={16} className="text-slate-500" />
+                            <input
+                              type="color"
+                              value={creatorBgColor}
+                              onChange={(e) => setCreatorBgColor(e.target.value)}
+                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                            />
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Large High-Impact Create CTA */}
+                      <button
+                        onClick={handleCreateSubmit}
+                        disabled={!username.trim()}
+                        className="w-full mt-3 bg-gradient-to-r from-[#7C3AED] via-[#6D28D9] to-[#4F46E5] hover:opacity-95 text-white py-4 sm:py-4.5 px-6 rounded-2xl font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-[#7C3AED]/25 active:scale-[0.99] flex items-center justify-center gap-2.5 text-base sm:text-lg"
+                      >
+                        <Sparkles size={20} className="text-[#C8F53A]" />
+                        Create & Enter Studio
+                      </button>
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="join"
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                      className="space-y-6"
+                    >
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
+                            Enter 6-Digit Room Code
+                          </label>
+                          <span className="text-[10px] text-[#7C3AED] font-bold uppercase bg-[#7C3AED]/10 px-2.5 py-0.5 rounded-md">
+                            Required
+                          </span>
+                        </div>
+                        <input
+                          type="text"
+                          value={joinCode}
+                          onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ""))}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" && username.trim() && joinCode.trim()) {
+                              onJoin();
+                            }
+                          }}
+                          placeholder="e.g. DESIGN-SYNC"
+                          className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-2xl px-5 py-4 sm:py-4.5 font-mono font-black text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-lg sm:text-xl uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm text-center tracking-widest"
+                        />
+                      </div>
+
+                      <button
+                        onClick={onJoin}
+                        disabled={!username.trim() || !joinCode.trim()}
+                        className="w-full bg-[#000000] hover:bg-slate-900 text-white py-4 sm:py-4.5 px-6 rounded-2xl font-black transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-xl shadow-black/15 active:scale-[0.99] flex items-center justify-center gap-2.5 text-base sm:text-lg"
+                      >
+                        <Users size={20} className="text-[#C8F53A]" />
+                        Join & Enter Studio
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      </main>
 
-      {/* Minimal Footer Area */}
-      <footer className="w-full max-w-2xl z-10 flex flex-col gap-5 pb-2">
-        {/* Minimal Feedback Bar */}
-        <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 bg-[#7E3BED]/10 text-[#7E3BED] rounded-xl flex items-center justify-center shrink-0">
-              <MessageCircleHeart size={20} />
+      {/* Full-width Responsive Footer */}
+      <footer className="w-full max-w-7xl mx-auto z-10 flex flex-col gap-5 pt-8 pb-2">
+        {/* Feedback Bar */}
+        <div className="bg-white/90 backdrop-blur-md border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5 text-center sm:text-left">
+            <div className="h-11 w-11 bg-[#7C3AED]/10 text-[#7C3AED] rounded-2xl flex items-center justify-center shrink-0">
+              <MessageCircleHeart size={22} />
             </div>
             <div>
-              <h3 className="text-slate-900 font-bold text-sm">Enjoying Draw Together?</h3>
-              <p className="text-slate-500 text-xs">Share your feedback directly via email.</p>
+              <h3 className="text-slate-900 font-extrabold text-sm sm:text-base">Enjoying Draw Together?</h3>
+              <p className="text-slate-500 text-xs sm:text-sm font-medium">Share your suggestions and ideas directly with the creator.</p>
             </div>
           </div>
           <a
             href="mailto:piyush.ch407@gmail.com?subject=Draw%20Together%20Review"
             target="_blank"
             rel="noopener noreferrer"
-            className="px-4 py-2 bg-[#000000] hover:bg-[#7E3BED] text-white text-xs font-bold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap"
+            className="px-5 py-2.5 bg-[#000000] hover:bg-[#7C3AED] text-white text-xs sm:text-sm font-bold rounded-xl transition-all shadow-sm active:scale-95 whitespace-nowrap"
           >
             Send Feedback
           </a>
         </div>
 
         {/* Copyright & Social Links */}
-        <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-2 border-t border-slate-200/60 gap-3 text-xs">
+        <div className="flex flex-col sm:flex-row items-center justify-between px-2 py-2 border-t border-slate-200/60 gap-3 text-xs sm:text-sm">
           <p className="text-slate-500 font-medium text-center sm:text-left">
-            &copy; 2026 <span className="font-bold text-slate-800">Piyush Chauhan</span>. Built with passion.
+            &copy; 2026 <span className="font-extrabold text-slate-800">Piyush Chauhan</span>. Built with passion for creators.
           </p>
           <div className="flex items-center gap-5">
             <a
               href="https://github.com/piyushch08"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-[#000000] transition-colors"
+              className="text-slate-400 hover:text-[#000000] transition-colors p-1"
               aria-label="GitHub"
             >
-              <Github size={18} strokeWidth={1.8} />
+              <Github size={20} strokeWidth={2} />
             </a>
             <a
               href="https://www.linkedin.com/in/piyush-chauhan-353822385/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-[#7E3BED] transition-colors"
+              className="text-slate-400 hover:text-[#7C3AED] transition-colors p-1"
               aria-label="LinkedIn"
             >
-              <Linkedin size={18} strokeWidth={1.8} />
+              <Linkedin size={20} strokeWidth={2} />
             </a>
             <a
               href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-slate-400 hover:text-[#7E3BED] transition-colors"
+              className="text-slate-400 hover:text-[#7C3AED] transition-colors p-1"
               aria-label="Instagram"
             >
-              <Instagram size={18} strokeWidth={1.8} />
+              <Instagram size={20} strokeWidth={2} />
             </a>
           </div>
         </div>

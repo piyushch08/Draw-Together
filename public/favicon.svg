@@ -1,28 +1,41 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff0f7b;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#f89b29;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#ff0f7b;stop-opacity:1" />
-    </linearGradient>
-    <linearGradient id="grad-glare" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.7" />
-      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0" />
-    </linearGradient>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <!-- Background rounded squircle -->
+  <rect width="100" height="100" rx="28" fill="#7C3AED" />
   
-  <!-- Main container -->
-  <rect x="5" y="5" width="90" height="90" rx="20" fill="url(#grad1)" stroke="#ffffff" stroke-width="2" />
-  
-  <!-- Glare effect -->
-  <rect x="5" y="5" width="90" height="45" rx="20" fill="url(#grad-glare)" opacity="0.6"/>
-  
-  <!-- Brush icon (simplified lucide-brush) -->
-  <g transform="translate(15, 10) scale(0.6) rotate(-15)" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.3">
-    <path d="m9.06 11.9 8.07-8.06a2.85 2.85 0 1 1 4.03 4.03l-8.06 8.08" />
-    <path d="M7.07 14.94c-1.66 0-3 1.35-3 3.02 0 1.33-2.5 1.52-2 2.02 1.08 1.1 2.49 2.02 4 2.02 2.2 0 4-1.8 4-4.04a3.01 3.01 0 0 0-3-3.02z" />
-  </g>
-  
-  <!-- Text -->
-  <text x="50" y="70" font-family="Arial, Helvetica, sans-serif" font-size="46" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="-3">Dt</text>
+  <!-- White Arch connecting both cursors -->
+  <path d="
+    M 23.5, 53.5
+    C 23.5, 57 26.5, 58 28.5, 53
+    C 29.5, 50.5 32, 49.5 33.5, 48
+    A 20 25.5 0 0 1 66.5, 48
+    C 65, 51.5 64, 56.5 66.5, 58
+    C 68.5, 59 70.5, 56 71.5, 53
+    C 73, 50 75.5, 50 76.5, 51.5
+    A 30 35.5 0 0 0 23.5, 53.5
+    Z
+  " fill="#FFFFFF" />
+
+  <!-- Left White Pointer Cursor (tip at 28.5, 53) -->
+  <path d="
+    M 28.5, 53
+    L 28.5, 79
+    L 34.5, 73.5
+    L 40.5, 87
+    L 45.8, 84.5
+    L 39.8, 71
+    L 47, 71
+    Z
+  " fill="#FFFFFF" />
+
+  <!-- Right Lime Green Pointer Cursor (tip at 71.5, 53) -->
+  <path d="
+    M 71.5, 53
+    L 71.5, 79
+    L 77.5, 73.5
+    L 83.5, 87
+    L 88.8, 84.5
+    L 82.8, 71
+    L 90, 71
+    Z
+  " fill="#C8F53A" />
 </svg>
