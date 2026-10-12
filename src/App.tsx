@@ -746,29 +746,24 @@ export function LandingPage({
         <div className="w-full max-w-5xl mx-auto flex flex-col items-center gap-8 sm:gap-10 md:gap-12">
           
           {/* 1: Top Center Logo and Website Name */}
-          <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4 max-w-2xl px-2">
+          <div className="flex flex-col items-center text-center space-y-2.5 sm:space-y-3.5 max-w-2xl px-2">
             {/* Big Brand Logo with ambient glow */}
-            <div className="relative select-none group mt-2 sm:mt-0">
+            <div className="relative select-none group mt-1 sm:mt-0">
               <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-r from-[#7C3AED] via-purple-600 to-[#C8F53A] rounded-[32px] sm:rounded-[44px] blur-xl sm:blur-2xl opacity-45 group-hover:opacity-75 transition duration-500" />
               <div className="relative hover:scale-105 transition-transform duration-300">
-                <BrandLogo className="w-20 h-20 xs:w-24 xs:h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl xs:rounded-3xl sm:rounded-[32px] shadow-2xl shadow-[#7C3AED]/35 ring-2 sm:ring-4 ring-white" />
+                <BrandLogo className="w-16 h-16 xs:w-20 xs:h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl xs:rounded-3xl sm:rounded-[28px] shadow-2xl shadow-[#7C3AED]/35 ring-2 sm:ring-4 ring-white" />
               </div>
             </div>
 
-            {/* Live Tag & Typography */}
-            <div className="space-y-2 sm:space-y-2.5">
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:py-1.5 rounded-full bg-violet-100/90 border border-violet-200/90 text-[11px] sm:text-xs md:text-sm font-bold text-[#7C3AED] shadow-xs">
-                <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#C8F53A] ring-2 ring-[#C8F53A]/50 animate-pulse" />
-                Real-Time Whiteboard & Vector Studio
-              </div>
+            {/* Website Name */}
+            <h1 className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 font-['Fredoka',sans-serif] leading-tight">
+              Draw <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] via-purple-600 to-indigo-600">Together</span>
+            </h1>
 
-              <h1 className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-slate-950 font-['Fredoka',sans-serif] leading-[1.1]">
-                Draw <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] via-purple-600 to-indigo-600">Together</span>
-              </h1>
-
-              <p className="text-slate-600 text-xs xs:text-sm sm:text-base md:text-lg font-medium leading-relaxed max-w-xl mx-auto">
-                Collaborative studio whiteboard for creative duos and teams. Sketch synchronously in 4K, lock canvas aspect ratios, and pair cursors across devices in real time.
-              </p>
+            {/* Tagline Badge below Website Name (Responsive for Mobile) */}
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full bg-violet-100/90 border border-violet-200/90 text-[10px] xs:text-[11px] sm:text-xs md:text-sm font-bold text-[#7C3AED] shadow-xs">
+              <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#C8F53A] ring-2 ring-[#C8F53A]/50 animate-pulse shrink-0" />
+              <span>Real-Time Whiteboard & Vector Studio</span>
             </div>
           </div>
 
