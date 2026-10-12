@@ -194,12 +194,21 @@ async function startServer() {
       socket.join(cleanRoomId);
       const room = getOrCreateRoom(cleanRoomId);
 
-      // Lock in creator's canvas settings if room was just created or if creator is setting them
-      if (backgroundColor && (isCreator || !room.backgroundColor)) {
-        room.backgroundColor = backgroundColor;
-      }
-      if (aspectRatio && (isCreator || !room.aspectRatio)) {
-        room.aspectRatio = aspectRatio;
+      // Lock in creator's canvas settings if creator is setting them or if room has none
+      if (isCreator) {
+        if (backgroundColor) room.backgroundColor = backgroundColor;
+        if (aspectRatio) room.aspectRatio = aspectRatio;
+        if (backgroundColor || aspectRatio) {
+          socket.to(cleanRoomId).emit("room-settings-updated", {
+            roomId: cleanRoomId,
+            backgroundColor: room.backgroundColor || "#FFFFFF",
+            aspectRatio: room.aspectRatio || "16:9"
+          });
+        }
+      } else {
+        // If non-creator, only set if room has never had one and value is explicitly not default 16:9
+        if (!room.backgroundColor && backgroundColor) room.backgroundColor = backgroundColor;
+        if (!room.aspectRatio && aspectRatio && aspectRatio !== "16:9") room.aspectRatio = aspectRatio;
       }
 
       const user: ConnectedUser = {
@@ -243,7 +252,7 @@ async function startServer() {
         user.cursorX = data.x;
         user.cursorY = data.y;
       }
-      socket.to(targetRoom).emit("cursor-move", { ...data, roomId: targetRoom, userId: socket.id });
+      socket.to(targetRoom).volatile.emit("cursor-move", { ...data, roomId: targetRoom, userId: socket.id });
     });
 
     socket.on("drawing", (data: any) => {
@@ -265,7 +274,7 @@ async function startServer() {
     socket.on("laser-pointer", (data: { roomId: string; x: number; y: number; color?: string; username?: string }) => {
       if (!data?.roomId) return;
       const targetRoom = data.roomId.trim().toUpperCase();
-      socket.to(targetRoom).emit("laser-pointer", { ...data, roomId: targetRoom, userId: socket.id });
+      socket.to(targetRoom).volatile.emit("laser-pointer", { ...data, roomId: targetRoom, userId: socket.id });
     });
 
     socket.on("sync-canvas", (data: { roomId: string; canvasData: string; backgroundColor?: string; aspectRatio?: string }) => {
@@ -276,7 +285,12 @@ async function startServer() {
       if (data.backgroundColor) room.backgroundColor = data.backgroundColor;
       if (data.aspectRatio) room.aspectRatio = data.aspectRatio;
       room.lastActivity = Date.now();
-      socket.to(targetRoom).emit("sync-canvas", { ...data, roomId: targetRoom });
+      socket.to(targetRoom).emit("sync-canvas", { 
+        ...data, 
+        backgroundColor: room.backgroundColor || data.backgroundColor || "#FFFFFF",
+        aspectRatio: room.aspectRatio || data.aspectRatio || "16:9",
+        roomId: targetRoom 
+      });
     });
 
     socket.on("canvas-snapshot-reply", (data: { 
@@ -296,8 +310,9 @@ async function startServer() {
         }
         io.to(data.requesterId).emit("sync-canvas", { 
           canvasData: data.canvasData,
-          backgroundColor: room?.backgroundColor || data.backgroundColor,
-          aspectRatio: room?.aspectRatio || data.aspectRatio
+          backgroundColor: room?.backgroundColor || data.backgroundColor || "#FFFFFF",
+          aspectRatio: room?.aspectRatio || data.aspectRatio || "16:9",
+          roomId: targetRoom
         });
       }
     });

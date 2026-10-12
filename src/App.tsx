@@ -64,9 +64,27 @@ import {
   QrCode,
   Share2,
   Smartphone,
-  Mail
+  Mail,
+  SlidersHorizontal
 } from "lucide-react";
 import { cn } from "./lib/utils";
+
+export const getCanvasDimensions = (aspectRatio?: string): { width: number; height: number } => {
+  switch (aspectRatio) {
+    case "4:3":
+      return { width: 1440, height: 1080 };
+    case "1:1":
+      return { width: 1080, height: 1080 };
+    case "9:16":
+      return { width: 1080, height: 1920 };
+    case "3:4":
+      return { width: 1080, height: 1440 };
+    case "16:9":
+    default:
+      return { width: 1920, height: 1080 };
+  }
+};
+
 
 const COLORS = [
   "#000000", "#FF0000", "#00FF00", "#0000FF"
@@ -479,6 +497,9 @@ export default function App() {
     backgroundColor: "#FFFFFF",
     aspectRatio: "16:9"
   });
+  const [activeCanvasSettings, setActiveCanvasSettings] = useState<{ backgroundColor: string; aspectRatio: string } | null>(null);
+  const activeCanvasSettingsRef = useRef<{ backgroundColor: string; aspectRatio: string } | null>(null);
+
 
   useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
@@ -585,6 +606,11 @@ export default function App() {
             }
             if (settings) {
               setCreatorSettings(settings);
+              setActiveCanvasSettings(settings);
+              activeCanvasSettingsRef.current = settings;
+              try {
+                sessionStorage.setItem("draw_together_settings_" + target, JSON.stringify(settings));
+              } catch {}
             }
             setIsNewRoom(true);
             navigateToRoom(target);
@@ -592,6 +618,8 @@ export default function App() {
           onJoin={() => {
             if (joinCode.trim()) {
               setIsNewRoom(false);
+              setActiveCanvasSettings(null);
+              activeCanvasSettingsRef.current = null;
               navigateToRoom(joinCode);
             }
           }}
@@ -614,7 +642,7 @@ export default function App() {
         isFullscreen={isFullscreen}
         toggleFullscreen={toggleFullscreen}
         isNewRoom={isNewRoom}
-        initialCanvasSettings={isNewRoom ? creatorSettings : undefined}
+        initialCanvasSettings={activeCanvasSettingsRef.current || (isNewRoom ? creatorSettings : undefined)}
       />
     </>
   );
@@ -1447,20 +1475,27 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const [isChatOpen, setIsChatOpen] = useState(true);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   
-  const [roomSettings, _setRoomSettings] = useState(initialCanvasSettings || { backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
-  const roomSettingsRef = useRef(initialCanvasSettings || { backgroundColor: "#FFFFFF", aspectRatio: "16:9" });
+  const getInitialSettings = () => {
+    if (initialCanvasSettings) return initialCanvasSettings;
+    try {
+      const stored = sessionStorage.getItem("draw_together_settings_" + roomId);
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return { backgroundColor: "#FFFFFF", aspectRatio: "16:9" };
+  };
+
+  const [roomSettings, _setRoomSettings] = useState(getInitialSettings);
+  const roomSettingsRef = useRef(getInitialSettings());
   const resizeCanvasRef = useRef<(() => void) | null>(null);
 
   const setRoomSettings = (settings: { backgroundColor: string, aspectRatio: string }) => {
     _setRoomSettings(settings);
     roomSettingsRef.current = settings;
+    try {
+      sessionStorage.setItem("draw_together_settings_" + roomId, JSON.stringify(settings));
+    } catch {}
 
-    let boardW = 1920;
-    let boardH = 1080;
-    if (settings.aspectRatio === "4:3") { boardW = 1440; boardH = 1080; }
-    else if (settings.aspectRatio === "1:1") { boardW = 1080; boardH = 1080; }
-    else if (settings.aspectRatio === "9:16") { boardW = 1080; boardH = 1920; }
-    else if (settings.aspectRatio === "3:4") { boardW = 1080; boardH = 1440; }
+    const { width: boardW, height: boardH } = getCanvasDimensions(settings.aspectRatio);
 
     const masterCanvas = canvasRef.current;
     if (masterCanvas && (masterCanvas.width !== boardW || masterCanvas.height !== boardH)) {
@@ -1505,11 +1540,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     const clientHeight = container.clientHeight || window.innerHeight;
     if (clientWidth <= 0 || clientHeight <= 0) return;
     
-    let boardW = 1920; let boardH = 1080;
-    if (roomSettingsRef.current.aspectRatio === "4:3") { boardW = 1440; boardH = 1080; }
-    else if (roomSettingsRef.current.aspectRatio === "1:1") { boardW = 1080; boardH = 1080; }
-    else if (roomSettingsRef.current.aspectRatio === "9:16") { boardW = 1080; boardH = 1920; }
-    else if (roomSettingsRef.current.aspectRatio === "3:4") { boardW = 1080; boardH = 1440; }
+    const { width: boardW, height: boardH } = getCanvasDimensions(roomSettingsRef.current.aspectRatio);
     
     const scaleX = clientWidth / boardW;
     const scaleY = clientHeight / boardH;
@@ -1728,7 +1759,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
   const flushNetworkQueue = useCallback(() => {
     if (networkQueueRef.current.length > 0) {
-      const segments = [...networkQueueRef.current];
+      const segments = networkQueueRef.current;
       networkQueueRef.current = [];
       const s = socketRef.current || socket;
       if (s && roomId) {
@@ -1738,7 +1769,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   }, [roomId, socket]);
 
   useEffect(() => {
-    networkIntervalId.current = window.setInterval(flushNetworkQueue, 8);
+    networkIntervalId.current = window.setInterval(flushNetworkQueue, 4);
     return () => {
       if (networkIntervalId.current) clearInterval(networkIntervalId.current);
     };
@@ -2310,7 +2341,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const lastCursorEmitTime = useRef(0);
   const emitCursorUpdateThrottled = (x?: number, y?: number, drawingOverride?: boolean) => {
     const now = Date.now();
-    if (now - lastCursorEmitTime.current < 16 && drawingOverride === undefined) return; // 60fps responsive cursor tracking
+    if (now - lastCursorEmitTime.current < 12 && drawingOverride === undefined) return; // Responsive 80-100fps cursor tracking
     lastCursorEmitTime.current = now;
     emitCursorUpdate(x, y, drawingOverride);
   };
@@ -2434,8 +2465,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
   useEffect(() => {
     const s = io({
-      transports: ["websocket", "polling"],
-      upgrade: true
+      transports: ["websocket"],
+      upgrade: false
     });
     socketRef.current = s;
     setSocket(s);
@@ -2445,8 +2476,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         roomId, 
         username,
         isCreator: isNewRoom,
-        backgroundColor: roomSettingsRef.current.backgroundColor,
-        aspectRatio: roomSettingsRef.current.aspectRatio
+        backgroundColor: isNewRoom ? roomSettingsRef.current.backgroundColor : undefined,
+        aspectRatio: isNewRoom ? roomSettingsRef.current.aspectRatio : undefined
       });
     };
 
@@ -2526,10 +2557,14 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         setChat(data.chat);
       }
       
-      const bg = data.backgroundColor || roomSettingsRef.current.backgroundColor || "#FFFFFF";
-      const ar = data.aspectRatio || roomSettingsRef.current.aspectRatio || "16:9";
-      setRoomSettings({ backgroundColor: bg, aspectRatio: ar });
-      setTimeout(() => fitToScreen(), 100);
+      if (data.backgroundColor || data.aspectRatio) {
+        const bg = data.backgroundColor || roomSettingsRef.current.backgroundColor || "#FFFFFF";
+        const ar = data.aspectRatio || roomSettingsRef.current.aspectRatio || "16:9";
+        setRoomSettings({ backgroundColor: bg, aspectRatio: ar });
+        requestAnimationFrame(() => fitToScreen());
+        setTimeout(() => fitToScreen(), 50);
+        setTimeout(() => fitToScreen(), 150);
+      }
 
       if (data.layers && Array.isArray(data.layers) && data.layers.length > 0) {
         setLayers(data.layers);
@@ -2606,10 +2641,17 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     s.on("room-settings-updated", (data: { backgroundColor: string; aspectRatio: string }) => {
       setRoomSettings({ backgroundColor: data.backgroundColor, aspectRatio: data.aspectRatio });
+      requestAnimationFrame(() => {
+        compositeLayers();
+        fitToScreen();
+      });
       setTimeout(() => {
         compositeLayers();
         fitToScreen();
       }, 50);
+      setTimeout(() => {
+        fitToScreen();
+      }, 150);
     });
 
     s.on("sync-placed-texts", ({ placedTexts: remotePlacedTexts }: { placedTexts: PlacedText[] }) => {
@@ -2641,6 +2683,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         const nextBg = syncBg || roomSettingsRef.current.backgroundColor;
         const nextAr = syncAr || roomSettingsRef.current.aspectRatio;
         setRoomSettings({ backgroundColor: nextBg, aspectRatio: nextAr });
+        requestAnimationFrame(() => fitToScreen());
+        setTimeout(() => fitToScreen(), 50);
+        setTimeout(() => fitToScreen(), 150);
       }
       const img = new Image();
       img.onload = () => {
@@ -2702,13 +2747,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       const canvas = canvasRef.current;
       if (!container || !canvas) return;
 
-      let newWidth = 1920; 
-      let newHeight = 1080;
-      const ar = roomSettingsRef.current.aspectRatio;
-      if (ar === "4:3") { newWidth = 1440; newHeight = 1080; }
-      else if (ar === "1:1") { newWidth = 1080; newHeight = 1080; }
-      else if (ar === "9:16") { newWidth = 1080; newHeight = 1920; }
-      else if (ar === "3:4") { newWidth = 1080; newHeight = 1440; }
+      const { width: newWidth, height: newHeight } = getCanvasDimensions(roomSettingsRef.current.aspectRatio);
 
       // 1. Resize each offscreen layer canvas
       layersRef.current.forEach((layer) => {
@@ -2746,8 +2785,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         ctx.lineCap = "round";
       }
 
-      // 3. Composite
+      // 3. Composite & fit to viewport
       compositeLayers();
+      fitToScreen();
     };
 
     resizeCanvasRef.current = resizeCanvas;
@@ -4430,7 +4470,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         compositeLayers();
 
         if (syncRemote && socket && roomId) {
-          socket.emit("sync-canvas", { roomId, canvasData: masterCanvas.toDataURL() });
+          socket.emit("sync-canvas", { 
+            roomId, 
+            canvasData: masterCanvas.toDataURL(),
+            backgroundColor: roomSettingsRef.current.backgroundColor,
+            aspectRatio: roomSettingsRef.current.aspectRatio
+          });
         }
       });
     } catch (err) {
@@ -4689,8 +4734,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         users={users}
       />
       {/* Floating Header */}
-      <header className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex flex-row items-center justify-between gap-1.5 sm:gap-3 pointer-events-none">
-        <div className="flex items-center gap-1.5 sm:gap-3 md:gap-4 pointer-events-auto min-w-0">
+      <header className="absolute top-2 left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex flex-row items-center justify-between gap-1 sm:gap-3 pointer-events-none">
+        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 pointer-events-auto min-w-0">
+          {/* Logo / Home */}
           <button
             onClick={onLeave}
             className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl overflow-hidden shadow-xs hover:scale-105 active:scale-95 transition-all shrink-0 ring-1 ring-slate-200 bg-white"
@@ -4699,15 +4745,16 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             <img src="/favicon.svg" alt="Draw Together Logo" className="w-full h-full object-cover" />
           </button>
 
+          {/* Fullscreen (Desktop/Tablet) */}
           <button
             onClick={toggleFullscreen}
-            className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm flex items-center justify-center text-slate-700 hover:text-indigo-600 hover:bg-white transition-all active:scale-95 shrink-0"
+            className="hidden sm:flex w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm items-center justify-center text-slate-700 hover:text-indigo-600 hover:bg-white transition-all active:scale-95 shrink-0"
             title="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize size={15} className="sm:w-[18px] sm:h-[18px]" /> : <Maximize size={15} className="sm:w-[18px] sm:h-[18px]" />}
           </button>
 
-          {/* Desktop Room Code Box */}
+          {/* Desktop Room Code Box (lg and up) */}
           <div className="hidden lg:flex items-center gap-2 bg-white/90 backdrop-blur-md rounded-xl px-3 py-1 border border-slate-200 shadow-sm">
             <div className="flex flex-col items-start leading-none shrink-0">
               <span className="text-[9px] uppercase font-bold text-slate-400 tracking-widest leading-none mb-0.5">Room Code / Name</span>
@@ -4749,19 +4796,31 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </Tooltip>
           </div>
 
-          {/* Mobile/Tablet QR Share Quick Button */}
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="lg:hidden p-1.5 sm:p-2 bg-indigo-50/90 backdrop-blur-md border border-indigo-200 rounded-lg sm:rounded-xl text-indigo-700 shadow-sm active:scale-90 transition-all shrink-0"
-            title="Connect Phone / QR Share"
-          >
-            <QrCode size={14} className="sm:w-4 sm:h-4" />
-          </button>
+          {/* Mobile/Tablet Compact Room Code Pill */}
+          <div className="lg:hidden flex items-center gap-1 bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-1 shrink-0">
+            <span className="text-[10px] font-mono font-black text-indigo-600 max-w-[68px] sm:max-w-none truncate tracking-wide">
+              #{roomId}
+            </span>
+            <button
+              onClick={handleCopyCode}
+              title="Copy Room Link"
+              className="p-1 text-slate-400 hover:text-indigo-600 active:scale-90 transition-transform"
+            >
+              {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+            </button>
+            <button
+              onClick={() => setShowShareModal(true)}
+              title="QR Code & Share"
+              className="p-1 text-indigo-500 hover:text-indigo-700 active:scale-90 transition-transform"
+            >
+              <QrCode size={12} />
+            </button>
+          </div>
 
-          {/* Inline editable Nickname capsule */}
-          <div className="flex items-center gap-1 sm:gap-2 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-lg sm:rounded-xl px-2 py-1 sm:px-3 sm:py-1.5 shrink-0 pointer-events-auto">
+          {/* Nickname capsule - visible on sm and up so mobile header remains clean and uncrowded */}
+          <div className="hidden sm:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1 shrink-0 pointer-events-auto">
             <div className="flex flex-col items-start leading-none">
-              <span className="text-[8px] sm:text-[9px] uppercase font-bold text-indigo-400 tracking-widest leading-none mb-0.5">Badge</span>
+              <span className="text-[8px] uppercase font-bold text-indigo-400 tracking-widest leading-none mb-0.5">Badge</span>
               <input
                 type="text"
                 value={username}
@@ -4772,23 +4831,24 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                     socket.emit("join-room", { roomId, username: val });
                   }
                 }}
-                className="text-[11px] sm:text-xs font-bold text-indigo-600 bg-transparent border-none p-0 m-0 outline-none focus:ring-0 w-14 xs:w-18 sm:w-24 placeholder-indigo-300 truncate"
+                className="text-xs font-bold text-indigo-600 bg-transparent border-none p-0 m-0 outline-none focus:ring-0 w-20 placeholder-indigo-300 truncate"
                 placeholder="Name"
                 title="Click to edit nickname"
               />
             </div>
-            <span className="text-[10px] sm:text-xs text-indigo-400 pointer-events-none select-none hidden xs:inline">✏️</span>
+            <span className="text-xs text-indigo-400 pointer-events-none select-none">✏️</span>
           </div>
 
           {/* Connected live status badge */}
-          <div className="hidden md:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1.5 shrink-0 pointer-events-auto">
+          <div className="hidden xl:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1.5 shrink-0 pointer-events-auto">
             <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)] animate-pulse" />
             <span className="text-[10px] font-bold text-slate-600 tracking-wide">Connected</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-3 pointer-events-auto shrink-0">
-          <div className="flex items-center gap-0.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-lg sm:rounded-xl p-0.5 sm:p-1 shrink-0">
+        <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2.5 pointer-events-auto shrink-0">
+          {/* Undo / Redo */}
+          <div className="flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg sm:rounded-xl p-0.5 shrink-0">
             <Tooltip label="Undo" side="bottom">
               <button
                 onClick={() => {
@@ -4796,9 +4856,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   vibrate(5);
                 }}
                 disabled={historyIndex < 0}
-                className="p-1.5 sm:p-2 sm:p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed"
+                className="p-1 sm:p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed"
+                title="Undo"
               >
-                <Undo2 size={14} className="sm:w-4 sm:h-4" />
+                <Undo2 size={15} className="sm:w-4 sm:h-4" />
               </button>
             </Tooltip>
             <Tooltip label="Redo" side="bottom">
@@ -4808,38 +4869,32 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   vibrate(5);
                 }}
                 disabled={historyIndex >= history.length - 1}
-                className="p-1.5 sm:p-2 sm:p-2.5 text-slate-500 hover:text-indigo-600 hover:bg-white hover:shadow-sm rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-20 disabled:cursor-not-allowed"
+                className="p-1 sm:p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed"
+                title="Redo"
               >
-                <Redo2 size={14} className="sm:w-4 sm:h-4" />
+                <Redo2 size={15} className="sm:w-4 sm:h-4" />
               </button>
             </Tooltip>
           </div>
 
-          <Tooltip label={showInvite ? "Close" : "Tools"} side="bottom">
+          {/* Tools Toggle Button */}
+          <Tooltip label={showInvite ? "Close Tools" : "Open Tools"} side="bottom">
             <button
               onClick={toggleTools}
               className={cn(
-                "flex items-center gap-1 sm:gap-2 px-2 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-sm shrink-0",
+                "flex items-center gap-1 p-1.5 sm:px-3 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0",
                 showInvite
                   ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
-                  : "bg-white text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                  : "bg-white/95 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
               )}
+              title="Drawing Tools"
             >
-              <Palette size={14} className="sm:w-4 sm:h-4" />
-              <span className="text-[10px] uppercase font-black tracking-widest hidden sm:inline">Tools</span>
+              <Palette size={15} className="sm:w-4 sm:h-4" />
+              <span className="text-[10px] uppercase font-black tracking-widest hidden md:inline">Tools</span>
             </button>
           </Tooltip>
 
-          <Tooltip label="Live Artists" side="bottom">
-            <div className="hidden xs:flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 bg-white/90 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-sm shrink-0 cursor-default">
-              <Users size={12} className="text-indigo-500 sm:w-3.5 sm:h-3.5" />
-              <span className="text-[9px] sm:text-[10px] font-black tracking-widest text-slate-600">
-                {Object.keys(users).length} <span className="hidden sm:inline">Artists</span>
-              </span>
-            </div>
-          </Tooltip>
-
-          {/* Grid Toggle */}
+          {/* Grid Toggle Button */}
           <Tooltip label="Toggle Grid" side="bottom">
             <button
               onClick={() => {
@@ -4847,21 +4902,49 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 vibrate(5);
               }}
               className={cn(
-                "p-1.5 sm:p-2.5 rounded-lg sm:rounded-xl border transition-all active:scale-95 shadow-sm shrink-0 flex items-center justify-center",
+                "p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center",
                 showGrid
                   ? "bg-indigo-600 border-indigo-500 text-white"
-                  : "bg-white/90 backdrop-blur-md border-slate-200 text-slate-700 hover:bg-white hover:text-indigo-600 hover:border-slate-300"
+                  : "bg-white/95 border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-slate-300"
               )}
+              title="Toggle Grid"
             >
-              <Grid size={14} className="sm:w-4 sm:h-4" />
+              <Grid size={15} className="sm:w-4 sm:h-4" />
             </button>
           </Tooltip>
 
+          {/* Canvas Settings / Aspect Ratio Button */}
+          <Tooltip label="Canvas Ratio & Color" side="bottom">
+            <button
+              onClick={() => {
+                setShowTemplateModal(true);
+                vibrate(5);
+              }}
+              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
+              title="Canvas Ratio & Settings"
+            >
+              <SlidersHorizontal size={15} className="sm:w-4 sm:h-4" />
+            </button>
+          </Tooltip>
+
+          {/* Live Artists Count (shown on screens >= 640px) */}
+          <Tooltip label="Live Artists" side="bottom">
+            <div className="hidden sm:flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
+              <Users size={13} className="text-indigo-500" />
+              <span className="text-[10px] font-black tracking-wider text-slate-600">
+                {Object.keys(users).length}
+              </span>
+            </div>
+          </Tooltip>
+
+          {/* Leave Button */}
           <button
             onClick={onLeave}
-            className="flex items-center justify-center h-8 sm:h-10 px-2 sm:px-4 bg-white/90 backdrop-blur-md text-slate-500 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-lg sm:rounded-xl font-bold transition-all text-xs sm:text-sm border border-slate-200 shadow-sm active:scale-90 shrink-0 pointer-events-auto"
+            className="flex items-center justify-center p-1.5 sm:px-3 sm:py-2 bg-white/95 text-slate-600 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 rounded-lg sm:rounded-xl font-bold transition-all text-xs border border-slate-200 shadow-xs active:scale-90 shrink-0 pointer-events-auto"
+            title="Leave Room"
           >
-            <LogOut size={14} className="sm:w-4 sm:h-4" /> <span className="hidden lg:inline ml-2 uppercase text-[10px] tracking-widest">Leave</span>
+            <LogOut size={15} className="sm:w-4 sm:h-4" />
+            <span className="hidden lg:inline ml-1.5 uppercase text-[10px] tracking-widest">Leave</span>
           </button>
         </div>
       </header>
@@ -4896,11 +4979,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               isHandTool ? "cursor-grab active:cursor-grabbing" : "cursor-none"
             )}
             style={{
-              width: roomSettings.aspectRatio === "16:9" ? 1920 : 
-                     roomSettings.aspectRatio === "4:3" ? 1440 : 
-                     (roomSettings.aspectRatio === "1:1" || roomSettings.aspectRatio === "9:16" || roomSettings.aspectRatio === "3:4") ? 1080 : 1920, 
-              height: roomSettings.aspectRatio === "9:16" ? 1920 : 
-                      roomSettings.aspectRatio === "3:4" ? 1440 : 1080, 
+              width: getCanvasDimensions(roomSettings.aspectRatio).width,
+              height: getCanvasDimensions(roomSettings.aspectRatio).height,
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
               transformOrigin: '0 0',
               touchAction: 'none'
