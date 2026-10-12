@@ -741,67 +741,40 @@ export function LandingPage({
         }}
       />
 
-      {/* Main Expansive Content Layout */}
-      <main className="flex-1 flex items-center justify-center w-full z-10 py-4 sm:py-8 lg:py-10">
-        <div className="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 lg:gap-14 xl:gap-20 items-center">
+      {/* Main Expansive Content Layout: 1 (Top Logo & Name) -> 2 (Room Input Console) -> 3 (Key Features) */}
+      <main className="flex-1 flex flex-col items-center justify-center w-full z-10 py-6 sm:py-10 md:py-14">
+        <div className="w-full max-w-5xl mx-auto flex flex-col items-center gap-8 sm:gap-10 md:gap-12">
           
-          {/* Left Column: Brand Hero & Features */}
-          <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left space-y-4 sm:space-y-6 lg:space-y-8">
+          {/* 1: Top Center Logo and Website Name */}
+          <div className="flex flex-col items-center text-center space-y-3 sm:space-y-4 max-w-2xl px-2">
             {/* Big Brand Logo with ambient glow */}
-            <div className="relative select-none group mt-6 sm:mt-0">
-              <div className="absolute -inset-2 sm:-inset-3 bg-gradient-to-r from-[#7C3AED] to-[#C8F53A] rounded-[32px] sm:rounded-[42px] blur-xl sm:blur-2xl opacity-40 group-hover:opacity-75 transition duration-500" />
+            <div className="relative select-none group mt-2 sm:mt-0">
+              <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-r from-[#7C3AED] via-purple-600 to-[#C8F53A] rounded-[32px] sm:rounded-[44px] blur-xl sm:blur-2xl opacity-45 group-hover:opacity-75 transition duration-500" />
               <div className="relative hover:scale-105 transition-transform duration-300">
-                <BrandLogo className="w-20 h-20 xs:w-24 xs:h-24 sm:w-32 sm:h-32 md:w-40 md:h-40 lg:w-44 lg:h-44 xl:w-48 xl:h-48 rounded-2xl xs:rounded-3xl sm:rounded-[36px] shadow-2xl shadow-[#7C3AED]/30 ring-2 sm:ring-4 ring-white" />
+                <BrandLogo className="w-20 h-20 xs:w-24 xs:h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-2xl xs:rounded-3xl sm:rounded-[32px] shadow-2xl shadow-[#7C3AED]/35 ring-2 sm:ring-4 ring-white" />
               </div>
             </div>
 
             {/* Live Tag & Typography */}
-            <div className="space-y-2 sm:space-y-3 max-w-xl">
-              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-violet-100/90 border border-violet-200/90 text-[11px] sm:text-xs md:text-sm font-bold text-[#7C3AED] shadow-xs">
+            <div className="space-y-2 sm:space-y-2.5">
+              <div className="inline-flex items-center gap-1.5 sm:gap-2 px-3 py-1 sm:py-1.5 rounded-full bg-violet-100/90 border border-violet-200/90 text-[11px] sm:text-xs md:text-sm font-bold text-[#7C3AED] shadow-xs">
                 <span className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-[#C8F53A] ring-2 ring-[#C8F53A]/50 animate-pulse" />
                 Real-Time Whiteboard & Vector Studio
               </div>
 
-              <h1 className="text-3xl xs:text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-950 font-['Fredoka',sans-serif] leading-[1.1]">
+              <h1 className="text-3xl xs:text-4xl sm:text-5xl md:text-6xl font-black tracking-tight text-slate-950 font-['Fredoka',sans-serif] leading-[1.1]">
                 Draw <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#7C3AED] via-purple-600 to-indigo-600">Together</span>
               </h1>
 
-              <p className="text-slate-600 text-xs xs:text-sm sm:text-base lg:text-lg font-medium leading-relaxed px-2 sm:px-0">
+              <p className="text-slate-600 text-xs xs:text-sm sm:text-base md:text-lg font-medium leading-relaxed max-w-xl mx-auto">
                 Collaborative studio whiteboard for creative duos and teams. Sketch synchronously in 4K, lock canvas aspect ratios, and pair cursors across devices in real time.
               </p>
             </div>
-
-            {/* Feature Highlight Cards (visible on desktop left column) */}
-            <div className="hidden lg:grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 max-w-xl w-full">
-              {FEATURES.map((feat, idx) => (
-                <div
-                  key={idx}
-                  className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-2xl p-4 shadow-sm hover:border-[#7C3AED]/40 hover:shadow-md transition-all text-left flex flex-col gap-2 group"
-                >
-                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 w-fit group-hover:scale-110 transition-transform">
-                    {feat.icon}
-                  </div>
-                  <div>
-                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">{feat.title}</h3>
-                    <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-normal mt-0.5">{feat.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Dual Cursor Indicator Badge (desktop) */}
-            <div className="hidden lg:inline-flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-slate-950 text-white shadow-lg text-xs font-semibold">
-              <div className="flex -space-x-1.5 items-center">
-                <span className="w-3.5 h-3.5 rounded-full bg-white ring-2 ring-slate-950 shadow-sm" />
-                <span className="w-3.5 h-3.5 rounded-full bg-[#C8F53A] ring-2 ring-slate-950 shadow-sm" />
-              </div>
-              <span className="text-slate-300">Dual-Cursor Live Sync • Instant Room Join</span>
-            </div>
           </div>
 
-          {/* Right Column: Interactive Room Console Card */}
-          <div className="lg:col-span-6 flex justify-center w-full">
-            <div className="w-full max-w-xl lg:max-w-2xl bg-white/95 backdrop-blur-xl border border-slate-200/90 p-4 xs:p-6 sm:p-8 lg:p-10 rounded-2xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(124,58,237,0.14)] relative">
+          {/* 2: Interactive Room Console Card (Create & Join Room) */}
+          <div className="w-full max-w-xl sm:max-w-2xl px-1 xs:px-2">
+            <div className="w-full bg-white/95 backdrop-blur-xl border border-slate-200/90 p-4 xs:p-6 sm:p-8 md:p-10 rounded-2xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(124,58,237,0.14)] relative">
               
               <div className="space-y-4 sm:space-y-6">
                 {/* User Nickname Input */}
@@ -1030,31 +1003,41 @@ export function LandingPage({
             </div>
           </div>
 
-          {/* Features Grid for Mobile & Tablet (positioned beneath form on small screens) */}
-          <div className="lg:hidden col-span-1 flex flex-col items-center space-y-4 pt-4 w-full max-w-xl mx-auto">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+          {/* 3: Key Features of the Website */}
+          <div className="w-full space-y-5 sm:space-y-6 pt-2 sm:pt-4 px-2">
+            <div className="flex flex-col items-center text-center space-y-1">
+              <span className="text-[10px] sm:text-xs font-black uppercase tracking-[0.25em] text-[#7C3AED]">Key Features</span>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tight font-['Fredoka',sans-serif]">
+                Everything You Need to Create Together
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4 w-full">
               {FEATURES.map((feat, idx) => (
                 <div
                   key={idx}
-                  className="bg-white/80 backdrop-blur-md border border-slate-200/80 rounded-xl sm:rounded-2xl p-3.5 shadow-sm hover:border-[#7C3AED]/40 transition-all text-left flex items-start gap-3"
+                  className="bg-white/85 backdrop-blur-md border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm hover:border-[#7C3AED]/40 hover:shadow-md hover:-translate-y-0.5 transition-all text-left flex flex-col gap-2.5 group"
                 >
-                  <div className="p-2 rounded-lg bg-slate-50 border border-slate-100 shrink-0">
+                  <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 w-fit group-hover:scale-110 transition-transform">
                     {feat.icon}
                   </div>
                   <div>
-                    <h3 className="text-xs sm:text-sm font-extrabold text-slate-900">{feat.title}</h3>
-                    <p className="text-[11px] text-slate-500 font-medium leading-normal mt-0.5">{feat.desc}</p>
+                    <h3 className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900">{feat.title}</h3>
+                    <p className="text-[11px] sm:text-xs text-slate-500 font-medium leading-normal mt-1">{feat.desc}</p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-950 text-white shadow-md text-xs font-semibold">
-              <div className="flex -space-x-1.5 items-center">
-                <span className="w-3 h-3 rounded-full bg-white ring-2 ring-slate-950 shadow-sm" />
-                <span className="w-3 h-3 rounded-full bg-[#C8F53A] ring-2 ring-slate-950 shadow-sm" />
+            {/* Dual Cursor Indicator Badge */}
+            <div className="flex justify-center pt-1 sm:pt-2">
+              <div className="inline-flex items-center gap-2.5 sm:gap-3 px-4 py-2 sm:py-2.5 rounded-2xl bg-slate-950 text-white shadow-lg text-xs font-semibold">
+                <div className="flex -space-x-1.5 items-center">
+                  <span className="w-3.5 h-3.5 rounded-full bg-white ring-2 ring-slate-950 shadow-sm" />
+                  <span className="w-3.5 h-3.5 rounded-full bg-[#C8F53A] ring-2 ring-slate-950 shadow-sm" />
+                </div>
+                <span className="text-slate-300">Dual-Cursor Live Sync • Instant Room Join • Zero Account Required</span>
               </div>
-              <span className="text-slate-300">Dual-Cursor Live Sync • Instant Room Join</span>
             </div>
           </div>
 
