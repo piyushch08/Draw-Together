@@ -696,7 +696,9 @@ export function LandingPage({
   toggleFullscreen
 }: any) {
   const [creatorBgColor, setCreatorBgColor] = useState("#FFFFFF");
-  const [creatorAspectRatio, setCreatorAspectRatio] = useState("16:9");
+  const [creatorAspectRatio, setCreatorAspectRatio] = useState(() => 
+    typeof window !== "undefined" && window.innerWidth < 768 && window.innerHeight > window.innerWidth ? "9:16" : "16:9"
+  );
 
   // Interactive Review & Feedback State
   const [userRating, setUserRating] = useState<number>(5);
@@ -1542,14 +1544,23 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     
     const { width: boardW, height: boardH } = getCanvasDimensions(roomSettingsRef.current.aspectRatio);
     
-    const scaleX = clientWidth / boardW;
-    const scaleY = clientHeight / boardH;
-    let fitScale = Math.min(scaleX, scaleY) * 0.95; // 5% padding
+    const isMobile = clientWidth < 768;
+    // Account for top header (~56-64px) and bottom toolbar (~72-88px) safe insets
+    const topInset = isMobile ? 62 : 72;
+    const bottomInset = isMobile ? 86 : 88;
+    const sideInset = isMobile ? 10 : 24;
+
+    const availableWidth = Math.max(clientWidth - sideInset * 2, 50);
+    const availableHeight = Math.max(clientHeight - topInset - bottomInset, 50);
+
+    const scaleX = availableWidth / boardW;
+    const scaleY = availableHeight / boardH;
+    let fitScale = Math.min(scaleX, scaleY);
     if (isNaN(fitScale) || fitScale < 0.05) fitScale = 0.5;
-    
+
     const targetX = (clientWidth - boardW * fitScale) / 2;
-    const targetY = (clientHeight - boardH * fitScale) / 2;
-    
+    const targetY = topInset + (availableHeight - boardH * fitScale) / 2;
+
     setTransformSmooth({ x: targetX, y: targetY, scale: fitScale });
   };
 
@@ -2857,8 +2868,18 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     resizeCanvasRef.current = resizeCanvas;
     resizeCanvas();
+
+    const handleOrientationChange = () => {
+      setTimeout(resizeCanvas, 50);
+      setTimeout(resizeCanvas, 200);
+    };
+
     window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("orientationchange", handleOrientationChange);
+    };
   }, []);
 
   const drawOnCanvas = (data: DrawingData, shouldComposite: boolean = true, isReplaying: boolean = false) => {
@@ -4846,7 +4867,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       // Save raw screen coordinates for panning mode
       drawingState.current.lastScreenX = touch.clientX;
       drawingState.current.lastScreenY = touch.clientY;
-      startDrawing(touch);
+      if (isHandTool) {
+        drawingState.current.isDrawing = false;
+      } else if (e.target === canvasRef.current || (canvasRef.current && canvasRef.current.contains(e.target as Node))) {
+        startDrawing(touch);
+      }
     } else if (e.touches.length === 2) {
       drawingState.current.isDrawing = false;
       const t1 = e.touches[0];
@@ -5008,6 +5033,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === "touch") return; // Touch events are handled cleanly by handleTouchStart with pinch-zoom support
     try {
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     } catch {}
@@ -5015,6 +5041,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === "touch") return;
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     if (cursorRef.current) {
       cursorRef.current.style.left = `${e.clientX}px`;
@@ -5038,6 +5065,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === "touch") return;
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
@@ -5143,6 +5171,15 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               {copied ? <Check size={10} className="text-emerald-500 shrink-0" /> : <Copy size={10} className="text-slate-400 shrink-0" />}
             </button>
           </div>
+
+          {/* QR Share button on Mobile */}
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="lg:hidden p-1 xs:p-1.5 bg-indigo-50/95 border border-indigo-200/90 rounded-lg text-indigo-700 hover:bg-indigo-100 transition-all shadow-xs active:scale-90 flex items-center justify-center shrink-0"
+            title="Share Room / Connect Phone"
+          >
+            <QrCode size={12} className="text-indigo-600" />
+          </button>
 
           {/* Nickname capsule - visible on md and up */}
           <div className="hidden md:flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200 shadow-sm rounded-xl px-2.5 py-1 shrink-0 pointer-events-auto">
@@ -5287,7 +5324,14 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       {/* Main Content */}
       <div className={cn("flex-1 flex overflow-hidden relative", showGrid ? "bg-slate-100" : "bg-slate-50")}>
         {/* Full-screen Canvas Area */}
-        <div ref={containerRef} className="absolute inset-0 z-0 select-none overflow-hidden">
+        <div
+          ref={containerRef}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          onTouchCancel={handleTouchEnd}
+          className="absolute inset-0 z-0 select-none overflow-hidden touch-none"
+        >
           {showGrid && (
             <div
               className="absolute inset-0 pointer-events-none opacity-10 z-10"
@@ -5309,7 +5353,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           <canvas
             ref={canvasRef}
             className={cn(
-              "touch-none outline-none will-change-transform canvas-area shadow-2xl transition-shadow",
+              "touch-none outline-none will-change-transform canvas-area shadow-2xl transition-shadow rounded-sm ring-1 ring-slate-300/40",
               isTransitioning && "transition-transform duration-300 ease-out",
               isHandTool ? "cursor-grab active:cursor-grabbing" : "cursor-none"
             )}
@@ -5886,7 +5930,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-2xl rounded-2xl sm:rounded-[2.5rem] p-1 sm:p-2 flex items-center pointer-events-auto overflow-x-auto no-scrollbar scroll-smooth max-w-full touch-pan-x"
+            className="bg-white/95 backdrop-blur-xl border border-slate-200/90 shadow-2xl rounded-2xl sm:rounded-[2.5rem] p-1 sm:p-2 flex items-center pointer-events-auto overflow-x-auto no-scrollbar scroll-smooth max-w-full touch-pan-x overscroll-x-contain"
+            style={{ WebkitOverflowScrolling: "touch" }}
           >
             <div className="flex items-center gap-1 sm:gap-1.5 pr-2 sm:pr-3 border-r border-slate-100 flex-nowrap shrink-0 ml-1">
               <Tooltip label="Brush" side="top">
@@ -6163,7 +6208,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 initial={{ x: -20, opacity: 0, scale: 0.95 }}
                 animate={{ x: 0, opacity: 1, scale: 1 }}
                 exit={{ x: -20, opacity: 0, scale: 0.95 }}
-                className="fixed left-2 right-2 sm:left-6 sm:right-auto top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 bg-white border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] z-40 p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
+                className="fixed left-2 right-2 sm:left-6 sm:right-auto top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:bottom-28 sm:w-80 md:w-88 bg-white border border-slate-200 shadow-2xl rounded-2xl sm:rounded-[2.5rem] z-40 p-4 sm:p-6 md:p-8 flex flex-col gap-4 sm:gap-6 md:gap-8 overflow-y-auto overflow-x-hidden no-scrollbar transition-all"
               >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col">
@@ -7390,7 +7435,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
+              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
             >
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -7577,7 +7622,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               initial={{ x: -20, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
-              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
+              className="fixed left-2 right-2 sm:right-auto sm:left-6 top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:bottom-28 sm:w-80 md:w-88 z-40 pointer-events-none"
             >
               <div className="pointer-events-auto h-full flex flex-col bg-white/95 backdrop-blur-xl border border-slate-200 shadow-3xl rounded-2xl sm:rounded-[2.5rem] overflow-hidden">
                 <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -7869,7 +7914,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
               animate={{ x: 0, opacity: 1, scale: 1 }}
               exit={{ x: 24, opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 350, damping: 28 }}
-              className="fixed left-2 right-2 sm:left-auto sm:right-6 top-14 sm:top-20 bottom-16 sm:bottom-28 sm:w-[350px] z-40 pointer-events-none"
+              className="fixed left-2 right-2 sm:left-auto sm:right-6 top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:bottom-28 sm:w-[350px] z-40 pointer-events-none"
             >
               <div className="pointer-events-auto h-full flex flex-col bg-white border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.14)] rounded-2xl sm:rounded-3xl overflow-hidden ring-1 ring-black/5">
                 <ChatSection
@@ -8082,7 +8127,7 @@ function ToolButton({ active, onClick, icon, label, color }: any) {
       onClick={onClick}
       aria-label={label}
       className={cn(
-        "w-9 h-9 xs:w-10 xs:h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center transition-all rounded-lg sm:rounded-xl border border-slate-200 shadow-sm shrink-0",
+        "w-9 h-9 xs:w-10 xs:h-10 sm:w-11 sm:h-11 md:w-12 md:h-12 flex items-center justify-center transition-all rounded-lg sm:rounded-xl border border-slate-200 shadow-sm shrink-0 active:scale-95 touch-manipulation select-none",
         active ? `${color} shadow-indigo-100` : "bg-white text-slate-400 hover:bg-slate-50 hover:text-slate-600"
       )}
     >
