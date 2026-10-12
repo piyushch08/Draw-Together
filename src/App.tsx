@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "motion/react";
 import QRCode from "qrcode";
-import { Tool, BrushStyle, DrawingData, ChatMessage, UserPresence, CursorUpdate, Layer, CustomPalette, PlacedText, PlacedShape } from "./types";
+import { Tool, BrushStyle, DrawingData, ChatMessage, UserPresence, CursorUpdate, Layer, CustomPalette, PlacedText, PlacedShape, CanvasAction } from "./types";
 import {
   Palette,
   Eraser,
@@ -1735,6 +1735,43 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const undoRef = useRef<() => void>(() => { });
   const redoRef = useRef<() => void>(() => { });
 
+  // Persistent Client ID for per-user action ownership & collaborative selective undo/redo
+  const clientIdRef = useRef<string>(
+    (() => {
+      let cid = "";
+      try {
+        cid = sessionStorage.getItem("dt_client_id") || "";
+      } catch (e) {}
+      if (!cid) {
+        cid = "u_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now().toString(36);
+        try {
+          sessionStorage.setItem("dt_client_id", cid);
+        } catch (e) {}
+      }
+      return cid;
+    })()
+  );
+
+  // Per-User Collaborative Actions & Undo/Redo Stacks
+  const actionsRef = useRef<CanvasAction[]>([]);
+  const myUndoStackRef = useRef<string[]>([]);
+  const myRedoStackRef = useRef<string[]>([]);
+  const [myUndoCount, setMyUndoCount] = useState<number>(0);
+  const [myRedoCount, setMyRedoCount] = useState<number>(0);
+
+  const currentStrokeIdRef = useRef<string | null>(null);
+  const currentStrokeSegmentsRef = useRef<DrawingData[]>([]);
+  const baseLayerImagesRef = useRef<Record<string, HTMLImageElement>>({});
+
+  const registerNewActionRef = useRef<(action: CanvasAction, isLocal?: boolean) => void>(() => {});
+  const handleRemoteUndoRef = useRef<(actionId: string) => void>(() => {});
+  const handleRemoteRedoRef = useRef<(actionId: string) => void>(() => {});
+
+  const syncUndoRedoState = useCallback(() => {
+    setMyUndoCount(myUndoStackRef.current.length);
+    setMyRedoCount(myRedoStackRef.current.length);
+  }, []);
+
   historyIndexRef.current = historyIndex;
   historyRef.current = history;
   const touchState = useRef({
@@ -2424,12 +2461,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       }
 
       // Undo/Redo shortcuts
-      if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
-        if (e.shiftKey) {
-          redoRef.current();
-        } else {
-          undoRef.current();
-        }
+      if ((e.ctrlKey || e.metaKey) && (e.code === "KeyY" || (e.code === "KeyZ" && e.shiftKey))) {
+        e.preventDefault();
+        redoRef.current();
+      } else if ((e.ctrlKey || e.metaKey) && e.code === "KeyZ") {
+        e.preventDefault();
+        undoRef.current();
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -2496,6 +2533,21 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         drawOnCanvas(segments[i], false);
       }
       compositeLayers();
+    });
+
+    s.on("action-added", ({ action }: { action: CanvasAction }) => {
+      if (!action || !action.id) return;
+      registerNewActionRef.current(action, false);
+    });
+
+    s.on("user-undo", ({ actionId }: { actionId: string; userId?: string }) => {
+      if (!actionId) return;
+      handleRemoteUndoRef.current(actionId);
+    });
+
+    s.on("user-redo", ({ actionId }: { actionId: string; userId?: string }) => {
+      if (!actionId) return;
+      handleRemoteRedoRef.current(actionId);
     });
 
     s.on("chat-message", (data: ChatMessage) => {
@@ -2583,12 +2635,20 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         setPlacedTexts(data.placedTexts);
         placedTextsRef.current = data.placedTexts;
       }
+      if ((data as any).actions && Array.isArray((data as any).actions)) {
+        actionsRef.current = (data as any).actions;
+        const myActive = (data as any).actions.filter((a: any) => a.userId === clientIdRef.current && !a.undone);
+        myUndoStackRef.current = myActive.map((a: any) => a.id);
+        syncUndoRedoState();
+      }
       if (data.canvasData) {
         const img = new Image();
         img.onload = () => {
           const canvas = canvasRef.current;
           if (canvas) {
-            const offscreen = getOrCreateLayerCanvas(activeLayerIdRef.current, canvas.width, canvas.height);
+            const targetId = activeLayerIdRef.current || "layer-default";
+            baseLayerImagesRef.current[targetId] = img;
+            const offscreen = getOrCreateLayerCanvas(targetId, canvas.width, canvas.height);
             const offCtx = offscreen.getContext("2d");
             if (offCtx) {
               offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
@@ -2636,6 +2696,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     });
 
     s.on("clear-canvas", () => {
+      actionsRef.current = [];
+      myUndoStackRef.current = [];
+      myRedoStackRef.current = [];
+      syncUndoRedoState();
+      baseLayerImagesRef.current = {};
       resetLayersToDefault();
     });
 
@@ -2796,7 +2861,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     return () => window.removeEventListener("resize", resizeCanvas);
   }, []);
 
-  const drawOnCanvas = (data: DrawingData, shouldComposite: boolean = true) => {
+  const drawOnCanvas = (data: DrawingData, shouldComposite: boolean = true, isReplaying: boolean = false) => {
     const masterCanvas = canvasRef.current;
     if (!masterCanvas) return;
 
@@ -2828,7 +2893,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     const { width, height } = canvas;
 
-    if (data.tool === "eraser") {
+    if (data.tool === "eraser" && !isReplaying) {
       const shapes = placedShapesRef.current;
       const eraserRadius = (data.size || 20) / 2;
       const nextShapes = shapes.filter(s => {
@@ -3422,6 +3487,18 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           selectedShapeIdsRef.current = [newStickerId];
 
           socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+          const stickerAction: CanvasAction = {
+            id: `shape_act_${newStickerId}_${Date.now()}`,
+            userId: clientIdRef.current,
+            username,
+            type: "shape",
+            layerId: activeLayerId,
+            shapeAction: "add",
+            shape: newSticker,
+            timestamp: Date.now(),
+            undone: false
+          };
+          registerNewActionRef.current(stickerAction, true);
           saveToHistory(undefined, nextShapes);
 
           drawingState.current.isDraggingShape = true;
@@ -3546,6 +3623,18 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           selectedShapeIdsRef.current = [newShapeId];
 
           socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextPlacedShapes });
+          const shapeAction: CanvasAction = {
+            id: `shape_act_${newShapeId}_${Date.now()}`,
+            userId: clientIdRef.current,
+            username,
+            type: "shape",
+            layerId: activeLayerId,
+            shapeAction: "add",
+            shape: newShape,
+            timestamp: Date.now(),
+            undone: false
+          };
+          registerNewActionRef.current(shapeAction, true);
           saveToHistory(undefined, nextPlacedShapes);
 
           drawingState.current.isDraggingShape = true;
@@ -3665,9 +3754,19 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           const nextPlacedTexts = [...placedTextsRef.current, newText];
           setPlacedTexts(nextPlacedTexts);
           placedTextsRef.current = nextPlacedTexts;
-          setEditingTextId(newText.id);
-          saveToHistory(nextPlacedTexts);
           socket?.emit("sync-placed-texts", { roomId, placedTexts: nextPlacedTexts });
+          const textAction: CanvasAction = {
+            id: `text_act_${newText.id}_${Date.now()}`,
+            userId: clientIdRef.current,
+            username,
+            type: "text",
+            layerId: activeLayerId,
+            textAction: "add",
+            text: newText,
+            timestamp: Date.now(),
+            undone: false
+          };
+          registerNewActionRef.current(textAction, true);
 
           // Setup drag-move
           (drawingState.current as any).isDraggingText = true;
@@ -3698,6 +3797,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     drawingState.current.lastScreenY = clientY;
 
     if (tool !== "shape" && tool !== "text" && tool !== "stamp" && tool !== "picker") {
+      const strokeId = `strk_${clientIdRef.current}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      currentStrokeIdRef.current = strokeId;
+      currentStrokeSegmentsRef.current = [];
+
       let currentColor = color;
       if (isRainbowMode) {
         hueRef.current = (hueRef.current + 5) % 360;
@@ -3734,9 +3837,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         hasOutline,
         outlineColor,
         outlineWidth: textOutlineWidth,
-        layerId: activeLayerId
+        layerId: activeLayerId,
+        strokeId,
+        userId: clientIdRef.current
       };
 
+      currentStrokeSegmentsRef.current.push(initialDot);
       drawOnCanvas(initialDot, true);
       networkQueueRef.current.push(initialDot);
     }
@@ -4005,8 +4111,14 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       hasOutline,
       outlineColor,
       outlineWidth: textOutlineWidth,
-      layerId: activeLayerId
+      layerId: activeLayerId,
+      strokeId: currentStrokeIdRef.current || undefined,
+      userId: clientIdRef.current
     };
+
+    if (currentStrokeSegmentsRef.current) {
+      currentStrokeSegmentsRef.current.push(data);
+    }
 
     // Instant local drawing for zero-latency response!
     drawOnCanvas(data, false);
@@ -4080,13 +4192,33 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           density,
           hardness,
           flow,
-          layerId: activeLayerId
+          layerId: activeLayerId,
+          strokeId: currentStrokeIdRef.current || undefined,
+          userId: clientIdRef.current
         };
+        if (currentStrokeSegmentsRef.current) {
+          currentStrokeSegmentsRef.current.push(finishData);
+        }
         drawOnCanvas(finishData, false);
         networkQueueRef.current.push(finishData);
       }
       flushNetworkQueue();
       compositeLayers();
+      if (currentStrokeIdRef.current && currentStrokeSegmentsRef.current && currentStrokeSegmentsRef.current.length > 0) {
+        const strokeAction: CanvasAction = {
+          id: currentStrokeIdRef.current,
+          userId: clientIdRef.current,
+          username,
+          type: "stroke",
+          layerId: activeLayerId,
+          segments: [...currentStrokeSegmentsRef.current],
+          timestamp: Date.now(),
+          undone: false
+        };
+        registerNewActionRef.current(strokeAction, true);
+        currentStrokeIdRef.current = null;
+        currentStrokeSegmentsRef.current = [];
+      }
       setTimeout(() => saveToHistory(), 0);
       emitCursorUpdate(drawingState.current.lastX, drawingState.current.lastY, false);
     }
@@ -4438,18 +4570,240 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     vibrate(10);
   };
 
+  const registerNewAction = useCallback((action: CanvasAction, isLocal: boolean = true) => {
+    const existingIdx = actionsRef.current.findIndex(a => a.id === action.id);
+    if (existingIdx !== -1) {
+      actionsRef.current[existingIdx] = action;
+    } else {
+      actionsRef.current.push(action);
+      if (actionsRef.current.length > 300) {
+        actionsRef.current.shift();
+      }
+    }
+
+    if (isLocal && action.userId === clientIdRef.current) {
+      myUndoStackRef.current.push(action.id);
+      if (myUndoStackRef.current.length > 50) {
+        myUndoStackRef.current.shift();
+      }
+      myRedoStackRef.current = [];
+      syncUndoRedoState();
+
+      if (socket && roomId) {
+        socket.emit("action-added", { roomId, action });
+      }
+    }
+  }, [roomId, socket, syncUndoRedoState]);
+
+  const redrawCanvasFromActions = useCallback((affectedLayerId?: string) => {
+    const masterCanvas = canvasRef.current;
+    if (!masterCanvas) return;
+
+    const targetLayers = affectedLayerId 
+      ? layersRef.current.filter(l => l.id === affectedLayerId)
+      : layersRef.current;
+
+    targetLayers.forEach(layer => {
+      const offscreen = getOrCreateLayerCanvas(layer.id, masterCanvas.width, masterCanvas.height);
+      const offCtx = offscreen.getContext("2d");
+      if (!offCtx) return;
+
+      offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
+
+      const baseImg = baseLayerImagesRef.current[layer.id];
+      if (baseImg) {
+        offCtx.drawImage(baseImg, 0, 0);
+      }
+
+      const actions = actionsRef.current;
+      for (let i = 0; i < actions.length; i++) {
+        const act = actions[i];
+        if (act.undone) continue;
+        if (act.type === "stroke" && act.layerId === layer.id && act.segments) {
+          for (let j = 0; j < act.segments.length; j++) {
+            drawOnCanvas(act.segments[j], false, true);
+          }
+        }
+      }
+
+      if (drawingState.current.isDrawing && activeLayerIdRef.current === layer.id && currentStrokeSegmentsRef.current.length > 0) {
+        for (let k = 0; k < currentStrokeSegmentsRef.current.length; k++) {
+          drawOnCanvas(currentStrokeSegmentsRef.current[k], false, true);
+        }
+      }
+    });
+
+    compositeLayers();
+  }, [compositeLayers]);
+
+  const handleShapeUndoRedo = useCallback((action: CanvasAction, isUndo: boolean) => {
+    if (!action.shape) return;
+    let next = [...placedShapesRef.current];
+    if (action.shapeAction === "add") {
+      if (isUndo) {
+        next = next.filter(s => s.id !== action.shape!.id);
+      } else {
+        if (!next.some(s => s.id === action.shape!.id)) {
+          next.push(action.shape);
+        }
+      }
+    } else if (action.shapeAction === "delete") {
+      if (isUndo) {
+        if (!next.some(s => s.id === action.shape!.id)) {
+          next.push(action.shape);
+        }
+      } else {
+        next = next.filter(s => s.id !== action.shape!.id);
+      }
+    } else if (action.shapeAction === "modify") {
+      const target = isUndo ? action.prevShape : action.shape;
+      if (target) {
+        next = next.map(s => s.id === target.id ? target : s);
+      }
+    }
+    setPlacedShapes(next);
+    placedShapesRef.current = next;
+    compositeLayers();
+  }, [compositeLayers]);
+
+  const handleTextUndoRedo = useCallback((action: CanvasAction, isUndo: boolean) => {
+    if (!action.text) return;
+    let next = [...placedTextsRef.current];
+    if (action.textAction === "add") {
+      if (isUndo) {
+        next = next.filter(t => t.id !== action.text!.id);
+      } else {
+        if (!next.some(t => t.id === action.text!.id)) {
+          next.push(action.text);
+        }
+      }
+    } else if (action.textAction === "delete") {
+      if (isUndo) {
+        if (!next.some(t => t.id === action.text!.id)) {
+          next.push(action.text);
+        }
+      } else {
+        next = next.filter(t => t.id !== action.text!.id);
+      }
+    } else if (action.textAction === "modify") {
+      const target = isUndo ? action.prevText : action.text;
+      if (target) {
+        next = next.map(t => t.id === target.id ? target : t);
+      }
+    }
+    setPlacedTexts(next);
+    placedTextsRef.current = next;
+    compositeLayers();
+  }, [compositeLayers]);
+
+  const undo = useCallback(() => {
+    if (myUndoStackRef.current.length === 0) return;
+    const actionId = myUndoStackRef.current.pop()!;
+    myRedoStackRef.current.push(actionId);
+    syncUndoRedoState();
+
+    const action = actionsRef.current.find(a => a.id === actionId);
+    if (!action) return;
+
+    action.undone = true;
+
+    if (action.type === "shape") {
+      handleShapeUndoRedo(action, true);
+    } else if (action.type === "text") {
+      handleTextUndoRedo(action, true);
+    } else if (action.type === "stroke") {
+      redrawCanvasFromActions(action.layerId);
+    }
+
+    vibrate(12);
+
+    if (socket && roomId) {
+      socket.emit("user-undo", { roomId, actionId, userId: clientIdRef.current });
+    }
+  }, [roomId, socket, syncUndoRedoState, handleShapeUndoRedo, handleTextUndoRedo, redrawCanvasFromActions]);
+
+  const redo = useCallback(() => {
+    if (myRedoStackRef.current.length === 0) return;
+    const actionId = myRedoStackRef.current.pop()!;
+    myUndoStackRef.current.push(actionId);
+    syncUndoRedoState();
+
+    const action = actionsRef.current.find(a => a.id === actionId);
+    if (!action) return;
+
+    action.undone = false;
+
+    if (action.type === "shape") {
+      handleShapeUndoRedo(action, false);
+    } else if (action.type === "text") {
+      handleTextUndoRedo(action, false);
+    } else if (action.type === "stroke") {
+      redrawCanvasFromActions(action.layerId);
+    }
+
+    vibrate(12);
+
+    if (socket && roomId) {
+      socket.emit("user-redo", { roomId, actionId, userId: clientIdRef.current });
+    }
+  }, [roomId, socket, syncUndoRedoState, handleShapeUndoRedo, handleTextUndoRedo, redrawCanvasFromActions]);
+
+  const handleRemoteUndo = useCallback((actionId: string) => {
+    const action = actionsRef.current.find(a => a.id === actionId);
+    if (!action) return;
+    action.undone = true;
+
+    if (action.type === "shape") {
+      handleShapeUndoRedo(action, true);
+    } else if (action.type === "text") {
+      handleTextUndoRedo(action, true);
+    } else if (action.type === "stroke") {
+      redrawCanvasFromActions(action.layerId);
+    }
+  }, [handleShapeUndoRedo, handleTextUndoRedo, redrawCanvasFromActions]);
+
+  const handleRemoteRedo = useCallback((actionId: string) => {
+    const action = actionsRef.current.find(a => a.id === actionId);
+    if (!action) return;
+    action.undone = false;
+
+    if (action.type === "shape") {
+      handleShapeUndoRedo(action, false);
+    } else if (action.type === "text") {
+      handleTextUndoRedo(action, false);
+    } else if (action.type === "stroke") {
+      redrawCanvasFromActions(action.layerId);
+    }
+  }, [handleShapeUndoRedo, handleTextUndoRedo, redrawCanvasFromActions]);
+
   const deleteEditingText = (textId: string) => {
+    const deletedText = placedTextsRef.current.find(t => t.id === textId);
     const next = placedTextsRef.current.filter(t => t.id !== textId);
     setPlacedTexts(next);
     placedTextsRef.current = next;
     setEditingTextId(null);
     socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+    if (deletedText) {
+      const textAction: CanvasAction = {
+        id: `text_del_${textId}_${Date.now()}`,
+        userId: clientIdRef.current,
+        username,
+        type: "text",
+        layerId: deletedText.layerId,
+        textAction: "delete",
+        text: deletedText,
+        timestamp: Date.now(),
+        undone: false
+      };
+      registerNewAction(textAction, true);
+    }
     saveToHistory(next);
     vibrate(15);
     setTimeout(() => compositeLayers(), 10);
   };
 
   const deleteEditingShape = (shapeId: string) => {
+    const deletedShape = placedShapesRef.current.find(s => s.id === shapeId);
     const next = placedShapesRef.current.filter(s => s.id !== shapeId);
     setPlacedShapes(next);
     placedShapesRef.current = next;
@@ -4457,98 +4811,30 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     setSelectedShapeIds([]);
     selectedShapeIdsRef.current = [];
     socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+    if (deletedShape) {
+      const shapeAction: CanvasAction = {
+        id: `shape_del_${shapeId}_${Date.now()}`,
+        userId: clientIdRef.current,
+        username,
+        type: "shape",
+        layerId: deletedShape.layerId,
+        shapeAction: "delete",
+        shape: deletedShape,
+        timestamp: Date.now(),
+        undone: false
+      };
+      registerNewAction(shapeAction, true);
+    }
     saveToHistory(undefined, next);
     vibrate(15);
     setTimeout(() => compositeLayers(), 10);
   };
 
-  const undo = () => {
-    if (historyIndex > 0) {
-      loadHistoryState(historyIndex - 1);
-      setHistoryIndex(historyIndex - 1);
-    } else if (historyIndex === 0) {
-      // Reset layers to default if undoing the first action
-      resetLayersToDefault();
-      setHistoryIndex(-1);
-    }
-  };
-
-  const redo = () => {
-    if (historyIndex < history.length - 1) {
-      loadHistoryState(historyIndex + 1);
-      setHistoryIndex(historyIndex + 1);
-    }
-  };
-
-  const loadHistoryState = (index: number, syncRemote = true) => {
-    const masterCanvas = canvasRef.current;
-    if (!masterCanvas || !history[index]) return;
-
-    try {
-      const state = JSON.parse(history[index]);
-
-      const loadPromises = state.layers.map((layerState: any) => {
-        return new Promise<void>((resolve) => {
-          const dataUrl = state.layerData[layerState.id];
-          if (!dataUrl) {
-            resolve();
-            return;
-          }
-
-          const img = new Image();
-          img.src = dataUrl;
-          img.onload = () => {
-            const offscreen = getOrCreateLayerCanvas(layerState.id, masterCanvas.width, masterCanvas.height);
-            const offCtx = offscreen.getContext("2d");
-            if (offCtx) {
-              offCtx.save();
-              offCtx.globalCompositeOperation = "source-over";
-              offCtx.clearRect(0, 0, offscreen.width, offscreen.height);
-              offCtx.drawImage(img, 0, 0);
-              offCtx.restore();
-            }
-            resolve();
-          };
-          img.onerror = () => resolve();
-        });
-      });
-
-      Promise.all(loadPromises).then(() => {
-        setLayers(state.layers);
-        layersRef.current = state.layers;
-        setActiveLayerId(state.activeLayerId);
-        activeLayerIdRef.current = state.activeLayerId;
-
-        const nextTexts = state.placedTexts || [];
-        setPlacedTexts(nextTexts);
-        placedTextsRef.current = nextTexts;
-
-        const nextShapes = state.placedShapes || [];
-        setPlacedShapes(nextShapes);
-        placedShapesRef.current = nextShapes;
-
-        socket?.emit("sync-placed-texts", { roomId, placedTexts: nextTexts });
-        socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
-
-        // Redraw complete composition including texts and shapes
-        compositeLayers();
-
-        if (syncRemote && socket && roomId) {
-          socket.emit("sync-canvas", { 
-            roomId, 
-            canvasData: masterCanvas.toDataURL(),
-            backgroundColor: roomSettingsRef.current.backgroundColor,
-            aspectRatio: roomSettingsRef.current.aspectRatio
-          });
-        }
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   // Keep references to undo and redo callbacks up to date
   useEffect(() => {
+    registerNewActionRef.current = registerNewAction;
+    handleRemoteUndoRef.current = handleRemoteUndo;
+    handleRemoteRedoRef.current = handleRemoteRedo;
     undoRef.current = undo;
     redoRef.current = redo;
   });
@@ -4884,26 +5170,26 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 pointer-events-auto shrink-0">
           {/* Undo / Redo */}
           <div className="flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg sm:rounded-xl p-0.5 shrink-0">
-            <Tooltip label="Undo" side="bottom">
+            <Tooltip label={myUndoCount > 0 ? `Undo (${myUndoCount})` : "Undo"} side="bottom">
               <button
                 onClick={() => {
                   undo();
                   vibrate(5);
                 }}
-                disabled={historyIndex < 0}
+                disabled={myUndoCount === 0}
                 className="p-1 sm:p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed"
                 title="Undo"
               >
                 <Undo2 size={13} className="sm:w-4 sm:h-4" />
               </button>
             </Tooltip>
-            <Tooltip label="Redo" side="bottom">
+            <Tooltip label={myRedoCount > 0 ? `Redo (${myRedoCount})` : "Redo"} side="bottom">
               <button
                 onClick={() => {
                   redo();
                   vibrate(5);
                 }}
-                disabled={historyIndex >= history.length - 1}
+                disabled={myRedoCount === 0}
                 className="p-1 sm:p-2 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-md sm:rounded-lg transition-all active:scale-90 disabled:opacity-25 disabled:cursor-not-allowed"
                 title="Redo"
               >

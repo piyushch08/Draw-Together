@@ -34,6 +34,7 @@ interface RoomData {
   placedShapes: any[];
   placedTexts: any[];
   chat: ChatMessage[];
+  actions?: any[];
   layers?: any[];
   activeLayerId?: string;
   backgroundColor?: string;
@@ -118,7 +119,8 @@ async function startServer() {
         users: new Map(),
         placedShapes: [],
         placedTexts: [],
-        chat: []
+        chat: [],
+        actions: []
       };
       rooms.set(roomId, room);
     }
@@ -231,6 +233,7 @@ async function startServer() {
         chat: room.chat.slice(-50),
         layers: room.layers,
         activeLayerId: room.activeLayerId,
+        actions: room.actions ? room.actions.slice(-200) : [],
         backgroundColor: room.backgroundColor || "#FFFFFF",
         aspectRatio: room.aspectRatio || "16:9"
       });
@@ -269,6 +272,50 @@ async function startServer() {
       const room = rooms.get(targetRoom);
       if (room) room.lastActivity = Date.now();
       socket.to(targetRoom).emit("drawing-batch", { ...data, roomId: targetRoom });
+    });
+
+    socket.on("action-added", (data: { roomId: string; action: any }) => {
+      if (!data?.roomId || !data?.action) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
+      if (!room.actions) room.actions = [];
+      const existingIdx = room.actions.findIndex((a: any) => a.id === data.action.id);
+      if (existingIdx !== -1) {
+        room.actions[existingIdx] = data.action;
+      } else {
+        room.actions.push(data.action);
+        if (room.actions.length > 250) room.actions.shift();
+      }
+      room.lastActivity = Date.now();
+      socket.to(targetRoom).emit("action-added", { roomId: targetRoom, action: data.action });
+    });
+
+    socket.on("user-undo", (data: { roomId: string; actionId: string; userId: string }) => {
+      if (!data?.roomId || !data?.actionId) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = rooms.get(targetRoom);
+      if (room && room.actions) {
+        const action = room.actions.find((a: any) => a.id === data.actionId);
+        if (action) {
+          action.undone = true;
+        }
+        room.lastActivity = Date.now();
+      }
+      socket.to(targetRoom).emit("user-undo", { roomId: targetRoom, actionId: data.actionId, userId: data.userId });
+    });
+
+    socket.on("user-redo", (data: { roomId: string; actionId: string; userId: string }) => {
+      if (!data?.roomId || !data?.actionId) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = rooms.get(targetRoom);
+      if (room && room.actions) {
+        const action = room.actions.find((a: any) => a.id === data.actionId);
+        if (action) {
+          action.undone = false;
+        }
+        room.lastActivity = Date.now();
+      }
+      socket.to(targetRoom).emit("user-redo", { roomId: targetRoom, actionId: data.actionId, userId: data.userId });
     });
 
     socket.on("laser-pointer", (data: { roomId: string; x: number; y: number; color?: string; username?: string }) => {
@@ -390,6 +437,7 @@ async function startServer() {
         room.canvasData = undefined;
         room.placedShapes = [];
         room.placedTexts = [];
+        room.actions = [];
         room.lastActivity = Date.now();
       }
       io.to(targetRoom).emit("clear-canvas");

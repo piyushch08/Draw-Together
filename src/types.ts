@@ -41,6 +41,8 @@ export interface DrawingData {
   midY?: number;
   prevMidX?: number;
   prevMidY?: number;
+  strokeId?: string;
+  userId?: string;
 }
 
 export interface ChatMessage {
@@ -114,4 +116,22 @@ export interface PlacedShape {
   emoji?: string;
 }
 
-
+export interface CanvasAction {
+  id: string;
+  userId: string;
+  username?: string;
+  type: "stroke" | "shape" | "text" | "clear";
+  timestamp: number;
+  undone: boolean;
+  layerId?: string;
+  // Stroke data
+  segments?: DrawingData[];
+  // Shape data
+  shapeAction?: "add" | "delete" | "modify";
+  shape?: PlacedShape;
+  prevShape?: PlacedShape;
+  // Text data
+  textAction?: "add" | "delete" | "modify";
+  text?: PlacedText;
+  prevText?: PlacedText;
+}
