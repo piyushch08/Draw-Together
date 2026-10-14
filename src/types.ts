@@ -136,7 +136,7 @@ export interface CanvasAction {
   prevText?: PlacedText;
 }
 
-export type GameType = "pictionary" | "ink_war" | "tictactoe" | "blind_draw";
+export type GameType = "shooter" | "racing" | "puzzle" | "pong" | "tictactoe";
 
 export interface GameParticipant {
   id: string;

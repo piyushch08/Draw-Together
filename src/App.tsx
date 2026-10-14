@@ -822,8 +822,8 @@ export function LandingPage({
   const FEATURES = [
     {
       icon: <Gamepad2 className="w-5 h-5 text-violet-600" />,
-      title: "Duo Games Arena",
-      desc: "Ink War territory battles, Speed Pictionary, holographic Tic-Tac-Toe, and Blindfold Sketch!"
+      title: "Competitive Duo Games",
+      desc: "Fast-paced Laser Cannon shooting, Turbo drift racing, Mind Rush puzzles, and Cyber Pong!"
     },
     {
       icon: <Zap className="w-5 h-5 text-[#7C3AED]" />,
@@ -1164,52 +1164,52 @@ export function LandingPage({
                     <span>Homescreen Duo Mini-Games</span>
                   </div>
                   <h3 className="text-lg sm:text-xl md:text-2xl font-black font-['Fredoka',sans-serif] tracking-tight text-slate-900">
-                    Play Fast 2-Player Games Right Now
+                    Fast 2-Player Challenges in Real-Time
                   </h3>
                   <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                    Choose from 4 instant games: ⚔️ <strong className="text-slate-900">Ink War</strong> territory painter, 🎨 <strong className="text-slate-900">Speed Pictionary</strong>, ⭕ <strong className="text-slate-900">Tic-Tac-Toe</strong> grid duel, and 🙈 <strong className="text-slate-900">Blindfold Sketch</strong>! Play with a friend on this screen or test against the AI.
+                    Choose from 5 competitive duels: 🎯 <strong className="text-slate-900">Laser Cannon Duel</strong>, 🏎️ <strong className="text-slate-900">Turbo Drift Racing</strong>, 🧩 <strong className="text-slate-900">Mind Rush Puzzles</strong>, 🏓 <strong className="text-slate-900">Cyber Pong</strong>, and ⭕ <strong className="text-slate-900">Tic-Tac-Toe</strong>! Play with a friend on this device or test against the AI.
                   </p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:gap-2.5 w-full md:w-auto shrink-0 font-medium text-xs">
+                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-2.5 w-full md:w-auto shrink-0 font-medium text-xs">
                   <button
                     onClick={() => {
-                      setSelectedDuoGame("ink_war");
+                      setSelectedDuoGame("shooter");
                       setIsDuoGamesOpen(true);
                     }}
                     className="bg-slate-50 hover:bg-violet-50 hover:border-violet-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-violet-700"
                   >
-                    <span>⚔️ Ink War</span>
+                    <span>🎯 Laser Duel</span>
                     <span className="text-[10px] text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
                   </button>
                   <button
                     onClick={() => {
-                      setSelectedDuoGame("pictionary");
-                      setIsDuoGamesOpen(true);
-                    }}
-                    className="bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-emerald-700"
-                  >
-                    <span>🎨 Pictionary</span>
-                    <span className="text-[10px] text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedDuoGame("tictactoe");
-                      setIsDuoGamesOpen(true);
-                    }}
-                    className="bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-indigo-700"
-                  >
-                    <span>⭕ Tic-Tac-Toe</span>
-                    <span className="text-[10px] text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedDuoGame("blind_draw");
+                      setSelectedDuoGame("racing");
                       setIsDuoGamesOpen(true);
                     }}
                     className="bg-slate-50 hover:bg-amber-50 hover:border-amber-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-amber-700"
                   >
-                    <span>🙈 Blind Draw</span>
+                    <span>🏎️ Turbo Racing</span>
                     <span className="text-[10px] text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedDuoGame("puzzle");
+                      setIsDuoGamesOpen(true);
+                    }}
+                    className="bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-emerald-700"
+                  >
+                    <span>🧩 Mind Rush</span>
+                    <span className="text-[10px] text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedDuoGame("pong");
+                      setIsDuoGamesOpen(true);
+                    }}
+                    className="bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-indigo-700"
+                  >
+                    <span>🏓 Cyber Pong</span>
+                    <span className="text-[10px] text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
                   </button>
                 </div>
               </div>
