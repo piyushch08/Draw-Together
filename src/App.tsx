@@ -502,16 +502,61 @@ export default function App() {
 
 
   useEffect(() => {
-    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement);
+    const handleFullscreenChange = () => {
+      const doc = document as any;
+      setIsFullscreen(
+        !!(
+          doc.fullscreenElement ||
+          doc.webkitFullscreenElement ||
+          doc.mozFullScreenElement ||
+          doc.msFullscreenElement
+        )
+      );
+    };
+
     document.addEventListener("fullscreenchange", handleFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    document.addEventListener("mozfullscreenchange", handleFullscreenChange);
+    document.addEventListener("MSFullscreenChange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("mozfullscreenchange", handleFullscreenChange);
+      document.removeEventListener("MSFullscreenChange", handleFullscreenChange);
+    };
   }, []);
 
   const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => { });
+    const doc = document as any;
+    const docEl = document.documentElement as any;
+
+    const isFull = !!(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement
+    );
+
+    if (!isFull) {
+      if (docEl.requestFullscreen) {
+        docEl.requestFullscreen().catch(() => { });
+      } else if (docEl.webkitRequestFullscreen) {
+        docEl.webkitRequestFullscreen();
+      } else if (docEl.mozRequestFullScreen) {
+        docEl.mozRequestFullScreen();
+      } else if (docEl.msRequestFullscreen) {
+        docEl.msRequestFullscreen();
+      }
     } else {
-      document.exitFullscreen().catch(() => { });
+      if (doc.exitFullscreen) {
+        doc.exitFullscreen().catch(() => { });
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      } else if (doc.mozCancelFullScreen) {
+        doc.mozCancelFullScreen();
+      } else if (doc.msExitFullscreen) {
+        doc.msExitFullscreen();
+      }
     }
   };
 
@@ -543,6 +588,7 @@ export default function App() {
       setRoomId(initialRoom);
       setJoinCode(initialRoom);
       setIsJoining(true); // default to joining view if URL contains a code
+      window.scrollTo(0, 0);
       setIsEntered(true); // auto-enter so mobile users opening link jump straight into the canvas room
     }
 
@@ -552,8 +598,10 @@ export default function App() {
       if (hashRoom) {
         setRoomId(hashRoom);
         setJoinCode(hashRoom);
+        window.scrollTo(0, 0);
         setIsEntered(true);
       } else {
+        window.scrollTo(0, 0);
         setIsEntered(false);
         setRoomId(null);
       }
@@ -566,6 +614,9 @@ export default function App() {
   }, []);
 
   const handleLeaveRoom = () => {
+    window.scrollTo(0, 0);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
     window.location.hash = "";
     setRoomId(null);
     setIsEntered(false);
@@ -574,6 +625,9 @@ export default function App() {
   const navigateToRoom = (targetRoomId: string) => {
     const cleanId = targetRoomId.toUpperCase().trim().replace(/[^A-Z0-9_-]/g, "");
     if (!cleanId) return;
+    window.scrollTo(0, 0);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
     window.location.hash = `#${cleanId}`;
     setRoomId(cleanId);
     setIsEntered(true);
@@ -1463,6 +1517,25 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const [networkInfo, setNetworkInfo] = useState<{ primaryHost?: string; addresses?: string[] } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const hasLocalDrawnRef = useRef(false);
+
+  useEffect(() => {
+    // Immediately reset any window/document scroll offset from previous pages
+    window.scrollTo(0, 0);
+    if (document.documentElement) document.documentElement.scrollTop = 0;
+    if (document.body) document.body.scrollTop = 0;
+
+    // Prevent body/document scrolling while inside the canvas room
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      window.scrollTo(0, 0);
+    };
+  }, []);
 
   useEffect(() => {
     fetch("/api/network-info")
@@ -5090,7 +5163,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   };
 
   return (
-    <div className="h-screen bg-slate-50 flex flex-col font-sans overflow-hidden cursor-default">
+    <div className="fixed inset-0 w-full h-[100dvh] bg-slate-50 flex flex-col font-sans overflow-hidden cursor-default">
       <CustomCursor
         cursorRef={cursorRef}
         isOverCanvas={isOverCanvas}
@@ -5107,12 +5180,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         users={users}
       />
       {/* Floating Header */}
-      <header className="absolute top-[calc(env(safe-area-inset-top,0px)+0.5rem)] left-2 right-2 sm:top-4 sm:left-4 sm:right-4 z-50 flex items-center justify-between gap-1 sm:gap-3 pointer-events-none">
+      <header className="fixed top-[calc(env(safe-area-inset-top,0px)+0.25rem)] xs:top-[calc(env(safe-area-inset-top,0px)+0.5rem)] left-1.5 right-1.5 sm:top-4 sm:left-4 sm:right-4 z-50 flex items-center justify-between gap-1 sm:gap-3 pointer-events-none max-w-[100vw]">
         <div className="flex items-center gap-1 sm:gap-2 md:gap-3 pointer-events-auto min-w-0 shrink">
           {/* Logo / Home */}
           <button
             onClick={onLeave}
-            className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl overflow-hidden shadow-xs hover:scale-105 active:scale-95 transition-all shrink-0 ring-1 ring-slate-200 bg-white"
+            className="w-7 h-7 xs:w-8 xs:h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl overflow-hidden shadow-xs hover:scale-105 active:scale-95 transition-all shrink-0 ring-1 ring-slate-200 bg-white"
             title="Draw Together (Return to Home)"
           >
             <img src="/favicon.svg" alt="Draw Together Logo" className="w-full h-full object-cover" />
@@ -5161,10 +5234,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           </div>
 
           {/* Mobile/Tablet Compact Room Code Pill */}
-          <div className="lg:hidden flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-1 shrink min-w-0 max-w-[70px] xs:max-w-[100px]">
+          <div className="lg:hidden flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg px-1.5 py-0.5 xs:py-1 shrink min-w-0 max-w-[58px] xs:max-w-[80px] sm:max-w-[100px]">
             <button
               onClick={handleCopyCode}
-              className="flex items-center gap-1 text-[10px] font-mono font-bold text-indigo-600 tracking-wide active:scale-95 transition-transform truncate w-full"
+              className="flex items-center gap-1 text-[9px] xs:text-[10px] font-mono font-bold text-indigo-600 tracking-wide active:scale-95 transition-transform truncate w-full"
               title="Click to copy Room Link"
             >
               <span className="truncate">#{roomId}</span>
@@ -5204,7 +5277,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 pointer-events-auto shrink-0">
+        <div className="flex items-center gap-0.5 xs:gap-1 sm:gap-1.5 md:gap-2 pointer-events-auto shrink-0 max-w-full">
           {/* Undo / Redo */}
           <div className="flex items-center bg-white/95 backdrop-blur-md border border-slate-200 shadow-xs rounded-lg sm:rounded-xl p-0.5 shrink-0">
             <Tooltip label={myUndoCount > 0 ? `Undo (${myUndoCount})` : "Undo"} side="bottom">
@@ -5242,7 +5315,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 toggleFullscreen();
                 vibrate(5);
               }}
-              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
+              className="p-1 xs:p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
               title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
             >
               {isFullscreen ? <Minimize size={13} className="sm:w-4 sm:h-4" /> : <Maximize size={13} className="sm:w-4 sm:h-4" />}
@@ -5257,7 +5330,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 vibrate(5);
               }}
               className={cn(
-                "p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center",
+                "p-1 xs:p-1.5 sm:p-2 rounded-lg sm:rounded-xl border transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center",
                 showGrid
                   ? "bg-indigo-600 border-indigo-500 text-white"
                   : "bg-white/95 border-slate-200 text-slate-700 hover:text-indigo-600 hover:border-slate-300"
@@ -5273,7 +5346,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             <button
               onClick={toggleTools}
               className={cn(
-                "flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0",
+                "flex items-center gap-1 p-1 xs:p-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0",
                 showInvite
                   ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
                   : "bg-white/95 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
@@ -5292,7 +5365,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 setShowTemplateModal(true);
                 vibrate(5);
               }}
-              className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
+              className="p-1 xs:p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
               title="Canvas Ratio & Color"
             >
               <SlidersHorizontal size={13} className="sm:w-4 sm:h-4" />
@@ -5312,7 +5385,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           {/* Leave Button - VISIBLE ON ALL SCREENS */}
           <button
             onClick={onLeave}
-            className="flex items-center justify-center p-1.5 sm:px-3 sm:py-2 bg-rose-50/95 text-rose-600 hover:bg-rose-100 hover:text-rose-700 rounded-lg sm:rounded-xl font-bold transition-all text-xs border border-rose-200/80 shadow-xs active:scale-90 shrink-0 pointer-events-auto"
+            className="flex items-center justify-center p-1 xs:p-1.5 sm:px-3 sm:py-2 bg-rose-50/95 text-rose-600 hover:bg-rose-100 hover:text-rose-700 rounded-lg sm:rounded-xl font-bold transition-all text-xs border border-rose-200/80 shadow-xs active:scale-90 shrink-0 pointer-events-auto"
             title="Leave Canvas"
           >
             <LogOut size={13} className="sm:w-4 sm:h-4 text-rose-500" />
