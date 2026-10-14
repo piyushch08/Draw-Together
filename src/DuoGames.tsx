@@ -17,11 +17,13 @@ import {
   Bot, 
   Send, 
   Play, 
-  HelpCircle,
-  Flame,
-  ArrowRight
+  Pencil,
+  Eraser,
+  Trash2,
+  Undo2,
+  ChevronLeft
 } from "lucide-react";
-import { GameType, DuoGameState, GameParticipant } from "./types";
+import { GameType, TicTacToeState, InkWarState, PictionaryState, BlindDrawState } from "./types";
 
 // ==========================================
 // SOUND SYNTHESIZER (Web Audio API)
@@ -40,7 +42,7 @@ class SoundFX {
     }
   }
 
-  playTone(freq: number, duration: number, type: OscillatorType = "sine", gainVal: number = 0.15) {
+  playTone(freq: number, duration: number, type: OscillatorType = "sine", gainVal: number = 0.12) {
     if (!this.enabled) return;
     try {
       this.init();
@@ -59,32 +61,28 @@ class SoundFX {
   }
 
   tick() {
-    this.playTone(600, 0.08, "triangle", 0.08);
+    this.playTone(520, 0.05, "sine", 0.08);
   }
 
   start() {
-    this.playTone(440, 0.1, "sine", 0.15);
-    setTimeout(() => this.playTone(880, 0.25, "sine", 0.2), 100);
+    this.playTone(440, 0.09, "sine", 0.12);
+    setTimeout(() => this.playTone(660, 0.18, "sine", 0.15), 90);
   }
 
   correct() {
-    this.playTone(523.25, 0.1, "sine", 0.2); // C5
-    setTimeout(() => this.playTone(659.25, 0.1, "sine", 0.2), 90); // E5
-    setTimeout(() => this.playTone(783.99, 0.22, "sine", 0.25), 180); // G5
+    this.playTone(523.25, 0.09, "sine", 0.15);
+    setTimeout(() => this.playTone(659.25, 0.09, "sine", 0.18), 80);
+    setTimeout(() => this.playTone(783.99, 0.2, "sine", 0.2), 160);
   }
 
   win() {
     [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
-      setTimeout(() => this.playTone(freq, 0.28, "triangle", 0.25), i * 110);
+      setTimeout(() => this.playTone(freq, 0.22, "sine", 0.2), i * 100);
     });
   }
 
   move() {
-    this.playTone(380, 0.06, "sine", 0.1);
-  }
-
-  clash() {
-    this.playTone(220, 0.15, "sawtooth", 0.1);
+    this.playTone(400, 0.05, "sine", 0.08);
   }
 }
 
@@ -94,43 +92,37 @@ export const soundFX = new SoundFX();
 // PICTIONARY WORD BANK
 // ==========================================
 export const PICTIONARY_WORDS = [
-  { word: "PIZZA", category: "Food", hint: "Cheesy slice" },
-  { word: "CAT", category: "Animals", hint: "Furry pet with whiskers" },
+  { word: "PIZZA", category: "Food", hint: "Cheesy triangular slice" },
+  { word: "CAT", category: "Animals", hint: "Whiskers and purring" },
   { word: "ROCKET", category: "Space", hint: "Shoots into the stars" },
-  { word: "SUNGLASSES", category: "Accessories", hint: "Worn on a sunny day" },
   { word: "BURGER", category: "Food", hint: "Bun, patty, lettuce" },
   { word: "GIRAFFE", category: "Animals", hint: "Has a very long neck" },
   { word: "GUITAR", category: "Music", hint: "Instrument with 6 strings" },
-  { word: "VOLCANO", category: "Nature", hint: "Erupts with hot lava" },
-  { word: "ROBOT", category: "Sci-Fi", hint: "Mechanical electronic friend" },
-  { word: "CANDLE", category: "Objects", hint: "Flickering flame on wax" },
-  { word: "AIRPLANE", category: "Vehicles", hint: "Flies with wings" },
-  { word: "ELEPHANT", category: "Animals", hint: "Has a long trunk" },
-  { word: "ICE CREAM", category: "Food", hint: "Cold dessert on a cone" },
-  { word: "RAINBOW", category: "Nature", hint: "Colors after the rain" },
-  { word: "CASTLE", category: "Buildings", hint: "Towers and drawbridges" },
-  { word: "PENGUIN", category: "Animals", hint: "Waddles on ice in tuxedo" },
-  { word: "DIAMOND", category: "Items", hint: "Sparkling precious gem" },
-  { word: "CAMPFIRE", category: "Outdoors", hint: "Roasting marshmallows" },
-  { word: "TREASURE", category: "Adventure", hint: "Gold inside a chest" },
-  { word: "HELICOPTER", category: "Vehicles", hint: "Spinning blades on top" },
-  { word: "BUTTERFLY", category: "Animals", hint: "Colorful fluttering wings" },
-  { word: "SUBMARINE", category: "Vehicles", hint: "Explores deep oceans" },
-  { word: "MICROPHONE", category: "Music", hint: "Amplifies singing voice" },
-  { word: "DONUT", category: "Food", hint: "Sweet ring with glaze" },
-  { word: "SUNFLOWER", category: "Nature", hint: "Tall yellow bloom" },
-  { word: "BICYCLE", category: "Vehicles", hint: "Two wheels & pedals" }
+  { word: "VOLCANO", category: "Nature", hint: "Erupts with molten lava" },
+  { word: "ROBOT", category: "Sci-Fi", hint: "Mechanical android friend" },
+  { word: "AIRPLANE", category: "Vehicles", hint: "Flies high in the sky" },
+  { word: "ELEPHANT", category: "Animals", hint: "Large ears and a trunk" },
+  { word: "ICE CREAM", category: "Food", hint: "Cold sweet dessert on a cone" },
+  { word: "RAINBOW", category: "Nature", hint: "Colors after a rainstorm" },
+  { word: "CASTLE", category: "Buildings", hint: "Stone towers and drawbridge" },
+  { word: "PENGUIN", category: "Animals", hint: "Flightless bird in the snow" },
+  { word: "DIAMOND", category: "Items", hint: "Sparkling precious gemstone" },
+  { word: "CAMPFIRE", category: "Outdoors", hint: "Flames for roasting marshmallows" },
+  { word: "HELICOPTER", category: "Vehicles", hint: "Rotating blades on top" },
+  { word: "BUTTERFLY", category: "Nature", hint: "Fluttering wings on flowers" },
+  { word: "DONUT", category: "Food", hint: "Round pastry with a hole" },
+  { word: "SUNFLOWER", category: "Plants", hint: "Tall bright yellow bloom" },
+  { word: "BICYCLE", category: "Vehicles", hint: "Two wheels and pedals" }
 ];
 
 export const BLIND_DRAW_PROMPTS = [
-  "Draw a smiling dinosaur wearing a party hat",
-  "Draw a cat riding a skateboard",
+  "Draw a smiling cat wearing sunglasses",
+  "Draw a dancing robot with sneakers",
   "Draw an alien eating a slice of pizza",
-  "Draw a snowman on the beach",
-  "Draw a dancing octopus with shoes",
-  "Draw an astronaut walking a dog on the moon",
-  "Draw a bird flying an airplane",
-  "Draw a birthday cake with 10 candles"
+  "Draw a snowman holding an umbrella on the beach",
+  "Draw a cute dinosaur playing a guitar",
+  "Draw a dog driving a sports car",
+  "Draw an astronaut riding a skateboard on the moon"
 ];
 
 // ==========================================
@@ -149,42 +141,43 @@ export function ConfettiCanvas({ active }: { active: boolean }) {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    const colors = ["#7C3AED", "#C8F53A", "#EC4899", "#3B82F6", "#F59E0B", "#10B981"];
-    const particles = Array.from({ length: 90 }).map(() => ({
-      x: canvas.width / 2 + (Math.random() - 0.5) * 300,
-      y: canvas.height * 0.45,
-      vx: (Math.random() - 0.5) * 16,
-      vy: -Math.random() * 14 - 6,
-      size: Math.random() * 9 + 4,
+    const colors = ["#7C3AED", "#10B981", "#3B82F6", "#F59E0B", "#EC4899"];
+    const particles = Array.from({ length: 70 }).map(() => ({
+      x: canvas.width / 2 + (Math.random() - 0.5) * 260,
+      y: canvas.height * 0.4,
+      vx: (Math.random() - 0.5) * 12,
+      vy: -Math.random() * 12 - 5,
+      size: Math.random() * 8 + 4,
       color: colors[Math.floor(Math.random() * colors.length)],
       rotation: Math.random() * 360,
-      rotSpeed: (Math.random() - 0.5) * 12,
-      gravity: 0.38,
-      opacity: 1
+      vr: (Math.random() - 0.5) * 10,
+      alpha: 1
     }));
 
     let animId: number;
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       let alive = false;
-      for (const p of particles) {
+
+      particles.forEach((p) => {
         p.x += p.vx;
         p.y += p.vy;
-        p.vy += p.gravity;
-        p.rotation += p.rotSpeed;
-        p.opacity = Math.max(0, p.opacity - 0.007);
+        p.vy += 0.35; // gravity
+        p.rotation += p.vr;
+        p.alpha -= 0.009;
 
-        if (p.opacity > 0 && p.y < canvas.height + 50) {
+        if (p.alpha > 0) {
           alive = true;
           ctx.save();
+          ctx.globalAlpha = Math.max(0, p.alpha);
           ctx.translate(p.x, p.y);
           ctx.rotate((p.rotation * Math.PI) / 180);
-          ctx.globalAlpha = p.opacity;
           ctx.fillStyle = p.color;
           ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
           ctx.restore();
         }
-      }
+      });
+
       if (alive) {
         animId = requestAnimationFrame(render);
       }
@@ -195,6 +188,7 @@ export function ConfettiCanvas({ active }: { active: boolean }) {
   }, [active]);
 
   if (!active) return null;
+
   return (
     <canvas 
       ref={canvasRef} 
@@ -204,150 +198,65 @@ export function ConfettiCanvas({ active }: { active: boolean }) {
 }
 
 // ==========================================
-// MAIN DUO GAMES ARENA COMPONENT
+// MINIMALIST DRAWING BOARD (Self-Contained)
 // ==========================================
-interface DuoGamesProps {
-  socket: any;
-  roomId: string;
-  currentUserId: string;
-  username: string;
-  users: Record<string, any>;
-  isOpen: boolean;
-  onClose: () => void;
-  onClearCanvas: () => void;
-  onSelectColor: (color: string) => void;
-  onSelectSize: (size: number) => void;
-  onSelectTool: (tool: any) => void;
-  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+interface MiniCanvasProps {
+  color: string;
+  size: number;
+  isEraser: boolean;
+  onCoverageSample?: (sample: { p1: number; p2: number }) => void;
+  p1Color?: string;
+  p2Color?: string;
+  disabled?: boolean;
+  clearTrigger?: number;
 }
 
-export function DuoGamesArena({
-  socket,
-  roomId,
-  currentUserId,
-  username,
-  users,
-  isOpen,
-  onClose,
-  onClearCanvas,
-  onSelectColor,
-  onSelectSize,
-  onSelectTool,
-  canvasRef
-}: DuoGamesProps) {
-  // Master Game State
-  const [gameState, setGameState] = useState<DuoGameState>({
-    activeGame: null,
-    player1: null,
-    player2: null
-  });
+function MiniCanvas({
+  color,
+  size,
+  isEraser,
+  onCoverageSample,
+  p1Color = "#7C3AED",
+  p2Color = "#10B981",
+  disabled = false,
+  clearTrigger = 0
+}: MiniCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const isDrawingRef = useRef(false);
+  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showConfetti, setShowConfetti] = useState(false);
-  const [guessInput, setGuessInput] = useState("");
-  const [isAloneWarning, setIsAloneWarning] = useState(false);
-  const [passAndPlay, setPassAndPlay] = useState(false);
-  const [blindfoldActive, setBlindfoldActive] = useState(false);
-
-  // Sync sound settings
+  // Initialize canvas
   useEffect(() => {
-    soundFX.enabled = soundEnabled;
-  }, [soundEnabled]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-  // Determine Players
-  const userList = Object.values(users || {});
-  const otherUsers = userList.filter((u: any) => u.id !== currentUserId);
-  const isSolo = otherUsers.length === 0;
+    // Use high resolution for crisp lines
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(rect.width * dpr);
+    canvas.height = Math.floor(rect.height * dpr);
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+  }, []);
 
-  // Socket sync listeners
+  // Clear when clearTrigger changes
   useEffect(() => {
-    if (!socket) return;
+    if (clearTrigger === 0) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, rect.width, rect.height);
+  }, [clearTrigger]);
 
-    const handleAction = (data: { action: string; payload: any; senderId: string }) => {
-      if (data.senderId === socket.id) return;
-
-      switch (data.action) {
-        case "start_game":
-          setGameState(data.payload);
-          soundFX.start();
-          break;
-        case "update_game":
-          setGameState(data.payload);
-          break;
-        case "tictactoe_move":
-          soundFX.move();
-          setGameState(prev => {
-            if (!prev.ticTacToe) return prev;
-            return {
-              ...prev,
-              ticTacToe: {
-                ...prev.ticTacToe,
-                board: data.payload.board,
-                currentTurn: data.payload.currentTurn,
-                winningLine: data.payload.winningLine,
-                status: data.payload.status,
-                winnerId: data.payload.winnerId,
-                p1Wins: data.payload.p1Wins,
-                p2Wins: data.payload.p2Wins,
-                draws: data.payload.draws
-              }
-            };
-          });
-          if (data.payload.status === "finished") {
-            soundFX.win();
-            setShowConfetti(true);
-            setTimeout(() => setShowConfetti(false), 4000);
-          }
-          break;
-        case "pictionary_guess_correct":
-          soundFX.correct();
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 3000);
-          setGameState(data.payload);
-          break;
-        case "ink_war_finish":
-          soundFX.win();
-          setShowConfetti(true);
-          setTimeout(() => setShowConfetti(false), 4000);
-          setGameState(data.payload);
-          break;
-        case "blind_vote":
-          setGameState(data.payload);
-          break;
-        case "exit_game":
-          setGameState({ activeGame: null, player1: null, player2: null });
-          break;
-        default:
-          break;
-      }
-    };
-
-    const handleSync = (data: { gameState: DuoGameState; senderId: string }) => {
-      if (data.senderId === socket.id) return;
-      if (data.gameState) setGameState(data.gameState);
-    };
-
-    socket.on("duo-game-action", handleAction);
-    socket.on("duo-game-sync", handleSync);
-
-    return () => {
-      socket.off("duo-game-action", handleAction);
-      socket.off("duo-game-sync", handleSync);
-    };
-  }, [socket]);
-
-  // Broadcast helper
-  const emitGameAction = useCallback((action: string, payload: any) => {
-    if (!socket || !roomId) return;
-    socket.emit("duo-game-action", { roomId, action, payload });
-  }, [socket, roomId]);
-
-  // ==========================================
-  // INK WAR LIVE CANVAS COVERAGE SCANNER
-  // ==========================================
+  // Periodic territory scanner for Ink War
   useEffect(() => {
-    if (gameState.activeGame !== "ink_war" || gameState.inkWar?.status !== "battling") return;
-
+    if (!onCoverageSample) return;
     const interval = setInterval(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -357,8 +266,7 @@ export function DuoGamesArena({
       try {
         const w = canvas.width;
         const h = canvas.height;
-        // Sample 1200 random points across the canvas for 60fps lightweight estimation
-        const sampleCount = 800;
+        const sampleCount = 600;
         let p1Count = 0;
         let p2Count = 0;
 
@@ -375,1047 +283,1149 @@ export function DuoGamesArena({
           const a = data[idx + 3];
 
           if (a > 30) {
-            // Check for Purple/Indigo (#7C3AED / Violet)
-            if (r > 90 && b > 140 && g < 120) {
+            // Check for Violet (#7C3AED: high B, moderate R, lower G)
+            if (b > 150 && r > 80 && g < 130) {
               p1Count++;
             }
-            // Check for Lime/Emerald (#10B981 / #84CC16)
-            else if (g > 130 && r < 140) {
+            // Check for Emerald (#10B981: high G, moderate R/B)
+            else if (g > 140 && r < 120) {
               p2Count++;
             }
           }
         }
 
         const totalMarked = p1Count + p2Count;
-        let p1Cov = 50;
-        let p2Cov = 50;
-        if (totalMarked > 5) {
-          p1Cov = Math.round((p1Count / totalMarked) * 100);
-          p2Cov = 100 - p1Cov;
+        let p1Pct = 50;
+        let p2Pct = 50;
+        if (totalMarked > 4) {
+          p1Pct = Math.round((p1Count / totalMarked) * 100);
+          p2Pct = 100 - p1Pct;
         }
-
-        setGameState(prev => {
-          if (!prev.inkWar || prev.inkWar.status !== "battling") return prev;
-          return {
-            ...prev,
-            inkWar: {
-              ...prev.inkWar,
-              player1Coverage: p1Cov,
-              player2Coverage: p2Cov
-            }
-          };
-        });
+        onCoverageSample({ p1: p1Pct, p2: p2Pct });
       } catch {}
-    }, 800);
+    }, 700);
 
     return () => clearInterval(interval);
-  }, [gameState.activeGame, gameState.inkWar?.status, canvasRef]);
+  }, [onCoverageSample]);
 
-  // ==========================================
-  // GAME COUNTDOWN & TIMERS
-  // ==========================================
+  const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  };
+
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (disabled) return;
+    isDrawingRef.current = true;
+    const coords = getCanvasCoords(e);
+    lastPointRef.current = coords;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.beginPath();
+    ctx.arc(coords.x, coords.y, (isEraser ? size * 2 : size) / 2, 0, Math.PI * 2);
+    ctx.fillStyle = isEraser ? "#FFFFFF" : color;
+    ctx.fill();
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawingRef.current || disabled) return;
+    const coords = getCanvasCoords(e);
+    const canvas = canvasRef.current;
+    if (!canvas || !lastPointRef.current) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.strokeStyle = isEraser ? "#FFFFFF" : color;
+    ctx.lineWidth = isEraser ? size * 2 : size;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(lastPointRef.current.x, lastPointRef.current.y);
+    ctx.lineTo(coords.x, coords.y);
+    ctx.stroke();
+
+    lastPointRef.current = coords;
+  };
+
+  const endDraw = () => {
+    isDrawingRef.current = false;
+    lastPointRef.current = null;
+  };
+
+  return (
+    <canvas
+      ref={canvasRef}
+      onMouseDown={startDraw}
+      onMouseMove={draw}
+      onMouseUp={endDraw}
+      onMouseLeave={endDraw}
+      onTouchStart={startDraw}
+      onTouchMove={draw}
+      onTouchEnd={endDraw}
+      className={`w-full h-full bg-white touch-none cursor-crosshair rounded-xl select-none ${
+        disabled ? "pointer-events-none opacity-80" : ""
+      }`}
+    />
+  );
+}
+
+// ==========================================
+// MAIN HOMESCREEN DUO GAMES ARENA MODAL
+// ==========================================
+export interface DuoGamesModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialGame?: GameType | null;
+  username?: string;
+}
+
+export function DuoGamesArena({
+  isOpen,
+  onClose,
+  initialGame = null,
+  username = "Player"
+}: DuoGamesModalProps) {
+  const [activeGame, setActiveGame] = useState<GameType | null>(initialGame);
+  const [gameMode, setGameMode] = useState<"pass_and_play" | "ai_rival">("pass_and_play");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  // Drawing Tools State
+  const [brushColor, setBrushColor] = useState<string>("#7C3AED");
+  const [brushSize, setBrushSize] = useState<number>(6);
+  const [isEraser, setIsEraser] = useState(false);
+  const [clearCount, setClearCount] = useState(0);
+
+  // 1. TIC-TAC-TOE STATE
+  const [ttt, setTtt] = useState<TicTacToeState>({
+    board: Array(9).fill(null),
+    currentTurn: "p1",
+    winningLine: null,
+    status: "playing",
+    winnerId: undefined,
+    p1Wins: 0,
+    p2Wins: 0,
+    draws: 0
+  });
+
+  // 2. INK WAR STATE
+  const [inkWar, setInkWar] = useState<InkWarState>({
+    timeLeft: 30,
+    player1Coverage: 50,
+    player2Coverage: 50,
+    status: "idle",
+    winnerId: undefined
+  });
+
+  // 3. PICTIONARY STATE
+  const [pictionary, setPictionary] = useState<PictionaryState>({
+    word: "PIZZA",
+    category: "Food",
+    drawerId: "p1",
+    round: 1,
+    totalRounds: 4,
+    timeLeft: 45,
+    status: "idle",
+    hints: ["Cheesy triangular slice"],
+    lastGuesserName: undefined
+  });
+  const [pictionaryGuess, setPictionaryGuess] = useState("");
+  const [p1Score, setP1Score] = useState(0);
+  const [p2Score, setP2Score] = useState(0);
+
+  // 4. BLIND DRAW STATE
+  const [blindDraw, setBlindDraw] = useState<BlindDrawState>({
+    prompt: BLIND_DRAW_PROMPTS[0],
+    timeLeft: 25,
+    status: "idle",
+    winnerId: undefined,
+    p1Votes: 0,
+    p2Votes: 0
+  });
+  const [hasVoted, setHasVoted] = useState(false);
+
+  // Sync sound setting
   useEffect(() => {
-    if (!gameState.activeGame) return;
+    soundFX.enabled = soundEnabled;
+  }, [soundEnabled]);
 
-    // Ink War Timer
-    if (gameState.activeGame === "ink_war" && gameState.inkWar?.status === "battling") {
-      const timer = setInterval(() => {
-        setGameState(prev => {
-          if (!prev.inkWar || prev.inkWar.status !== "battling") return prev;
-          const nextTime = prev.inkWar.timeLeft - 1;
-          if (nextTime <= 5 && nextTime > 0) soundFX.tick();
+  // If initialGame provided, open it
+  useEffect(() => {
+    if (initialGame) setActiveGame(initialGame);
+  }, [initialGame]);
 
-          if (nextTime <= 0) {
-            const p1Won = prev.inkWar.player1Coverage > prev.inkWar.player2Coverage;
-            const isDraw = prev.inkWar.player1Coverage === prev.inkWar.player2Coverage;
-            const winner = isDraw ? "draw" : p1Won ? prev.player1?.id : prev.player2?.id;
+  // ==========================================
+  // TIC-TAC-TOE LOGIC
+  // ==========================================
+  const checkTttWinner = (board: (string | null)[]) => {
+    const lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+    for (const line of lines) {
+      const [a, b, c] = line;
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return { winner: board[a], line };
+      }
+    }
+    if (board.every(cell => cell !== null)) {
+      return { winner: "draw", line: null };
+    }
+    return null;
+  };
 
-            soundFX.win();
-            setShowConfetti(true);
-            setTimeout(() => setShowConfetti(false), 4000);
+  const handleTttClick = (index: number) => {
+    if (ttt.status !== "playing" || ttt.board[index] !== null) return;
 
-            const updated: DuoGameState = {
-              ...prev,
-              player1: prev.player1 ? { ...prev.player1, score: prev.player1.score + (p1Won ? 1 : 0) } : null,
-              player2: prev.player2 ? { ...prev.player2, score: prev.player2.score + (!p1Won && !isDraw ? 1 : 0) } : null,
-              inkWar: {
-                ...prev.inkWar,
-                timeLeft: 0,
-                status: "finished",
-                winnerId: winner
-              }
-            };
-            emitGameAction("ink_war_finish", updated);
-            return updated;
-          }
+    soundFX.move();
+    const mark = ttt.currentTurn === "p1" ? "X" : "O";
+    const nextBoard = [...ttt.board];
+    nextBoard[index] = mark;
 
-          return {
-            ...prev,
-            inkWar: { ...prev.inkWar, timeLeft: nextTime }
-          };
-        });
-      }, 1000);
-      return () => clearInterval(timer);
+    const result = checkTttWinner(nextBoard);
+    if (result) {
+      if (result.winner === "draw") {
+        setTtt(prev => ({
+          ...prev,
+          board: nextBoard,
+          status: "finished",
+          winnerId: "draw",
+          draws: prev.draws + 1,
+          winningLine: null
+        }));
+      } else {
+        const isP1 = result.winner === "X";
+        soundFX.win();
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+        setTtt(prev => ({
+          ...prev,
+          board: nextBoard,
+          status: "finished",
+          winnerId: isP1 ? "p1" : "p2",
+          p1Wins: isP1 ? prev.p1Wins + 1 : prev.p1Wins,
+          p2Wins: !isP1 ? prev.p2Wins + 1 : prev.p2Wins,
+          winningLine: result.line
+        }));
+      }
+      return;
     }
 
-    // Pictionary Timer
-    if (gameState.activeGame === "pictionary" && gameState.pictionary?.status === "drawing") {
-      const timer = setInterval(() => {
-        setGameState(prev => {
-          if (!prev.pictionary || prev.pictionary.status !== "drawing") return prev;
-          const nextTime = prev.pictionary.timeLeft - 1;
-          if (nextTime <= 5 && nextTime > 0) soundFX.tick();
+    const nextTurn = ttt.currentTurn === "p1" ? "p2" : "p1";
+    setTtt(prev => ({ ...prev, board: nextBoard, currentTurn: nextTurn }));
 
-          if (nextTime <= 0) {
-            soundFX.playTone(200, 0.4, "sawtooth", 0.2); // Time's up buzzer
-            const updated: DuoGameState = {
-              ...prev,
-              pictionary: {
-                ...prev.pictionary,
-                timeLeft: 0,
-                status: "round_end"
-              }
-            };
-            emitGameAction("update_game", updated);
-            return updated;
-          }
-
-          return {
-            ...prev,
-            pictionary: { ...prev.pictionary, timeLeft: nextTime }
-          };
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-
-    // Blind Draw Timer
-    if (gameState.activeGame === "blind_draw" && gameState.blindDraw?.status === "drawing") {
-      const timer = setInterval(() => {
-        setGameState(prev => {
-          if (!prev.blindDraw || prev.blindDraw.status !== "drawing") return prev;
-          const nextTime = prev.blindDraw.timeLeft - 1;
-          if (nextTime <= 5 && nextTime > 0) soundFX.tick();
-
-          if (nextTime <= 0) {
-            soundFX.win();
-            setBlindfoldActive(false);
-            const updated: DuoGameState = {
-              ...prev,
-              blindDraw: {
-                ...prev.blindDraw,
-                timeLeft: 0,
-                status: "reveal"
-              }
-            };
-            emitGameAction("update_game", updated);
-            return updated;
-          }
-
-          return {
-            ...prev,
-            blindDraw: { ...prev.blindDraw, timeLeft: nextTime }
-          };
-        });
-      }, 1000);
-      return () => clearInterval(timer);
-    }
-  }, [gameState.activeGame, gameState.inkWar?.status, gameState.pictionary?.status, gameState.blindDraw?.status, emitGameAction]);
-
-  // ==========================================
-  // START GAME CONTROLLERS
-  // ==========================================
-  const startPictionary = () => {
-    const p1: GameParticipant = {
-      id: currentUserId,
-      username: username || "Player 1",
-      color: "#7C3AED",
-      score: 0
-    };
-    const otherUser = otherUsers[0];
-    const p2: GameParticipant = {
-      id: otherUser ? otherUser.id : "bot-rival",
-      username: otherUser ? otherUser.username : (passAndPlay ? "Player 2" : "AI Rival"),
-      color: "#10B981",
-      score: 0
-    };
-
-    const wordItem = PICTIONARY_WORDS[Math.floor(Math.random() * PICTIONARY_WORDS.length)];
-    onClearCanvas();
-    onSelectTool("brush");
-    onSelectSize(8);
-    onSelectColor("#7C3AED");
-
-    const newGameState: DuoGameState = {
-      activeGame: "pictionary",
-      player1: p1,
-      player2: p2,
-      pictionary: {
-        word: wordItem.word,
-        category: wordItem.category,
-        drawerId: p1.id,
-        round: 1,
-        totalRounds: 4,
-        timeLeft: 45,
-        status: "drawing",
-        hints: [wordItem.hint]
-      }
-    };
-
-    soundFX.start();
-    setGameState(newGameState);
-    emitGameAction("start_game", newGameState);
-    onClose();
-  };
-
-  const startInkWar = () => {
-    const p1: GameParticipant = {
-      id: currentUserId,
-      username: username || "Player 1",
-      color: "#7C3AED",
-      score: 0
-    };
-    const otherUser = otherUsers[0];
-    const p2: GameParticipant = {
-      id: otherUser ? otherUser.id : "bot-rival",
-      username: otherUser ? otherUser.username : (passAndPlay ? "Player 2" : "Neon Bot"),
-      color: "#10B981",
-      score: 0
-    };
-
-    onClearCanvas();
-    // Default P1 to Violet, P2 to Emerald
-    onSelectTool("brush");
-    onSelectSize(32); // Thick battle brush!
-    onSelectColor("#7C3AED");
-
-    const newGameState: DuoGameState = {
-      activeGame: "ink_war",
-      player1: p1,
-      player2: p2,
-      inkWar: {
-        timeLeft: 30,
-        player1Coverage: 50,
-        player2Coverage: 50,
-        status: "battling"
-      }
-    };
-
-    soundFX.start();
-    setGameState(newGameState);
-    emitGameAction("start_game", newGameState);
-    onClose();
-  };
-
-  const startTicTacToe = () => {
-    const p1: GameParticipant = {
-      id: currentUserId,
-      username: username || "Player 1",
-      color: "#7C3AED",
-      score: 0
-    };
-    const otherUser = otherUsers[0];
-    const p2: GameParticipant = {
-      id: otherUser ? otherUser.id : "bot-rival",
-      username: otherUser ? otherUser.username : (passAndPlay ? "Player 2" : "Smart Bot"),
-      color: "#10B981",
-      score: 0
-    };
-
-    const newGameState: DuoGameState = {
-      activeGame: "tictactoe",
-      player1: p1,
-      player2: p2,
-      ticTacToe: {
-        board: Array(9).fill(null),
-        currentTurn: "p1",
-        winningLine: null,
-        status: "playing",
-        p1Wins: 0,
-        p2Wins: 0,
-        draws: 0
-      }
-    };
-
-    soundFX.start();
-    setGameState(newGameState);
-    emitGameAction("start_game", newGameState);
-    onClose();
-  };
-
-  const startBlindDraw = () => {
-    const p1: GameParticipant = {
-      id: currentUserId,
-      username: username || "Player 1",
-      color: "#7C3AED",
-      score: 0
-    };
-    const otherUser = otherUsers[0];
-    const p2: GameParticipant = {
-      id: otherUser ? otherUser.id : "bot-rival",
-      username: otherUser ? otherUser.username : (passAndPlay ? "Player 2" : "AI Rival"),
-      color: "#10B981",
-      score: 0
-    };
-
-    const prompt = BLIND_DRAW_PROMPTS[Math.floor(Math.random() * BLIND_DRAW_PROMPTS.length)];
-    onClearCanvas();
-    onSelectTool("brush");
-    onSelectSize(6);
-    onSelectColor("#1E293B");
-    setBlindfoldActive(true);
-
-    const newGameState: DuoGameState = {
-      activeGame: "blind_draw",
-      player1: p1,
-      player2: p2,
-      blindDraw: {
-        prompt,
-        timeLeft: 30,
-        status: "drawing",
-        votes: {}
-      }
-    };
-
-    soundFX.start();
-    setGameState(newGameState);
-    emitGameAction("start_game", newGameState);
-    onClose();
-  };
-
-  // ==========================================
-  // IN-GAME ACTIONS & GUESSING
-  // ==========================================
-  const handleGuessSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!guessInput.trim() || !gameState.pictionary) return;
-
-    const guess = guessInput.trim().toUpperCase();
-    const targetWord = gameState.pictionary.word.toUpperCase();
-    setGuessInput("");
-
-    if (guess === targetWord) {
-      soundFX.correct();
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 3000);
-
-      const points = Math.max(10, gameState.pictionary.timeLeft * 2);
-      const isP1Guesser = gameState.pictionary.drawerId !== gameState.player1?.id;
-
-      const updated: DuoGameState = {
-        ...gameState,
-        player1: gameState.player1
-          ? { ...gameState.player1, score: gameState.player1.score + (isP1Guesser ? points : 10) }
-          : null,
-        player2: gameState.player2
-          ? { ...gameState.player2, score: gameState.player2.score + (!isP1Guesser ? points : 10) }
-          : null,
-        pictionary: {
-          ...gameState.pictionary,
-          status: "round_end",
-          lastGuesserName: username || "Guesser"
-        }
-      };
-
-      setGameState(updated);
-      emitGameAction("pictionary_guess_correct", updated);
-    } else {
-      soundFX.playTone(260, 0.08, "square", 0.1); // soft buzz
+    // AI Turn in ai_rival mode
+    if (gameMode === "ai_rival" && nextTurn === "p2") {
+      setTimeout(() => {
+        makeAiTttMove(nextBoard);
+      }, 350);
     }
   };
 
-  const nextPictionaryRound = () => {
-    if (!gameState.pictionary) return;
-    onClearCanvas();
-    const nextRound = gameState.pictionary.round + 1;
-    const isNewDrawerP2 = gameState.pictionary.drawerId === gameState.player1?.id;
-    const nextDrawerId = isNewDrawerP2 ? (gameState.player2?.id || "p2") : (gameState.player1?.id || "p1");
+  const makeAiTttMove = (currentBoard: (string | null)[]) => {
+    const emptyIndices = currentBoard
+      .map((val, idx) => (val === null ? idx : null))
+      .filter((v): v is number => v !== null);
 
-    const wordItem = PICTIONARY_WORDS[Math.floor(Math.random() * PICTIONARY_WORDS.length)];
+    if (emptyIndices.length === 0) return;
 
-    const updated: DuoGameState = {
-      ...gameState,
-      pictionary: {
-        ...gameState.pictionary,
-        round: nextRound,
-        word: wordItem.word,
-        category: wordItem.category,
-        drawerId: nextDrawerId,
-        timeLeft: 45,
-        status: nextRound > gameState.pictionary.totalRounds ? "game_over" : "drawing",
-        hints: [wordItem.hint],
-        lastGuesserName: undefined
-      }
-    };
-
-    soundFX.start();
-    setGameState(updated);
-    emitGameAction("update_game", updated);
-  };
-
-  // Tic-Tac-Toe Move
-  const handleTicTacToeCellClick = (index: number) => {
-    if (!gameState.ticTacToe || gameState.ticTacToe.status !== "playing") return;
-    if (gameState.ticTacToe.board[index] !== null) return;
-
-    const currentTurn = gameState.ticTacToe.currentTurn; // "p1" or "p2"
-    const isP1 = currentTurn === "p1";
-    const mark = isP1 ? "X" : "O";
-
-    const newBoard = [...gameState.ticTacToe.board];
-    newBoard[index] = mark;
-
-    // Check winner
+    // Smart move: check if AI can win, or block player
+    let chosen = emptyIndices[0];
     const lines = [
       [0, 1, 2], [3, 4, 5], [6, 7, 8],
       [0, 3, 6], [1, 4, 7], [2, 5, 8],
       [0, 4, 8], [2, 4, 6]
     ];
 
-    let winningLine: number[] | null = null;
-    for (const line of lines) {
-      const [a, b, c] = line;
-      if (newBoard[a] && newBoard[a] === newBoard[b] && newBoard[a] === newBoard[c]) {
-        winningLine = line;
+    // 1. Can AI ("O") win?
+    for (const [a, b, c] of lines) {
+      const vals = [currentBoard[a], currentBoard[b], currentBoard[c]];
+      if (vals.filter(v => v === "O").length === 2 && vals.includes(null)) {
+        chosen = [a, b, c].find(i => currentBoard[i] === null)!;
         break;
       }
     }
 
+    // 2. Can player ("X") win next turn? Block!
+    if (chosen === emptyIndices[0]) {
+      for (const [a, b, c] of lines) {
+        const vals = [currentBoard[a], currentBoard[b], currentBoard[c]];
+        if (vals.filter(v => v === "X").length === 2 && vals.includes(null)) {
+          chosen = [a, b, c].find(i => currentBoard[i] === null)!;
+          break;
+        }
+      }
+    }
+
+    // 3. Take center if available
+    if (currentBoard[4] === null) chosen = 4;
+
+    const nextBoard = [...currentBoard];
+    nextBoard[chosen] = "O";
     soundFX.move();
 
-    if (winningLine) {
-      soundFX.win();
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 4000);
-
-      const p1Won = mark === "X";
-      const updated: DuoGameState = {
-        ...gameState,
-        ticTacToe: {
-          ...gameState.ticTacToe,
-          board: newBoard,
-          winningLine,
-          status: "finished",
-          winnerId: p1Won ? gameState.player1?.id : gameState.player2?.id,
-          p1Wins: gameState.ticTacToe.p1Wins + (p1Won ? 1 : 0),
-          p2Wins: gameState.ticTacToe.p2Wins + (!p1Won ? 1 : 0)
-        }
-      };
-      setGameState(updated);
-      emitGameAction("tictactoe_move", updated.ticTacToe);
-    } else if (newBoard.every(cell => cell !== null)) {
-      // Draw
-      soundFX.clash();
-      const updated: DuoGameState = {
-        ...gameState,
-        ticTacToe: {
-          ...gameState.ticTacToe,
-          board: newBoard,
-          winningLine: null,
+    const result = checkTttWinner(nextBoard);
+    if (result) {
+      if (result.winner === "draw") {
+        setTtt(prev => ({
+          ...prev,
+          board: nextBoard,
           status: "finished",
           winnerId: "draw",
-          draws: gameState.ticTacToe.draws + 1
-        }
-      };
-      setGameState(updated);
-      emitGameAction("tictactoe_move", updated.ticTacToe);
-    } else {
-      const nextTurn = isP1 ? "p2" : "p1";
-      const updated: DuoGameState = {
-        ...gameState,
-        ticTacToe: {
-          ...gameState.ticTacToe,
-          board: newBoard,
-          currentTurn: nextTurn
-        }
-      };
-      setGameState(updated);
-      emitGameAction("tictactoe_move", updated.ticTacToe);
-
-      // AI Rival Move if playing alone and not pass & play
-      if (isSolo && !passAndPlay && nextTurn === "p2") {
-        setTimeout(() => {
-          const availableIndices = newBoard.map((val, idx) => (val === null ? idx : null)).filter(val => val !== null) as number[];
-          if (availableIndices.length > 0) {
-            const randomPick = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-            handleTicTacToeCellClick(randomPick);
-          }
-        }, 600);
+          draws: prev.draws + 1,
+          winningLine: null
+        }));
+      } else {
+        soundFX.win();
+        setTtt(prev => ({
+          ...prev,
+          board: nextBoard,
+          status: "finished",
+          winnerId: "p2",
+          p2Wins: prev.p2Wins + 1,
+          winningLine: result.line
+        }));
       }
+    } else {
+      setTtt(prev => ({ ...prev, board: nextBoard, currentTurn: "p1" }));
     }
   };
 
-  const restartTicTacToeRound = () => {
-    if (!gameState.ticTacToe) return;
-    const updated: DuoGameState = {
-      ...gameState,
-      ticTacToe: {
-        ...gameState.ticTacToe,
-        board: Array(9).fill(null),
-        winningLine: null,
-        status: "playing",
-        currentTurn: "p1",
-        winnerId: undefined
-      }
-    };
+  const restartTttRound = () => {
     soundFX.start();
-    setGameState(updated);
-    emitGameAction("tictactoe_move", updated.ticTacToe);
+    setTtt(prev => ({
+      ...prev,
+      board: Array(9).fill(null),
+      currentTurn: "p1",
+      winningLine: null,
+      status: "playing",
+      winnerId: undefined
+    }));
   };
 
-  // Exit Active Game
-  const exitGame = () => {
-    setBlindfoldActive(false);
-    setGameState({ activeGame: null, player1: null, player2: null });
-    emitGameAction("exit_game", {});
+  // ==========================================
+  // INK WAR TIMERS & LOGIC
+  // ==========================================
+  useEffect(() => {
+    if (activeGame !== "ink_war" || inkWar.status !== "battling") return;
+
+    const timer = setInterval(() => {
+      setInkWar(prev => {
+        if (prev.timeLeft <= 1) {
+          clearInterval(timer);
+          soundFX.win();
+          setShowConfetti(true);
+          setTimeout(() => setShowConfetti(false), 3500);
+
+          let winner: string | "draw" = "draw";
+          if (prev.player1Coverage > prev.player2Coverage) winner = "p1";
+          else if (prev.player2Coverage > prev.player1Coverage) winner = "p2";
+
+          return { ...prev, timeLeft: 0, status: "finished", winnerId: winner };
+        }
+        if (prev.timeLeft <= 6) soundFX.tick();
+        return { ...prev, timeLeft: prev.timeLeft - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeGame, inkWar.status]);
+
+  const startInkWarGame = () => {
+    soundFX.start();
+    setClearCount(c => c + 1);
+    setBrushColor("#7C3AED");
+    setBrushSize(8);
+    setIsEraser(false);
+    setInkWar({
+      timeLeft: 30,
+      player1Coverage: 50,
+      player2Coverage: 50,
+      status: "battling",
+      winnerId: undefined
+    });
   };
+
+  // ==========================================
+  // SPEED PICTIONARY TIMERS & LOGIC
+  // ==========================================
+  useEffect(() => {
+    if (activeGame !== "pictionary" || pictionary.status !== "drawing") return;
+
+    const timer = setInterval(() => {
+      setPictionary(prev => {
+        if (prev.timeLeft <= 1) {
+          clearInterval(timer);
+          return { ...prev, timeLeft: 0, status: "round_end" };
+        }
+        if (prev.timeLeft <= 5) soundFX.tick();
+        return { ...prev, timeLeft: prev.timeLeft - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeGame, pictionary.status]);
+
+  const startPictionaryGame = () => {
+    soundFX.start();
+    setClearCount(c => c + 1);
+    const item = PICTIONARY_WORDS[Math.floor(Math.random() * PICTIONARY_WORDS.length)];
+    setPictionary({
+      word: item.word,
+      category: item.category,
+      drawerId: "p1",
+      round: 1,
+      totalRounds: 4,
+      timeLeft: 45,
+      status: "drawing",
+      hints: [item.hint],
+      lastGuesserName: undefined
+    });
+    setP1Score(0);
+    setP2Score(0);
+    setPictionaryGuess("");
+  };
+
+  const nextPictionaryRound = () => {
+    soundFX.start();
+    setClearCount(c => c + 1);
+    const nextRound = pictionary.round + 1;
+    const nextDrawer = pictionary.drawerId === "p1" ? "p2" : "p1";
+    const item = PICTIONARY_WORDS[Math.floor(Math.random() * PICTIONARY_WORDS.length)];
+
+    setPictionary({
+      word: item.word,
+      category: item.category,
+      drawerId: nextDrawer,
+      round: nextRound,
+      totalRounds: 4,
+      timeLeft: 45,
+      status: nextRound > 4 ? "game_over" : "drawing",
+      hints: [item.hint],
+      lastGuesserName: undefined
+    });
+    setPictionaryGuess("");
+  };
+
+  const handlePictionaryGuessSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!pictionaryGuess.trim() || pictionary.status !== "drawing") return;
+
+    const cleanInput = pictionaryGuess.trim().toUpperCase();
+    if (cleanInput === pictionary.word.toUpperCase()) {
+      soundFX.correct();
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2500);
+
+      const points = Math.max(10, pictionary.timeLeft * 2);
+      if (pictionary.drawerId === "p1") {
+        setP2Score(s => s + points);
+        setP1Score(s => s + Math.floor(points / 2)); // reward drawer too
+      } else {
+        setP1Score(s => s + points);
+        setP2Score(s => s + Math.floor(points / 2));
+      }
+
+      setPictionary(prev => ({
+        ...prev,
+        status: "round_end",
+        lastGuesserName: pictionary.drawerId === "p1" ? (gameMode === "ai_rival" ? "AI Rival" : "Player 2") : username
+      }));
+    } else {
+      soundFX.playTone(260, 0.08, "square", 0.08); // gentle wrong buzz
+    }
+    setPictionaryGuess("");
+  };
+
+  // ==========================================
+  // BLINDFOLD DRAW TIMERS & LOGIC
+  // ==========================================
+  useEffect(() => {
+    if (activeGame !== "blind_draw" || blindDraw.status !== "drawing") return;
+
+    const timer = setInterval(() => {
+      setBlindDraw(prev => {
+        if (prev.timeLeft <= 1) {
+          clearInterval(timer);
+          soundFX.win();
+          return { ...prev, timeLeft: 0, status: "reveal" };
+        }
+        if (prev.timeLeft <= 5) soundFX.tick();
+        return { ...prev, timeLeft: prev.timeLeft - 1 };
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [activeGame, blindDraw.status]);
+
+  const startBlindDrawGame = () => {
+    soundFX.start();
+    setClearCount(c => c + 1);
+    setHasVoted(false);
+    const prompt = BLIND_DRAW_PROMPTS[Math.floor(Math.random() * BLIND_DRAW_PROMPTS.length)];
+    setBlindDraw({
+      prompt,
+      timeLeft: 25,
+      status: "drawing",
+      winnerId: undefined,
+      p1Votes: 0,
+      p2Votes: 0
+    });
+  };
+
+  if (!isOpen) return null;
 
   return (
-    <>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/60 backdrop-blur-md">
       <ConfettiCanvas active={showConfetti} />
 
-      {/* ========================================================= */}
-      {/* 1. ACTIVE GAME HUD (FLOATING IN THE CANVAS) */}
-      {/* ========================================================= */}
-      <AnimatePresence>
-        {gameState.activeGame && (
-          <motion.div
-            initial={{ y: -40, opacity: 0, scale: 0.95 }}
-            animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: -40, opacity: 0, scale: 0.95 }}
-            className="fixed top-14 xs:top-16 sm:top-20 left-1/2 -translate-x-1/2 z-40 w-full max-w-xl px-2 pointer-events-none select-none"
-          >
-            <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 text-white rounded-2xl sm:rounded-3xl p-2.5 xs:p-3 sm:p-4 shadow-2xl pointer-events-auto ring-1 ring-white/10 flex flex-col gap-2">
-              
-              {/* Top Row: Game Name, Timer, Audio & Exit */}
-              <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-2">
-                <div className="flex items-center gap-1.5 xs:gap-2">
-                  <div className="p-1 xs:p-1.5 rounded-lg bg-violet-600/30 text-violet-400 border border-violet-500/30">
-                    <Swords size={16} />
-                  </div>
-                  <div>
-                    <h4 className="text-xs sm:text-sm font-black tracking-tight flex items-center gap-1">
-                      {gameState.activeGame === "pictionary" && "Speed Pictionary"}
-                      {gameState.activeGame === "ink_war" && "Ink War Arena"}
-                      {gameState.activeGame === "tictactoe" && "Neon Tic-Tac-Toe"}
-                      {gameState.activeGame === "blind_draw" && "Blindfold Sketch"}
-                      <span className="text-[9px] uppercase font-bold text-lime-400 bg-lime-400/10 px-1.5 py-0.5 rounded ml-1">Duo</span>
-                    </h4>
-                  </div>
-                </div>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 10 }}
+        className="bg-white rounded-3xl border border-slate-200/90 shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[92vh]"
+      >
+        {/* ========================================== */}
+        {/* REFINED MINIMALIST HEADER */}
+        {/* ========================================== */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+          <div className="flex items-center gap-3">
+            {activeGame && (
+              <button
+                onClick={() => setActiveGame(null)}
+                className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors active:scale-95"
+                title="Back to games"
+              >
+                <ChevronLeft size={18} />
+              </button>
+            )}
 
-                {/* Score Pill */}
-                <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1 rounded-xl text-xs font-mono font-bold">
-                  <span className="text-violet-400">{gameState.player1?.username || "P1"}: {gameState.player1?.score || 0}</span>
-                  <span className="text-slate-500">vs</span>
-                  <span className="text-emerald-400">{gameState.player2?.username || "P2"}: {gameState.player2?.score || 0}</span>
-                </div>
-
-                {/* Utility Buttons */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => setSoundEnabled(!soundEnabled)}
-                    className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
-                    title={soundEnabled ? "Mute sounds" : "Enable sounds"}
-                  >
-                    {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-                  </button>
-                  <button
-                    onClick={exitGame}
-                    className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-rose-950/40 transition-colors"
-                    title="Exit game"
-                  >
-                    <X size={15} />
-                  </button>
-                </div>
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center">
+                <Gamepad2 size={18} />
               </div>
-
-              {/* ========================================================= */}
-              {/* PICTIONARY SPECIFIC HUD */}
-              {/* ========================================================= */}
-              {gameState.activeGame === "pictionary" && gameState.pictionary && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-400 font-semibold">Round {gameState.pictionary.round}/{gameState.pictionary.totalRounds}</span>
-                      <span className="w-1 h-1 rounded-full bg-slate-600" />
-                      <span className="text-violet-300 font-bold">{gameState.pictionary.category}</span>
-                    </div>
-
-                    {/* Clock */}
-                    <div className="flex items-center gap-1 font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">
-                      <Clock size={12} />
-                      <span>{gameState.pictionary.timeLeft}s</span>
-                    </div>
-                  </div>
-
-                  {/* Drawer View vs Guesser View */}
-                  {gameState.pictionary.drawerId === currentUserId ? (
-                    <div className="bg-violet-950/40 border border-violet-500/30 rounded-xl p-2 flex items-center justify-between">
-                      <div>
-                        <span className="text-[10px] uppercase font-bold text-violet-400 tracking-wider">Your Secret Word</span>
-                        <p className="text-sm sm:text-base font-black text-white tracking-widest uppercase">
-                          {gameState.pictionary.word}
-                        </p>
-                      </div>
-                      <span className="text-xs text-slate-400 italic hidden xs:inline">Draw this on canvas!</span>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1.5">
-                      <div className="flex items-center justify-between bg-slate-800/60 p-2 rounded-xl border border-slate-700/50">
-                        <span className="text-xs text-slate-300">
-                          Guess the word: <span className="font-mono tracking-widest text-lime-400 font-bold">{gameState.pictionary.word.replace(/[A-Z0-9]/g, "_ ")}</span>
-                        </span>
-                        <span className="text-[10px] text-slate-400 italic">Hint: {gameState.pictionary.hints[0]}</span>
-                      </div>
-
-                      <form onSubmit={handleGuessSubmit} className="flex gap-1.5">
-                        <input
-                          type="text"
-                          value={guessInput}
-                          onChange={e => setGuessInput(e.target.value)}
-                          placeholder="Type your guess here..."
-                          className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 text-xs font-bold text-white placeholder-slate-400 outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500"
-                        />
-                        <button
-                          type="submit"
-                          className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all"
-                        >
-                          <Send size={12} />
-                          <span>Guess</span>
-                        </button>
-                      </form>
-                    </div>
-                  )}
-
-                  {/* Round End Overlay inside HUD */}
-                  {gameState.pictionary.status === "round_end" && (
-                    <div className="flex items-center justify-between bg-emerald-950/50 border border-emerald-500/40 p-2 rounded-xl">
-                      <div>
-                        <span className="text-[10px] text-emerald-400 font-black uppercase tracking-wider">Round Complete!</span>
-                        <p className="text-xs font-bold text-white">
-                          The word was: <span className="text-lime-300 uppercase">{gameState.pictionary.word}</span>
-                          {gameState.pictionary.lastGuesserName && ` (Guessed by ${gameState.pictionary.lastGuesserName})`}
-                        </p>
-                      </div>
-                      <button
-                        onClick={nextPictionaryRound}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition-all"
-                      >
-                        <span>Next Round</span>
-                        <ArrowRight size={13} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ========================================================= */}
-              {/* INK WAR SPECIFIC HUD */}
-              {/* ========================================================= */}
-              {gameState.activeGame === "ink_war" && gameState.inkWar && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-bold flex items-center gap-1">
-                      <Flame size={13} className="text-amber-400" /> Paint & Claim Territory!
-                    </span>
-                    <div className="flex items-center gap-1 font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">
-                      <Clock size={12} />
-                      <span>{gameState.inkWar.timeLeft}s</span>
-                    </div>
-                  </div>
-
-                  {/* Territory Meter */}
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between text-[11px] font-black uppercase tracking-wider">
-                      <span className="text-violet-400">{gameState.player1?.username || "P1"}: {gameState.inkWar.player1Coverage}%</span>
-                      <span className="text-emerald-400">{gameState.player2?.username || "P2"}: {gameState.inkWar.player2Coverage}%</span>
-                    </div>
-                    <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden flex ring-1 ring-slate-700">
-                      <div 
-                        className="h-full bg-gradient-to-r from-violet-600 to-purple-500 transition-all duration-300" 
-                        style={{ width: `${gameState.inkWar.player1Coverage}%` }}
-                      />
-                      <div 
-                        className="h-full bg-gradient-to-r from-emerald-500 to-lime-400 transition-all duration-300" 
-                        style={{ width: `${gameState.inkWar.player2Coverage}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {gameState.inkWar.status === "finished" && (
-                    <div className="flex items-center justify-between bg-violet-950/60 border border-violet-500/40 p-2 rounded-xl mt-1">
-                      <span className="text-xs font-bold text-lime-300">
-                        {gameState.inkWar.winnerId === "draw" 
-                          ? "🤝 Intense Draw! Match Tied!" 
-                          : `🏆 ${gameState.inkWar.winnerId === gameState.player1?.id ? gameState.player1?.username : gameState.player2?.username} Wins the Clash!`}
-                      </span>
-                      <button
-                        onClick={startInkWar}
-                        className="bg-violet-600 hover:bg-violet-500 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition-all"
-                      >
-                        <RotateCcw size={12} /> Rematch
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ========================================================= */}
-              {/* TIC-TAC-TOE SPECIFIC HUD */}
-              {/* ========================================================= */}
-              {gameState.activeGame === "tictactoe" && gameState.ticTacToe && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-300 font-bold">
-                        Turn: {gameState.ticTacToe.currentTurn === "p1" ? (
-                          <span className="text-violet-400 font-black">{gameState.player1?.username || "P1"} (X)</span>
-                        ) : (
-                          <span className="text-emerald-400 font-black">{gameState.player2?.username || "P2"} (O)</span>
-                        )}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-slate-400">
-                      <span>W:{gameState.ticTacToe.p1Wins}</span>
-                      <span>L:{gameState.ticTacToe.p2Wins}</span>
-                      <span>D:{gameState.ticTacToe.draws}</span>
-                    </div>
-                  </div>
-
-                  {gameState.ticTacToe.status === "finished" && (
-                    <div className="flex items-center justify-between bg-emerald-950/50 border border-emerald-500/40 p-2 rounded-xl">
-                      <span className="text-xs font-bold text-lime-300">
-                        {gameState.ticTacToe.winnerId === "draw"
-                          ? "🤝 Well Played! It's a Draw!"
-                          : `🏆 ${gameState.ticTacToe.winnerId === gameState.player1?.id ? gameState.player1?.username : gameState.player2?.username} Claims Victory!`}
-                      </span>
-                      <button
-                        onClick={restartTicTacToeRound}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition-all"
-                      >
-                        <RotateCcw size={12} /> Play Again
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ========================================================= */}
-              {/* BLIND DRAW SPECIFIC HUD */}
-              {/* ========================================================= */}
-              {gameState.activeGame === "blind_draw" && gameState.blindDraw && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-violet-300 font-bold flex items-center gap-1">
-                      <EyeOff size={13} className="text-amber-400" /> Blind Drawing Challenge
-                    </span>
-                    <div className="flex items-center gap-1 font-mono font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-md">
-                      <Clock size={12} />
-                      <span>{gameState.blindDraw.timeLeft}s</span>
-                    </div>
-                  </div>
-
-                  <div className="bg-slate-800/80 p-2 rounded-xl border border-slate-700">
-                    <span className="text-[10px] uppercase font-bold text-slate-400">Challenge Prompt</span>
-                    <p className="text-xs sm:text-sm font-black text-lime-300">
-                      "{gameState.blindDraw.prompt}"
-                    </p>
-                  </div>
-
-                  {gameState.blindDraw.status === "reveal" && (
-                    <div className="flex items-center justify-between bg-violet-950/60 border border-violet-500/40 p-2 rounded-xl">
-                      <span className="text-xs font-bold text-white">Blindfold Lifted! Vote for Best Sketch:</span>
-                      <div className="flex gap-1.5">
-                        <button
-                          onClick={() => {
-                            soundFX.correct();
-                            setGameState(prev => ({
-                              ...prev,
-                              player1: prev.player1 ? { ...prev.player1, score: prev.player1.score + 1 } : null,
-                              blindDraw: prev.blindDraw ? { ...prev.blindDraw, status: "finished", winnerId: prev.player1?.id } : undefined
-                            }));
-                          }}
-                          className="bg-violet-600 hover:bg-violet-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold"
-                        >
-                          P1
-                        </button>
-                        <button
-                          onClick={() => {
-                            soundFX.correct();
-                            setGameState(prev => ({
-                              ...prev,
-                              player2: prev.player2 ? { ...prev.player2, score: prev.player2.score + 1 } : null,
-                              blindDraw: prev.blindDraw ? { ...prev.blindDraw, status: "finished", winnerId: prev.player2?.id } : undefined
-                            }));
-                          }}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-1 rounded-lg text-xs font-bold"
-                        >
-                          P2
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {gameState.blindDraw.status === "finished" && (
-                    <div className="flex items-center justify-between bg-emerald-950/50 border border-emerald-500/40 p-2 rounded-xl">
-                      <span className="text-xs font-bold text-lime-300">
-                        🏆 Winner Crowned for Blind Sketch!
-                      </span>
-                      <button
-                        onClick={startBlindDraw}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 active:scale-95 transition-all"
-                      >
-                        <RotateCcw size={12} /> Next Prompt
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
+              <div>
+                <h3 className="text-sm sm:text-base font-black text-slate-900 tracking-tight">
+                  {activeGame === "tictactoe" && "⭕ Tic-Tac-Toe Grid Duel"}
+                  {activeGame === "ink_war" && "⚔️ Ink War: Territory Clash"}
+                  {activeGame === "pictionary" && "🎨 Speed Pictionary Rush"}
+                  {activeGame === "blind_draw" && "🙈 Blindfold Sketch Battle"}
+                  {!activeGame && "Duo Games Arena"}
+                </h3>
+                <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
+                  {!activeGame 
+                    ? "Simple, clean, and fast 2-player games" 
+                    : `${gameMode === "pass_and_play" ? "2-Player Pass & Play" : "Singleplayer vs AI Rival"}`}
+                </p>
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
 
-      {/* ========================================================= */}
-      {/* 2. TIC-TAC-TOE INTERACTIVE ON-CANVAS BOARD */}
-      {/* ========================================================= */}
-      <AnimatePresence>
-        {gameState.activeGame === "tictactoe" && gameState.ticTacToe && (
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            className="fixed inset-0 z-30 flex items-center justify-center pointer-events-none p-4"
-          >
-            <div className="w-[300px] h-[300px] xs:w-[340px] xs:h-[340px] sm:w-[380px] sm:h-[380px] bg-slate-900/90 backdrop-blur-2xl border-2 border-indigo-500/30 rounded-3xl p-3 sm:p-4 shadow-[0_20px_60px_-15px_rgba(99,102,241,0.3)] pointer-events-auto grid grid-cols-3 gap-2.5 relative">
-              {gameState.ticTacToe.board.map((cell, idx) => {
-                const isWinningCell = gameState.ticTacToe?.winningLine?.includes(idx);
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleTicTacToeCellClick(idx)}
-                    disabled={cell !== null || gameState.ticTacToe?.status !== "playing"}
-                    className={`h-full rounded-2xl border-2 flex items-center justify-center transition-all text-4xl sm:text-5xl font-black select-none ${
-                      cell === "X"
-                        ? "text-violet-400 bg-violet-950/40 border-violet-500/60 shadow-lg shadow-violet-500/20"
-                        : cell === "O"
-                        ? "text-emerald-400 bg-emerald-950/40 border-emerald-500/60 shadow-lg shadow-emerald-500/20"
-                        : "bg-slate-800/40 border-slate-700/60 hover:bg-slate-800 hover:border-indigo-400/50 cursor-pointer active:scale-95"
-                    } ${isWinningCell ? "ring-4 ring-lime-400 animate-pulse bg-lime-950/40" : ""}`}
-                  >
-                    {cell}
-                  </button>
-                );
-              })}
+          <div className="flex items-center gap-2">
+            {/* Mode Switcher */}
+            <div className="bg-slate-100 p-0.5 rounded-xl flex items-center text-xs font-bold text-slate-600">
+              <button
+                onClick={() => setGameMode("pass_and_play")}
+                className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                  gameMode === "pass_and_play" ? "bg-white text-slate-900 shadow-xs font-black" : "text-slate-500 hover:text-slate-800"
+                }`}
+                title="Pass & Play on same screen"
+              >
+                <Users size={12} />
+                <span className="hidden xs:inline">Duo</span>
+              </button>
+              <button
+                onClick={() => setGameMode("ai_rival")}
+                className={`px-2.5 py-1 rounded-lg transition-all flex items-center gap-1 ${
+                  gameMode === "ai_rival" ? "bg-white text-slate-900 shadow-xs font-black" : "text-slate-500 hover:text-slate-800"
+                }`}
+                title="Play against AI Rival"
+              >
+                <Bot size={12} />
+                <span className="hidden xs:inline">vs AI</span>
+              </button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
-      {/* ========================================================= */}
-      {/* 3. BLINDFOLD DRAWING MASK OVERLAY */}
-      {/* ========================================================= */}
-      <AnimatePresence>
-        {gameState.activeGame === "blind_draw" && blindfoldActive && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-20 pointer-events-none flex items-center justify-center backdrop-blur-md bg-slate-950/30"
-          >
-            <div className="bg-slate-900/95 border border-slate-700 px-4 py-2.5 rounded-2xl shadow-2xl flex items-center gap-2 text-white animate-pulse">
-              <EyeOff size={18} className="text-amber-400" />
-              <span className="text-xs sm:text-sm font-black tracking-wider uppercase">
-                🙈 Blindfold Active: Trust Your Muscle Memory!
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* ========================================================= */}
-      {/* 4. DUO GAMES SELECTION ARENA MODAL */}
-      {/* ========================================================= */}
-      <AnimatePresence>
-        {isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 xs:p-4 bg-slate-950/75 backdrop-blur-sm">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 15 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 15 }}
-              className="bg-white/95 backdrop-blur-2xl border border-slate-200/90 rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl overflow-hidden relative max-h-[90vh] flex flex-col"
+            {/* Sound Toggle */}
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-all"
+              title={soundEnabled ? "Mute audio" : "Unmute audio"}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#7C3AED] to-[#C8F53A] flex items-center justify-center shadow-lg shadow-purple-500/25">
-                    <Gamepad2 className="text-white" size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight font-['Fredoka',sans-serif]">
-                      Duo Competitive Arena
-                    </h3>
-                    <p className="text-xs text-slate-500 font-semibold">
-                      Simple, fast, and competitive real-time canvas games
-                    </p>
-                  </div>
-                </div>
+              {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+            </button>
 
-                <div className="flex items-center gap-2">
-                  {/* Pass & Play or AI Mode Toggle if solo */}
-                  {isSolo && (
-                    <button
-                      onClick={() => setPassAndPlay(!passAndPlay)}
-                      className={`text-[10px] font-bold px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1 ${
-                        passAndPlay 
-                          ? "bg-violet-50 border-violet-300 text-violet-700" 
-                          : "bg-slate-100 border-slate-200 text-slate-600"
-                      }`}
-                      title="Toggle 2-Player Pass & Play mode"
-                    >
-                      {passAndPlay ? <Users size={12} /> : <Bot size={12} />}
-                      <span>{passAndPlay ? "Pass & Play" : "AI Rival Mode"}</span>
-                    </button>
-                  )}
+            {/* Close Button */}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 text-slate-400 flex items-center justify-center transition-all active:scale-95"
+              title="Close modal"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
 
-                  <button
-                    onClick={onClose}
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+        {/* ========================================== */}
+        {/* MODAL BODY */}
+        {/* ========================================== */}
+        <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50">
+
+          {/* ------------------------------------------ */}
+          {/* MENU VIEW (SELECT A GAME)                  */}
+          {/* ------------------------------------------ */}
+          {!activeGame && (
+            <div className="space-y-4">
+              <div className="text-center max-w-sm mx-auto space-y-1 mb-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full border border-violet-100">
+                  Instant Duo Play
+                </span>
+                <h4 className="text-lg font-black text-slate-900 font-['Fredoka',sans-serif]">
+                  Select a Competitive Mini-Game
+                </h4>
+                <p className="text-xs text-slate-500">
+                  Play with a friend on this device or test your skills against the AI Rival!
+                </p>
               </div>
 
-              {/* Player Status Bar */}
-              <div className="py-3 px-3.5 my-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                  <span className="font-bold text-slate-700">Room Status:</span>
-                  <span className="text-slate-500">
-                    {userList.length} Connected {userList.length === 1 ? "(Invite a friend or play vs AI!)" : "(Ready for Duo Battle!)"}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1 text-[11px] font-mono font-bold text-indigo-600">
-                  <span>Room: #{roomId}</span>
-                </div>
-              </div>
-
-              {/* Game Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 overflow-y-auto no-scrollbar py-2">
-                
-                {/* 1. INK WAR */}
-                <div className="border-2 border-slate-200/80 hover:border-violet-500 rounded-2xl p-4 transition-all hover:shadow-lg bg-gradient-to-br from-white to-violet-50/30 flex flex-col justify-between group">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center shadow-md">
-                        <Flame size={17} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* 1. Tic-Tac-Toe */}
+                <div 
+                  onClick={() => {
+                    setActiveGame("tictactoe");
+                    restartTttRound();
+                  }}
+                  className="bg-white border border-slate-200/90 hover:border-violet-400 hover:shadow-md rounded-2xl p-4 transition-all cursor-pointer flex flex-col justify-between group text-left active:scale-[0.99]"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Trophy size={18} />
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-violet-600 bg-violet-100 px-2 py-0.5 rounded-md">
-                        30s Battle
-                      </span>
-                    </div>
-                    <h4 className="text-sm font-black text-slate-900 mb-1 group-hover:text-violet-700 transition-colors">
-                      ⚔️ Ink War: Territory Painter
-                    </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-3">
-                      Both players furiously paint canvas territory. Live scanner calculates % control. Whoever dominates the board at 0s wins!
-                    </p>
-                  </div>
-                  <button
-                    onClick={startInkWar}
-                    className="w-full py-2.5 px-3 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-95 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-violet-500/20 transition-all"
-                  >
-                    <Play size={14} /> Start Paint Battle
-                  </button>
-                </div>
-
-                {/* 2. SPEED PICTIONARY */}
-                <div className="border-2 border-slate-200/80 hover:border-emerald-500 rounded-2xl p-4 transition-all hover:shadow-lg bg-gradient-to-br from-white to-emerald-50/30 flex flex-col justify-between group">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md">
-                        <Sparkles size={17} />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-md">
-                        Duo Guess
-                      </span>
-                    </div>
-                    <h4 className="text-sm font-black text-slate-900 mb-1 group-hover:text-emerald-700 transition-colors">
-                      🎨 Speed Pictionary Rush
-                    </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-3">
-                      One sketches the secret prompt, other guesses in real time. Faster guesses earn higher points! Roles swap each round!
-                    </p>
-                  </div>
-                  <button
-                    onClick={startPictionary}
-                    className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all"
-                  >
-                    <Play size={14} /> Start Pictionary
-                  </button>
-                </div>
-
-                {/* 3. NEON TIC-TAC-TOE */}
-                <div className="border-2 border-slate-200/80 hover:border-indigo-500 rounded-2xl p-4 transition-all hover:shadow-lg bg-gradient-to-br from-white to-indigo-50/30 flex flex-col justify-between group">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
-                        <Trophy size={17} />
-                      </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-100 px-2 py-0.5 rounded-md">
+                      <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50/80 px-2 py-0.5 rounded-md">
                         Tactical
                       </span>
                     </div>
-                    <h4 className="text-sm font-black text-slate-900 mb-1 group-hover:text-indigo-700 transition-colors">
-                      ⭕ Neon Tic-Tac-Toe Grid
-                    </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-3">
-                      Holographic 3x3 canvas duel. Tap or draw your mark. Features automated line detection, live score series, and instant rematches!
-                    </p>
+                    <div>
+                      <h5 className="text-sm font-black text-slate-900 group-hover:text-indigo-600 transition-colors">
+                        ⭕ Neon Tic-Tac-Toe Grid
+                      </h5>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        Sleek 3×3 tactical duel with instant win detection, match score counters, and smart AI!
+                      </p>
+                    </div>
                   </div>
-                  <button
-                    onClick={startTicTacToe}
-                    className="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-indigo-500/20 transition-all"
-                  >
-                    <Play size={14} /> Start Grid Duel
-                  </button>
+                  <div className="pt-4 flex items-center gap-1 text-xs font-bold text-indigo-600 group-hover:translate-x-1 transition-transform">
+                    <span>Play Grid Duel</span> →
+                  </div>
                 </div>
 
-                {/* 4. BLINDFOLD DRAW */}
-                <div className="border-2 border-slate-200/80 hover:border-amber-500 rounded-2xl p-4 transition-all hover:shadow-lg bg-gradient-to-br from-white to-amber-50/30 flex flex-col justify-between group">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-md">
-                        <EyeOff size={17} />
+                {/* 2. Ink War */}
+                <div 
+                  onClick={() => {
+                    setActiveGame("ink_war");
+                    startInkWarGame();
+                  }}
+                  className="bg-white border border-slate-200/90 hover:border-violet-400 hover:shadow-md rounded-2xl p-4 transition-all cursor-pointer flex flex-col justify-between group text-left active:scale-[0.99]"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Swords size={18} />
                       </div>
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 bg-amber-100 px-2 py-0.5 rounded-md">
-                        Hilarious
+                      <span className="text-[10px] font-bold text-violet-600 bg-violet-50/80 px-2 py-0.5 rounded-md">
+                        30s Battle
                       </span>
                     </div>
-                    <h4 className="text-sm font-black text-slate-900 mb-1 group-hover:text-amber-700 transition-colors">
-                      🙈 Blindfold Sketch Battle
-                    </h4>
-                    <p className="text-xs text-slate-500 leading-relaxed mb-3">
-                      Both get the same prompt, but your own canvas is masked while drawing! At 0s, the blindfolds lift for a hilarious reveal & vote!
-                    </p>
+                    <div>
+                      <h5 className="text-sm font-black text-slate-900 group-hover:text-violet-600 transition-colors">
+                        ⚔️ Ink War: Territory Clash
+                      </h5>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        Fast-paced 30s paint battle. Claim the canvas with your ink color and watch live territory %!
+                      </p>
+                    </div>
                   </div>
+                  <div className="pt-4 flex items-center gap-1 text-xs font-bold text-violet-600 group-hover:translate-x-1 transition-transform">
+                    <span>Play Territory War</span> →
+                  </div>
+                </div>
+
+                {/* 3. Speed Pictionary */}
+                <div 
+                  onClick={() => {
+                    setActiveGame("pictionary");
+                    startPictionaryGame();
+                  }}
+                  className="bg-white border border-slate-200/90 hover:border-emerald-400 hover:shadow-md rounded-2xl p-4 transition-all cursor-pointer flex flex-col justify-between group text-left active:scale-[0.99]"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <Sparkles size={18} />
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50/80 px-2 py-0.5 rounded-md">
+                        Guess & Sketch
+                      </span>
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-black text-slate-900 group-hover:text-emerald-600 transition-colors">
+                        🎨 Speed Pictionary Rush
+                      </h5>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        One sketches against a 45s clock, the other guesses! Letter hints reveal as time ticks.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pt-4 flex items-center gap-1 text-xs font-bold text-emerald-600 group-hover:translate-x-1 transition-transform">
+                    <span>Play Pictionary</span> →
+                  </div>
+                </div>
+
+                {/* 4. Blindfold Draw */}
+                <div 
+                  onClick={() => {
+                    setActiveGame("blind_draw");
+                    startBlindDrawGame();
+                  }}
+                  className="bg-white border border-slate-200/90 hover:border-amber-400 hover:shadow-md rounded-2xl p-4 transition-all cursor-pointer flex flex-col justify-between group text-left active:scale-[0.99]"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                        <EyeOff size={18} />
+                      </div>
+                      <span className="text-[10px] font-bold text-amber-600 bg-amber-50/80 px-2 py-0.5 rounded-md">
+                        Muscle Memory
+                      </span>
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors">
+                        🙈 Blindfold Sketch Battle
+                      </h5>
+                      <p className="text-xs text-slate-500 leading-relaxed mt-1">
+                        Draw the mystery prompt while your canvas is masked! At 0s, the blindfold drops for reveal & vote!
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pt-4 flex items-center gap-1 text-xs font-bold text-amber-600 group-hover:translate-x-1 transition-transform">
+                    <span>Play Blindfold Draw</span> →
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------ */}
+          {/* 1. TIC-TAC-TOE ACTIVE VIEW                 */}
+          {/* ------------------------------------------ */}
+          {activeGame === "tictactoe" && (
+            <div className="flex flex-col items-center max-w-sm mx-auto space-y-4">
+              {/* Scoreboard */}
+              <div className="w-full bg-white border border-slate-200/90 rounded-2xl p-3 flex items-center justify-around shadow-xs text-center">
+                <div>
+                  <div className="text-[10px] font-black uppercase text-violet-600">Player 1 (X)</div>
+                  <div className="text-lg font-black text-slate-900">{ttt.p1Wins}</div>
+                </div>
+                <div className="h-6 w-px bg-slate-200" />
+                <div>
+                  <div className="text-[10px] font-black uppercase text-slate-400">Ties</div>
+                  <div className="text-lg font-black text-slate-600">{ttt.draws}</div>
+                </div>
+                <div className="h-6 w-px bg-slate-200" />
+                <div>
+                  <div className="text-[10px] font-black uppercase text-emerald-600">
+                    {gameMode === "ai_rival" ? "AI (O)" : "Player 2 (O)"}
+                  </div>
+                  <div className="text-lg font-black text-slate-900">{ttt.p2Wins}</div>
+                </div>
+              </div>
+
+              {/* Status Indicator */}
+              <div className="text-xs font-bold text-slate-600">
+                {ttt.status === "playing" ? (
+                  <span>
+                    Current Turn:{" "}
+                    <span className={ttt.currentTurn === "p1" ? "text-violet-600 font-black" : "text-emerald-600 font-black"}>
+                      {ttt.currentTurn === "p1" ? "Player 1 (X)" : (gameMode === "ai_rival" ? "AI Rival (O)" : "Player 2 (O)")}
+                    </span>
+                  </span>
+                ) : ttt.winnerId === "draw" ? (
+                  <span className="text-slate-600 font-black">🤝 It's a Tie! Well Played!</span>
+                ) : (
+                  <span className="text-emerald-600 font-black">
+                    🏆 {ttt.winnerId === "p1" ? "Player 1 (X)" : (gameMode === "ai_rival" ? "AI Rival" : "Player 2 (O)")} Wins!
+                  </span>
+                )}
+              </div>
+
+              {/* 3x3 Minimalist Grid */}
+              <div className="grid grid-cols-3 gap-2 bg-slate-200/80 p-2.5 rounded-2xl shadow-inner w-64 h-64 sm:w-72 sm:h-72">
+                {ttt.board.map((cell, idx) => {
+                  const isWinningCell = ttt.winningLine?.includes(idx);
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleTttClick(idx)}
+                      disabled={cell !== null || ttt.status !== "playing"}
+                      className={`rounded-xl font-black text-3xl sm:text-4xl flex items-center justify-center transition-all shadow-xs ${
+                        isWinningCell
+                          ? "bg-emerald-500 text-white animate-pulse"
+                          : cell === null
+                          ? "bg-white hover:bg-slate-50 text-slate-300"
+                          : cell === "X"
+                          ? "bg-white text-violet-600"
+                          : "bg-white text-emerald-600"
+                      }`}
+                    >
+                      {cell}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  onClick={restartTttRound}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+                >
+                  <RotateCcw size={13} /> {ttt.status === "finished" ? "Next Round" : "Reset Board"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ------------------------------------------ */}
+          {/* 2. INK WAR ACTIVE VIEW                     */}
+          {/* ------------------------------------------ */}
+          {activeGame === "ink_war" && (
+            <div className="space-y-3">
+              {/* Top Territory Bar */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-violet-600 flex items-center gap-1">
+                    <span className="w-2.5 h-2.5 rounded-full bg-violet-600" />
+                    P1 (Violet): {inkWar.player1Coverage}%
+                  </span>
+                  
+                  <div className="flex items-center gap-1 font-mono text-xs font-black text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                    <Clock size={12} />
+                    <span>{inkWar.timeLeft}s</span>
+                  </div>
+
+                  <span className="text-emerald-600 flex items-center gap-1">
+                    P2 (Emerald): {inkWar.player2Coverage}%
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  </span>
+                </div>
+
+                <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden flex">
+                  <div 
+                    className="bg-violet-600 transition-all duration-300" 
+                    style={{ width: `${inkWar.player1Coverage}%` }} 
+                  />
+                  <div 
+                    className="bg-emerald-500 transition-all duration-300" 
+                    style={{ width: `${inkWar.player2Coverage}%` }} 
+                  />
+                </div>
+              </div>
+
+              {/* Status or Result Banner */}
+              {inkWar.status === "finished" && (
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-center text-xs font-bold flex items-center justify-between">
+                  <span>
+                    🏆 {inkWar.winnerId === "p1" ? "Player 1 (Violet) Claims the Territory!" : inkWar.winnerId === "p2" ? "Player 2 (Emerald) Wins the Clash!" : "🤝 Incredible Draw!"}
+                  </span>
                   <button
-                    onClick={startBlindDraw}
-                    className="w-full py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-white font-black text-xs flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/20 transition-all"
+                    onClick={startInkWarGame}
+                    className="px-3 py-1 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700"
                   >
-                    <Play size={14} /> Start Blindfold Draw
+                    Play Again
+                  </button>
+                </div>
+              )}
+
+              {/* Canvas Area */}
+              <div className="w-full h-72 sm:h-80 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs relative bg-white">
+                <MiniCanvas
+                  color={brushColor}
+                  size={brushSize}
+                  isEraser={isEraser}
+                  p1Color="#7C3AED"
+                  p2Color="#10B981"
+                  clearTrigger={clearCount}
+                  disabled={inkWar.status === "finished"}
+                  onCoverageSample={(sample) => {
+                    setInkWar(prev => ({
+                      ...prev,
+                      player1Coverage: sample.p1,
+                      player2Coverage: sample.p2
+                    }));
+                  }}
+                />
+              </div>
+
+              {/* Minimalist Drawing Controls */}
+              <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-2xl p-2.5 text-xs font-bold">
+                {/* Color Selector */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      setBrushColor("#7C3AED");
+                      setIsEraser(false);
+                    }}
+                    className={`w-7 h-7 rounded-lg bg-violet-600 transition-all flex items-center justify-center ${
+                      brushColor === "#7C3AED" && !isEraser ? "ring-2 ring-violet-400 ring-offset-2 scale-105" : "opacity-80"
+                    }`}
+                    title="Violet (P1)"
+                  />
+                  <button
+                    onClick={() => {
+                      setBrushColor("#10B981");
+                      setIsEraser(false);
+                    }}
+                    className={`w-7 h-7 rounded-lg bg-emerald-500 transition-all flex items-center justify-center ${
+                      brushColor === "#10B981" && !isEraser ? "ring-2 ring-emerald-400 ring-offset-2 scale-105" : "opacity-80"
+                    }`}
+                    title="Emerald (P2)"
+                  />
+                  <button
+                    onClick={() => setIsEraser(!isEraser)}
+                    className={`px-2 py-1 rounded-lg border text-slate-600 flex items-center gap-1 ${
+                      isEraser ? "bg-slate-200 border-slate-400 font-black" : "bg-slate-50 border-slate-200"
+                    }`}
+                  >
+                    <Eraser size={13} /> Eraser
                   </button>
                 </div>
 
+                {/* Size Selector */}
+                <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg">
+                  {[6, 12, 22].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setBrushSize(s)}
+                      className={`px-2 py-0.5 rounded text-[10px] ${
+                        brushSize === s ? "bg-white text-slate-900 shadow-xs font-black" : "text-slate-500"
+                      }`}
+                    >
+                      {s === 6 ? "S" : s === 12 ? "M" : "L"}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Clear Button */}
+                <button
+                  onClick={() => setClearCount(c => c + 1)}
+                  className="px-2.5 py-1 text-slate-500 hover:text-rose-600 flex items-center gap-1 hover:bg-rose-50 rounded-lg transition-colors"
+                  title="Clear canvas"
+                >
+                  <Trash2 size={13} /> Clear
+                </button>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </>
+            </div>
+          )}
+
+          {/* ------------------------------------------ */}
+          {/* 3. SPEED PICTIONARY ACTIVE VIEW            */}
+          {/* ------------------------------------------ */}
+          {activeGame === "pictionary" && (
+            <div className="space-y-3">
+              {/* Header Info */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs flex items-center justify-between text-xs font-bold">
+                <div>
+                  <span className="text-slate-400 text-[10px] uppercase font-black">Round {pictionary.round} / 4</span>
+                  <div className="text-slate-900 font-black">
+                    {pictionary.drawerId === "p1" ? "Player 1 is Drawing" : (gameMode === "ai_rival" ? "AI Rival is Drawing" : "Player 2 is Drawing")}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 font-mono text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/60">
+                  <Clock size={12} />
+                  <span>{pictionary.timeLeft}s</span>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-slate-400 text-[10px] uppercase font-black">Scores</span>
+                  <div className="text-slate-900 font-mono font-black">
+                    P1: {p1Score} | P2: {p2Score}
+                  </div>
+                </div>
+              </div>
+
+              {/* Secret Word Prompt banner for drawer */}
+              <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl p-2.5 text-center">
+                <span className="text-[10px] font-black uppercase text-emerald-600 tracking-wider">Secret Prompt</span>
+                <div className="text-base font-black text-emerald-950 font-['Fredoka',sans-serif]">
+                  {pictionary.word} <span className="text-xs text-emerald-600 font-semibold font-sans">({pictionary.category})</span>
+                </div>
+                <div className="text-[11px] text-emerald-700/80 italic mt-0.5">
+                  Hint: {pictionary.hints[0]}
+                </div>
+              </div>
+
+              {/* Canvas Area */}
+              <div className="w-full h-64 sm:h-72 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white relative">
+                <MiniCanvas
+                  color={brushColor}
+                  size={brushSize}
+                  isEraser={isEraser}
+                  clearTrigger={clearCount}
+                  disabled={pictionary.status !== "drawing"}
+                />
+              </div>
+
+              {/* Guess Input Bar */}
+              {pictionary.status === "drawing" ? (
+                <form onSubmit={handlePictionaryGuessSubmit} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={pictionaryGuess}
+                    onChange={(e) => setPictionaryGuess(e.target.value)}
+                    placeholder="Type your guess here..."
+                    className="flex-1 bg-white border-2 border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-900 outline-none focus:border-emerald-500 transition-all uppercase placeholder:normal-case shadow-xs"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+                  >
+                    <Send size={13} /> Guess
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setClearCount(c => c + 1)}
+                    className="p-2 text-slate-400 hover:text-slate-600 rounded-xl border border-slate-200 bg-white"
+                    title="Clear"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </form>
+              ) : (
+                <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex items-center justify-between text-xs font-bold text-emerald-800">
+                  <span>
+                    🎉 Round Over! Word was: <strong className="font-black">{pictionary.word}</strong>
+                  </span>
+                  <button
+                    onClick={nextPictionaryRound}
+                    className="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-all shadow-xs"
+                  >
+                    Next Round →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ------------------------------------------ */}
+          {/* 4. BLINDFOLD DRAW ACTIVE VIEW              */}
+          {/* ------------------------------------------ */}
+          {activeGame === "blind_draw" && (
+            <div className="space-y-3">
+              {/* Prompt Header */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs flex items-center justify-between text-xs font-bold">
+                <div>
+                  <span className="text-amber-600 text-[10px] uppercase font-black flex items-center gap-1">
+                    <EyeOff size={12} /> Blindfold Challenge
+                  </span>
+                  <div className="text-slate-900 font-black text-sm">
+                    {blindDraw.prompt}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 font-mono text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/60">
+                  <Clock size={12} />
+                  <span>{blindDraw.timeLeft}s</span>
+                </div>
+              </div>
+
+              {/* Canvas Area with Blindfold Blur when drawing */}
+              <div className="w-full h-72 sm:h-80 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-white relative">
+                <MiniCanvas
+                  color={brushColor}
+                  size={brushSize}
+                  isEraser={isEraser}
+                  clearTrigger={clearCount}
+                  disabled={blindDraw.status === "reveal"}
+                />
+
+                {/* Blindfold Curtain */}
+                {blindDraw.status === "drawing" && (
+                  <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-md flex flex-col items-center justify-center text-white pointer-events-none select-none">
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-2 animate-pulse">
+                      <EyeOff size={24} className="text-amber-400" />
+                    </div>
+                    <div className="text-sm font-black tracking-wide">
+                      🙈 Blindfold Active
+                    </div>
+                    <p className="text-[11px] text-slate-300 font-medium">
+                      Draw with pure muscle memory! The curtain drops at 0s!
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Voting / Controls Area */}
+              {blindDraw.status === "reveal" ? (
+                <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs space-y-2 text-center">
+                  <div className="text-xs font-bold text-slate-600">
+                    ✨ Blindfold Lifted! Who drew the best masterpiece?
+                  </div>
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => setHasVoted(true)}
+                      disabled={hasVoted}
+                      className="px-3.5 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 font-bold text-xs rounded-xl border border-violet-200 transition-all disabled:opacity-50"
+                    >
+                      Vote Player 1
+                    </button>
+                    <button
+                      onClick={() => setHasVoted(true)}
+                      disabled={hasVoted}
+                      className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-xs rounded-xl border border-emerald-200 transition-all disabled:opacity-50"
+                    >
+                      Vote {gameMode === "ai_rival" ? "AI Rival" : "Player 2"}
+                    </button>
+                    <button
+                      onClick={startBlindDrawGame}
+                      className="px-4 py-1.5 bg-slate-900 text-white font-bold text-xs rounded-xl hover:bg-slate-800 transition-all ml-2"
+                    >
+                      New Prompt ↺
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between bg-white border border-slate-200/90 rounded-2xl p-2.5 text-xs font-bold">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setClearCount(c => c + 1)}
+                      className="px-2.5 py-1 text-slate-500 hover:text-rose-600 flex items-center gap-1 hover:bg-rose-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 size={13} /> Reset Sketch
+                    </button>
+                  </div>
+                  <div className="text-[11px] text-slate-400 font-medium">
+                    Draw your stroke freely on the canvas
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      </motion.div>
+    </div>
   );
 }
