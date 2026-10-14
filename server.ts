@@ -453,6 +453,23 @@ async function startServer() {
       io.to(targetRoom).emit("room-settings-updated", { ...data, roomId: targetRoom });
     });
 
+    // Duo Competitive Games Real-Time Synchronization
+    socket.on("duo-game-action", (data: { roomId: string; action: string; payload: any }) => {
+      if (!data?.roomId || !data?.action) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
+      room.lastActivity = Date.now();
+      socket.to(targetRoom).emit("duo-game-action", { ...data, senderId: socket.id, roomId: targetRoom });
+    });
+
+    socket.on("duo-game-sync", (data: { roomId: string; gameState: any }) => {
+      if (!data?.roomId) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
+      room.lastActivity = Date.now();
+      socket.to(targetRoom).emit("duo-game-sync", { ...data, senderId: socket.id, roomId: targetRoom });
+    });
+
     socket.on("disconnecting", () => {
       rateLimits.delete(socket.id);
       rateLimits.delete(socket.id + "_draw");

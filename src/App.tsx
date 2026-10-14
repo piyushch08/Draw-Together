@@ -65,9 +65,13 @@ import {
   Share2,
   Smartphone,
   Mail,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Gamepad2,
+  Swords,
+  Flame
 } from "lucide-react";
 import { cn } from "./lib/utils";
+import { DuoGamesArena } from "./DuoGames";
 
 export const getCanvasDimensions = (aspectRatio?: string): { width: number; height: number } => {
   switch (aspectRatio) {
@@ -813,6 +817,11 @@ export function LandingPage({
 
   const FEATURES = [
     {
+      icon: <Gamepad2 className="w-5 h-5 text-violet-600" />,
+      title: "Duo Games Arena",
+      desc: "Ink War territory battles, Speed Pictionary, holographic Tic-Tac-Toe, and Blindfold Sketch!"
+    },
+    {
       icon: <Zap className="w-5 h-5 text-[#7C3AED]" />,
       title: "Zero-Latency Live Sync",
       desc: "Sub-millisecond cursor tracking and instant collaborative stroke broadcasting."
@@ -826,11 +835,6 @@ export function LandingPage({
       icon: <Smartphone className="w-5 h-5 text-emerald-600" />,
       title: "Mobile Stylus Mode",
       desc: "Scan instant QR code to turn your smartphone into a wireless drawing pad."
-    },
-    {
-      icon: <Users className="w-5 h-5 text-amber-600" />,
-      title: "Instant Room Codes",
-      desc: "Share lightweight 6-character room codes. No account or installation required."
     }
   ];
 
@@ -1134,6 +1138,43 @@ export function LandingPage({
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Duo Games Arena Showcase Banner */}
+            <div className="w-full bg-gradient-to-r from-violet-950 via-slate-900 to-slate-950 border border-violet-500/30 rounded-3xl p-5 sm:p-7 text-white shadow-2xl relative overflow-hidden text-left">
+              <div className="absolute top-0 right-0 -mr-16 -mt-16 w-56 h-56 bg-violet-600/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+                <div className="space-y-2 max-w-xl">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-500/20 border border-violet-400/30 text-[11px] font-black uppercase tracking-wider text-violet-300">
+                    <Swords size={12} className="text-[#C8F53A]" />
+                    <span>Competitive Duo Mini-Games</span>
+                  </div>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-black font-['Fredoka',sans-serif] tracking-tight text-white">
+                    Challenge Your Friend Live on the Canvas
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed">
+                    Four unique real-time 1v1 battle modes: ⚔️ <strong className="text-violet-300">Ink War</strong> pixel painter, 🎨 <strong className="text-emerald-300">Speed Pictionary</strong> with live score counter, ⭕ <strong className="text-indigo-300">Neon Tic-Tac-Toe</strong>, and 🙈 <strong className="text-amber-300">Blindfold Sketch Battle</strong>!
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:gap-2.5 w-full md:w-auto shrink-0 font-mono text-[11px] font-bold">
+                  <div className="bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-violet-400 animate-ping" />
+                    <span>⚔️ Ink War</span>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                    <span>🎨 Pictionary</span>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                    <span>⭕ Tic-Tac-Toe</span>
+                  </div>
+                  <div className="bg-white/10 backdrop-blur-md px-3 py-2 rounded-xl border border-white/10 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    <span>🙈 Blind Draw</span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Dual Cursor Indicator Badge */}
@@ -1549,6 +1590,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   socketRef.current = socket;
   const [isChatOpen, setIsChatOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [isDuoGamesOpen, setIsDuoGamesOpen] = useState(false);
   
   const getInitialSettings = () => {
     if (initialCanvasSettings) return initialCanvasSettings;
@@ -2158,6 +2200,18 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         ctx.fillStyle = roomSettingsRef.current.backgroundColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
+    }
+  };
+
+  const handleClearCanvasAction = () => {
+    actionsRef.current = [];
+    myUndoStackRef.current = [];
+    myRedoStackRef.current = [];
+    syncUndoRedoState();
+    baseLayerImagesRef.current = {};
+    resetLayersToDefault();
+    if (socket && roomId) {
+      socket.emit("clear-canvas", { roomId });
     }
   };
 
@@ -5372,6 +5426,21 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </button>
           </Tooltip>
 
+          {/* Duo Games Arena Button - VISIBLE ON ALL SCREENS */}
+          <Tooltip label="Duo Competitive Games" side="bottom">
+            <button
+              onClick={() => {
+                setIsDuoGamesOpen(true);
+                vibrate(8);
+              }}
+              className="p-1 xs:p-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl border border-violet-200 bg-violet-50/95 text-violet-700 hover:bg-violet-100 hover:border-violet-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center gap-1 font-bold"
+              title="Duo Competitive Games"
+            >
+              <Gamepad2 size={13} className="sm:w-4 sm:h-4 text-violet-600" />
+              <span className="text-[10px] uppercase font-black tracking-widest hidden md:inline">Games</span>
+            </button>
+          </Tooltip>
+
           {/* Live Artists Count (shown on screens >= 768px) */}
           <Tooltip label="Live Artists" side="bottom">
             <div className="hidden md:flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
@@ -8189,6 +8258,21 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         </AnimatePresence>
       </div>
 
+      {/* Duo Competitive Mini-Games Suite (Ink War, Speed Pictionary, Holographic Tic-Tac-Toe, Blindfold Sketch) */}
+      <DuoGamesArena
+        socket={socket}
+        roomId={roomId}
+        currentUserId={socket?.id || ""}
+        username={username}
+        users={users}
+        isOpen={isDuoGamesOpen}
+        onClose={() => setIsDuoGamesOpen(false)}
+        onClearCanvas={handleClearCanvasAction}
+        onSelectColor={setColor}
+        onSelectSize={setSize}
+        onSelectTool={handleToolChange}
+        canvasRef={canvasRef}
+      />
 
     </div>
   );

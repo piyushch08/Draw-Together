@@ -135,3 +135,61 @@ export interface CanvasAction {
   text?: PlacedText;
   prevText?: PlacedText;
 }
+
+export type GameType = "pictionary" | "ink_war" | "tictactoe" | "blind_draw";
+
+export interface GameParticipant {
+  id: string;
+  username: string;
+  color: string;
+  score: number;
+}
+
+export interface PictionaryState {
+  word: string;
+  category: string;
+  drawerId: string;
+  round: number;
+  totalRounds: number;
+  timeLeft: number;
+  status: "idle" | "countdown" | "drawing" | "round_end" | "game_over";
+  hints: string[];
+  lastGuesserName?: string;
+}
+
+export interface InkWarState {
+  timeLeft: number;
+  player1Coverage: number;
+  player2Coverage: number;
+  status: "idle" | "countdown" | "battling" | "finished";
+  winnerId?: string | "draw";
+}
+
+export interface TicTacToeState {
+  board: (string | null)[];
+  currentTurn: string; // "p1" or "p2"
+  winningLine: number[] | null;
+  status: "idle" | "playing" | "finished";
+  winnerId?: string | "draw";
+  p1Wins: number;
+  p2Wins: number;
+  draws: number;
+}
+
+export interface BlindDrawState {
+  prompt: string;
+  timeLeft: number;
+  status: "idle" | "countdown" | "drawing" | "reveal" | "voting" | "finished";
+  votes: Record<string, string>; // voterId -> "p1" | "p2"
+  winnerId?: string | "draw";
+}
+
+export interface DuoGameState {
+  activeGame: GameType | null;
+  player1: GameParticipant | null;
+  player2: GameParticipant | null;
+  pictionary?: PictionaryState;
+  inkWar?: InkWarState;
+  ticTacToe?: TicTacToeState;
+  blindDraw?: BlindDrawState;
+}
