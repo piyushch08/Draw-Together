@@ -18,10 +18,12 @@ import {
   Target,
   Flame,
   Brain,
+  Shield,
   ArrowUp,
   ArrowDown,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Smile
 } from "lucide-react";
 import { GameType, TicTacToeState } from "./types";
 
@@ -85,7 +87,7 @@ class SoundFX {
 
   boost() {
     this.playTone(550, 0.08, "sine", 0.1);
-    setTimeout(() => this.playTone(780, 0.12, "sine", 0.12), 60);
+    setTimeout(() => this.playTone(780, 0.14, "sine", 0.14), 60);
   }
 
   pong() {
@@ -100,6 +102,11 @@ class SoundFX {
 
   wrong() {
     this.playTone(220, 0.15, "sawtooth", 0.1);
+  }
+
+  taunt() {
+    this.playTone(660, 0.08, "sine", 0.15);
+    setTimeout(() => this.playTone(880, 0.1, "sine", 0.15), 80);
   }
 
   win() {
@@ -186,7 +193,46 @@ export function ConfettiCanvas({ active }: { active: boolean }) {
 }
 
 // ==========================================
-// 1. LASER CANNON DUEL (Shooting Game)
+// INTERACTIVE TAUNT REACTION SYSTEM
+// ==========================================
+interface FloatingTaunt {
+  id: string;
+  emoji: string;
+  sender: "p1" | "p2";
+}
+
+function TauntBar({
+  onSendTaunt,
+  sender,
+  label
+}: {
+  onSendTaunt: (emoji: string, sender: "p1" | "p2") => void;
+  sender: "p1" | "p2";
+  label: string;
+}) {
+  const taunts = ["🔥", "😂", "💀", "⚡", "👑", "👀"];
+  return (
+    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+      <span className="text-[9px] uppercase font-black text-slate-400 px-1">{label}:</span>
+      {taunts.map((t) => (
+        <button
+          key={t}
+          onClick={() => {
+            soundFX.taunt();
+            onSendTaunt(t, sender);
+          }}
+          className="text-sm hover:scale-125 transition-transform active:scale-95 px-1 py-0.5"
+          title={`Taunt with ${t}`}
+        >
+          {t}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ==========================================
+// 1. LASER CANNON DUEL (Shooting with Power-ups & Shields)
 // ==========================================
 interface ShooterGameProps {
   mode: "pass_and_play" | "ai_rival";
@@ -197,35 +243,63 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [p1Hp, setP1Hp] = useState(3);
   const [p2Hp, setP2Hp] = useState(3);
+  const [p1Shield, setP1Shield] = useState(false);
+  const [p2Shield, setP2Shield] = useState(false);
   const [status, setStatus] = useState<"playing" | "finished">("playing");
+  const [taunts, setTaunts] = useState<FloatingTaunt[]>([]);
 
   const stateRef = useRef({
-    p1: { y: 150, vy: 0, cooldown: 0 },
-    p2: { y: 150, vy: 0, cooldown: 0 },
-    bullets: [] as Array<{ x: number; y: number; vx: number; color: string; owner: "p1" | "p2" }>,
+    p1: { y: 150, vy: 0, cooldown: 0, shield: false, triple: 0 },
+    p2: { y: 150, vy: 0, cooldown: 0, shield: false, triple: 0 },
+    bullets: [] as Array<{ x: number; y: number; vx: number; vy?: number; color: string; owner: "p1" | "p2" }>,
     obstacles: [
-      { y: 70, vy: 1.2, height: 60, x: 290 },
-      { y: 200, vy: -1.2, height: 60, x: 290 }
+      { y: 50, vy: 1.1, height: 50, x: 290, hp: 4 },
+      { y: 140, vy: -1.0, height: 50, x: 290, hp: 4 },
+      { y: 230, vy: 0.9, height: 50, x: 290, hp: 4 }
     ],
+    powerUps: [] as Array<{ x: number; y: number; type: "shield" | "triple"; icon: string }>,
     particles: [] as Array<{ x: number; y: number; vx: number; vy: number; color: string; life: number }>,
     keys: {} as Record<string, boolean>,
-    animId: 0
+    animId: 0,
+    shake: 0
   });
+
+  const triggerTaunt = (emoji: string, sender: "p1" | "p2") => {
+    const newT = { id: Math.random().toString(), emoji, sender };
+    setTaunts((prev) => [...prev, newT]);
+    setTimeout(() => {
+      setTaunts((prev) => prev.filter((t) => t.id !== newT.id));
+    }, 1800);
+  };
 
   const fireP1 = useCallback(() => {
     const s = stateRef.current;
     if (s.p1.cooldown > 0 || status !== "playing") return;
     soundFX.laser();
-    s.bullets.push({ x: 45, y: s.p1.y, vx: 9, color: "#7C3AED", owner: "p1" });
-    s.p1.cooldown = 18;
+    if (s.p1.triple > 0) {
+      s.bullets.push({ x: 45, y: s.p1.y, vx: 9, vy: -1.5, color: "#7C3AED", owner: "p1" });
+      s.bullets.push({ x: 45, y: s.p1.y, vx: 9, vy: 0, color: "#7C3AED", owner: "p1" });
+      s.bullets.push({ x: 45, y: s.p1.y, vx: 9, vy: 1.5, color: "#7C3AED", owner: "p1" });
+      s.p1.triple--;
+    } else {
+      s.bullets.push({ x: 45, y: s.p1.y, vx: 9, vy: 0, color: "#7C3AED", owner: "p1" });
+    }
+    s.p1.cooldown = 16;
   }, [status]);
 
   const fireP2 = useCallback(() => {
     const s = stateRef.current;
     if (s.p2.cooldown > 0 || status !== "playing") return;
     soundFX.laser();
-    s.bullets.push({ x: 555, y: s.p2.y, vx: -9, color: "#10B981", owner: "p2" });
-    s.p2.cooldown = 18;
+    if (s.p2.triple > 0) {
+      s.bullets.push({ x: 555, y: s.p2.y, vx: -9, vy: -1.5, color: "#10B981", owner: "p2" });
+      s.bullets.push({ x: 555, y: s.p2.y, vx: -9, vy: 0, color: "#10B981", owner: "p2" });
+      s.bullets.push({ x: 555, y: s.p2.y, vx: -9, vy: 1.5, color: "#10B981", owner: "p2" });
+      s.p2.triple--;
+    } else {
+      s.bullets.push({ x: 555, y: s.p2.y, vx: -9, vy: 0, color: "#10B981", owner: "p2" });
+    }
+    s.p2.cooldown = 16;
   }, [status]);
 
   // Handle keyboard inputs
@@ -261,6 +335,7 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
 
     let localP1Hp = 3;
     let localP2Hp = 3;
+    let powerUpTimer = 0;
 
     const loop = () => {
       const s = stateRef.current;
@@ -268,46 +343,79 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
       const h = 320;
 
       // Handle P1 movement
-      if (s.keys["KeyW"]) s.p1.y = Math.max(25, s.p1.y - 4.5);
-      if (s.keys["KeyS"]) s.p1.y = Math.min(h - 25, s.p1.y + 4.5);
+      if (s.keys["KeyW"]) s.p1.y = Math.max(25, s.p1.y - 4.8);
+      if (s.keys["KeyS"]) s.p1.y = Math.min(h - 25, s.p1.y + 4.8);
 
       // Handle P2 movement
       if (mode === "pass_and_play") {
-        if (s.keys["ArrowUp"]) s.p2.y = Math.max(25, s.p2.y - 4.5);
-        if (s.keys["ArrowDown"]) s.p2.y = Math.min(h - 25, s.p2.y + 4.5);
+        if (s.keys["ArrowUp"]) s.p2.y = Math.max(25, s.p2.y - 4.8);
+        if (s.keys["ArrowDown"]) s.p2.y = Math.min(h - 25, s.p2.y + 4.8);
       } else {
-        // AI Tracking logic
-        const targetY = s.p1.y + (Math.sin(Date.now() / 350) * 40);
-        if (s.p2.y < targetY - 6) s.p2.y += 2.8;
-        else if (s.p2.y > targetY + 6) s.p2.y -= 2.8;
+        // AI Tracking logic with predictive dodging
+        const targetY = s.p1.y + Math.sin(Date.now() / 320) * 45;
+        if (s.p2.y < targetY - 5) s.p2.y += 3.2;
+        else if (s.p2.y > targetY + 5) s.p2.y -= 3.2;
         s.p2.y = Math.max(25, Math.min(h - 25, s.p2.y));
 
         // AI shooting
-        if (s.p2.cooldown === 0 && Math.random() < 0.04) {
-          s.bullets.push({ x: 555, y: s.p2.y, vx: -8.5, color: "#10B981", owner: "p2" });
-          s.p2.cooldown = 32;
+        if (s.p2.cooldown === 0 && Math.random() < 0.045) {
+          s.bullets.push({ x: 555, y: s.p2.y, vx: -8.8, vy: 0, color: "#10B981", owner: "p2" });
+          s.p2.cooldown = 28;
         }
       }
 
       if (s.p1.cooldown > 0) s.p1.cooldown--;
       if (s.p2.cooldown > 0) s.p2.cooldown--;
 
+      // Spawn periodic Power-Ups
+      powerUpTimer++;
+      if (powerUpTimer > 320 && s.powerUps.length < 2) {
+        powerUpTimer = 0;
+        const type = Math.random() > 0.5 ? "shield" : "triple";
+        s.powerUps.push({
+          x: 200 + Math.random() * 200,
+          y: 50 + Math.random() * 220,
+          type,
+          icon: type === "shield" ? "🛡️" : "⚡"
+        });
+      }
+
       // Update obstacles
       s.obstacles.forEach((obs) => {
         obs.y += obs.vy;
-        if (obs.y < 30 || obs.y > h - obs.height - 30) obs.vy *= -1;
+        if (obs.y < 25 || obs.y > h - obs.height - 25) obs.vy *= -1;
       });
 
       // Update bullets
       for (let i = s.bullets.length - 1; i >= 0; i--) {
         const b = s.bullets[i];
         b.x += b.vx;
+        b.y += (b.vy || 0);
 
-        // Check obstacle collision
+        // Check power-up collection
+        for (let pIdx = s.powerUps.length - 1; pIdx >= 0; pIdx--) {
+          const pu = s.powerUps[pIdx];
+          if (Math.hypot(b.x - pu.x, b.y - pu.y) < 18) {
+            soundFX.boost();
+            if (b.owner === "p1") {
+              if (pu.type === "shield") { s.p1.shield = true; setP1Shield(true); }
+              else { s.p1.triple = 4; }
+            } else {
+              if (pu.type === "shield") { s.p2.shield = true; setP2Shield(true); }
+              else { s.p2.triple = 4; }
+            }
+            s.powerUps.splice(pIdx, 1);
+            break;
+          }
+        }
+
+        // Check obstacle collision (damage barrier)
         let hitObs = false;
         for (const obs of s.obstacles) {
-          if (b.x >= obs.x && b.x <= obs.x + 18 && b.y >= obs.y && b.y <= obs.y + obs.height) {
+          if (obs.hp > 0 && b.x >= obs.x && b.x <= obs.x + 18 && b.y >= obs.y && b.y <= obs.y + obs.height) {
             hitObs = true;
+            obs.hp -= 1;
+            soundFX.hit();
             break;
           }
         }
@@ -319,25 +427,32 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
         // Check hit on P2
         if (b.owner === "p1" && b.x >= 555 && Math.abs(b.y - s.p2.y) < 26) {
           s.bullets.splice(i, 1);
-          soundFX.hit();
-          localP2Hp = Math.max(0, localP2Hp - 1);
-          setP2Hp(localP2Hp);
-          // Spawn sparks
-          for (let k = 0; k < 12; k++) {
-            s.particles.push({
-              x: 560,
-              y: s.p2.y,
-              vx: (Math.random() - 0.5) * 6,
-              vy: (Math.random() - 0.5) * 6,
-              color: "#10B981",
-              life: 1
-            });
-          }
-          if (localP2Hp === 0) {
-            setStatus("finished");
-            soundFX.win();
-            onWin("p1");
-            return;
+          s.shake = 8;
+          if (s.p2.shield) {
+            s.p2.shield = false;
+            setP2Shield(false);
+            soundFX.boost();
+          } else {
+            soundFX.hit();
+            if (window.navigator?.vibrate) window.navigator.vibrate(30);
+            localP2Hp = Math.max(0, localP2Hp - 1);
+            setP2Hp(localP2Hp);
+            for (let k = 0; k < 14; k++) {
+              s.particles.push({
+                x: 560,
+                y: s.p2.y,
+                vx: (Math.random() - 0.5) * 7,
+                vy: (Math.random() - 0.5) * 7,
+                color: "#10B981",
+                life: 1
+              });
+            }
+            if (localP2Hp === 0) {
+              setStatus("finished");
+              soundFX.win();
+              onWin("p1");
+              return;
+            }
           }
           continue;
         }
@@ -345,32 +460,38 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
         // Check hit on P1
         if (b.owner === "p2" && b.x <= 45 && Math.abs(b.y - s.p1.y) < 26) {
           s.bullets.splice(i, 1);
-          soundFX.hit();
-          localP1Hp = Math.max(0, localP1Hp - 1);
-          setP1Hp(localP1Hp);
-          for (let k = 0; k < 12; k++) {
-            s.particles.push({
-              x: 40,
-              y: s.p1.y,
-              vx: (Math.random() - 0.5) * 6,
-              vy: (Math.random() - 0.5) * 6,
-              color: "#7C3AED",
-              life: 1
-            });
-          }
-          if (localP1Hp === 0) {
-            setStatus("finished");
-            soundFX.win();
-            onWin("p2");
-            return;
+          s.shake = 8;
+          if (s.p1.shield) {
+            s.p1.shield = false;
+            setP1Shield(false);
+            soundFX.boost();
+          } else {
+            soundFX.hit();
+            if (window.navigator?.vibrate) window.navigator.vibrate(30);
+            localP1Hp = Math.max(0, localP1Hp - 1);
+            setP1Hp(localP1Hp);
+            for (let k = 0; k < 14; k++) {
+              s.particles.push({
+                x: 40,
+                y: s.p1.y,
+                vx: (Math.random() - 0.5) * 7,
+                vy: (Math.random() - 0.5) * 7,
+                color: "#7C3AED",
+                life: 1
+              });
+            }
+            if (localP1Hp === 0) {
+              setStatus("finished");
+              soundFX.win();
+              onWin("p2");
+              return;
+            }
           }
           continue;
         }
 
         // Out of bounds
-        if (b.x < 0 || b.x > w) {
-          s.bullets.splice(i, 1);
-        }
+        if (b.x < 0 || b.x > w) s.bullets.splice(i, 1);
       }
 
       // Update particles
@@ -383,10 +504,17 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
       }
 
       // ---------------- RENDER ----------------
+      ctx.save();
+      if (s.shake > 0) {
+        ctx.translate((Math.random() - 0.5) * s.shake, (Math.random() - 0.5) * s.shake);
+        s.shake *= 0.85;
+        if (s.shake < 0.5) s.shake = 0;
+      }
+
       ctx.fillStyle = "#F8FAFC";
       ctx.fillRect(0, 0, w, h);
 
-      // Arena Grid lines
+      // Arena Grid
       ctx.strokeStyle = "#E2E8F0";
       ctx.lineWidth = 1;
       for (let x = 40; x < w; x += 40) {
@@ -396,14 +524,32 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
         ctx.stroke();
       }
 
-      // Center Divider Barrier
+      // Destructible Barriers
       s.obstacles.forEach((obs) => {
-        ctx.fillStyle = "#CBD5E1";
+        if (obs.hp <= 0) return;
+        ctx.fillStyle = obs.hp >= 3 ? "#94A3B8" : obs.hp === 2 ? "#CBD5E1" : "#E2E8F0";
         ctx.beginPath();
         ctx.roundRect(obs.x, obs.y, 18, obs.height, 6);
         ctx.fill();
-        ctx.strokeStyle = "#94A3B8";
+        ctx.strokeStyle = "#64748B";
         ctx.stroke();
+      });
+
+      // Power-Up Orbs
+      s.powerUps.forEach((pu) => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(pu.x, pu.y, 14, 0, Math.PI * 2);
+        ctx.fillStyle = pu.type === "shield" ? "#38BDF8" : "#F59E0B";
+        ctx.shadowColor = pu.type === "shield" ? "#0284C7" : "#D97706";
+        ctx.shadowBlur = 10;
+        ctx.fill();
+        ctx.fillStyle = "#FFFFFF";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(pu.icon, pu.x, pu.y);
+        ctx.restore();
       });
 
       // P1 Cannon (Violet)
@@ -411,40 +557,55 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
       ctx.beginPath();
       ctx.roundRect(15, s.p1.y - 18, 24, 36, 8);
       ctx.fill();
-      // Barrel
       ctx.fillStyle = "#6D28D9";
       ctx.fillRect(39, s.p1.y - 4, 14, 8);
+      // P1 Shield Aura
+      if (s.p1.shield) {
+        ctx.strokeStyle = "#38BDF8";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(27, s.p1.y, 24, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       // P2 Cannon (Emerald)
       ctx.fillStyle = "#10B981";
       ctx.beginPath();
       ctx.roundRect(w - 39, s.p2.y - 18, 24, 36, 8);
       ctx.fill();
-      // Barrel
       ctx.fillStyle = "#059669";
       ctx.fillRect(w - 53, s.p2.y - 4, 14, 8);
+      // P2 Shield Aura
+      if (s.p2.shield) {
+        ctx.strokeStyle = "#38BDF8";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(w - 27, s.p2.y, 24, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
-      // Bullets
+      // Lasers
       s.bullets.forEach((b) => {
         ctx.fillStyle = b.color;
         ctx.shadowColor = b.color;
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 10;
         ctx.beginPath();
         ctx.roundRect(b.x - 7, b.y - 3, 14, 6, 3);
         ctx.fill();
         ctx.shadowBlur = 0;
       });
 
-      // Sparks
+      // Spark particles
       s.particles.forEach((p) => {
         ctx.fillStyle = p.color;
         ctx.globalAlpha = p.life;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
         ctx.fill();
         ctx.globalAlpha = 1;
       });
 
+      ctx.restore();
       s.animId = requestAnimationFrame(loop);
     };
 
@@ -455,10 +616,15 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
   const resetGame = () => {
     setP1Hp(3);
     setP2Hp(3);
+    setP1Shield(false);
+    setP2Shield(false);
     setStatus("playing");
     stateRef.current.p1.y = 150;
     stateRef.current.p2.y = 150;
+    stateRef.current.p1.shield = false;
+    stateRef.current.p2.shield = false;
     stateRef.current.bullets = [];
+    stateRef.current.powerUps = [];
     stateRef.current.particles = [];
   };
 
@@ -468,7 +634,7 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs flex items-center justify-between text-xs font-bold">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-violet-600" />
-          <span className="text-slate-900">P1 (Violet):</span>
+          <span className="text-slate-900">P1:</span>
           <div className="flex gap-1">
             {[1, 2, 3].map((h) => (
               <span key={h} className={h <= p1Hp ? "text-rose-500 font-black text-sm" : "text-slate-200 text-sm"}>
@@ -476,13 +642,16 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
               </span>
             ))}
           </div>
-        </div>
-
-        <div className="text-[11px] font-mono text-slate-400 bg-slate-100 px-2.5 py-0.5 rounded-md">
-          {status === "playing" ? "Laser Duel Active" : "Round Finished"}
+          {p1Shield && <span className="text-sky-500 text-[10px] bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">Shield</span>}
         </div>
 
         <div className="flex items-center gap-2">
+          <TauntBar onSendTaunt={triggerTaunt} sender="p1" label="P1" />
+          {mode === "pass_and_play" && <TauntBar onSendTaunt={triggerTaunt} sender="p2" label="P2" />}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {p2Shield && <span className="text-sky-500 text-[10px] bg-sky-50 px-1.5 py-0.5 rounded border border-sky-200">Shield</span>}
           <div className="flex gap-1">
             {[1, 2, 3].map((h) => (
               <span key={h} className={h <= p2Hp ? "text-rose-500 font-black text-sm" : "text-slate-200 text-sm"}>
@@ -490,17 +659,34 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
               </span>
             ))}
           </div>
-          <span className="text-slate-900">{mode === "ai_rival" ? "AI Rival:" : "P2 (Emerald):"}</span>
+          <span className="text-slate-900">{mode === "ai_rival" ? "AI:" : "P2:"}</span>
           <div className="w-3 h-3 rounded-full bg-emerald-500" />
         </div>
       </div>
 
-      {/* Arena Canvas */}
+      {/* Arena Canvas with floating taunts */}
       <div className="w-full h-72 sm:h-80 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs relative bg-slate-50 flex items-center justify-center">
         <canvas ref={canvasRef} width={600} height={320} className="w-full h-full" />
+
+        {/* Floating Taunt Overlay */}
+        <AnimatePresence>
+          {taunts.map((t) => (
+            <motion.div
+              key={t.id}
+              initial={{ opacity: 0, y: 15, scale: 0.5 }}
+              animate={{ opacity: 1, y: -20, scale: 1.4 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className={`absolute top-1/2 text-2xl sm:text-3xl pointer-events-none drop-shadow-md ${
+                t.sender === "p1" ? "left-12" : "right-12"
+              }`}
+            >
+              {t.emoji}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
 
-      {/* Controls & Touch Actions */}
+      {/* Controls & Actions */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-bold">
         {/* P1 Controls */}
         <div className="flex items-center gap-1.5 w-full sm:w-auto">
@@ -511,7 +697,7 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
             onTouchStart={() => { stateRef.current.keys["KeyW"] = true; }}
             onTouchEnd={() => { stateRef.current.keys["KeyW"] = false; }}
             className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl active:scale-95 text-slate-700"
-            title="Move Up (W)"
+            title="Up (W)"
           >
             <ArrowUp size={14} />
           </button>
@@ -521,13 +707,13 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
             onTouchStart={() => { stateRef.current.keys["KeyS"] = true; }}
             onTouchEnd={() => { stateRef.current.keys["KeyS"] = false; }}
             className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl active:scale-95 text-slate-700"
-            title="Move Down (S)"
+            title="Down (S)"
           >
             <ArrowDown size={14} />
           </button>
           <button
             onClick={fireP1}
-            className="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl active:scale-95 shadow-xs flex items-center gap-1"
+            className="px-3.5 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl active:scale-95 shadow-xs flex items-center gap-1 font-black"
           >
             <Target size={13} /> Fire
           </button>
@@ -536,14 +722,14 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
         {/* Center Hint / Reset */}
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-slate-400 hidden md:inline">
-            Desktop: [W/S] + [Space] vs [Arrows] + [Enter]
+            Power-ups: 🛡️ Shield | ⚡ Triple-Shot
           </span>
           <button
             onClick={resetGame}
             className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 text-xs"
             title="Reset Match"
           >
-            <RotateCcw size={13} /> Reset
+            <RotateCcw size={13} /> Rematch
           </button>
         </div>
 
@@ -557,7 +743,7 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
               onTouchStart={() => { stateRef.current.keys["ArrowUp"] = true; }}
               onTouchEnd={() => { stateRef.current.keys["ArrowUp"] = false; }}
               className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl active:scale-95 text-slate-700"
-              title="Move Up (ArrowUp)"
+              title="Up (ArrowUp)"
             >
               <ArrowUp size={14} />
             </button>
@@ -567,13 +753,13 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
               onTouchStart={() => { stateRef.current.keys["ArrowDown"] = true; }}
               onTouchEnd={() => { stateRef.current.keys["ArrowDown"] = false; }}
               className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl active:scale-95 text-slate-700"
-              title="Move Down (ArrowDown)"
+              title="Down (ArrowDown)"
             >
               <ArrowDown size={14} />
             </button>
             <button
               onClick={fireP2}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl active:scale-95 shadow-xs flex items-center gap-1"
+              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl active:scale-95 shadow-xs flex items-center gap-1 font-black"
             >
               <Target size={13} /> Fire
             </button>
@@ -585,7 +771,7 @@ function ShooterGame({ mode, onWin }: ShooterGameProps) {
 }
 
 // ==========================================
-// 2. TURBO SPEED DRIFT (Racing Game)
+// 2. TURBO SPEED DRIFT (Racing with Bumper Bumping & Nitro)
 // ==========================================
 interface RacingGameProps {
   mode: "pass_and_play" | "ai_rival";
@@ -596,23 +782,49 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [p1Lap, setP1Lap] = useState(1);
   const [p2Lap, setP2Lap] = useState(1);
+  const [p1Nitro, setP1Nitro] = useState(100);
+  const [p2Nitro, setP2Nitro] = useState(100);
   const [winner, setWinner] = useState<string | null>(null);
 
   const stateRef = useRef({
-    p1: { x: 300, y: 260, angle: 0, speed: 0, lap: 1, checkpoint: 0 },
-    p2: { x: 300, y: 282, angle: 0, speed: 0, lap: 1, checkpoint: 0 },
+    p1: { x: 300, y: 260, angle: 0, speed: 0, lap: 1, checkpoint: 0, nitro: 100 },
+    p2: { x: 300, y: 284, angle: 0, speed: 0, lap: 1, checkpoint: 0, nitro: 100 },
     keys: {} as Record<string, boolean>,
     animId: 0,
     checkpoints: [
-      { x: 490, y: 160, r: 40 }, // Right turn
-      { x: 300, y: 60, r: 40 },  // Top straight
-      { x: 110, y: 160, r: 40 }, // Left turn
-      { x: 300, y: 270, r: 40 }  // Finish line
+      { x: 490, y: 160, r: 42 },
+      { x: 300, y: 60, r: 42 },
+      { x: 110, y: 160, r: 42 },
+      { x: 300, y: 270, r: 42 }
     ]
   });
 
+  const triggerNitroP1 = () => {
+    const s = stateRef.current;
+    if (s.p1.nitro > 20) {
+      s.p1.speed = 6.2;
+      s.p1.nitro -= 25;
+      setP1Nitro(s.p1.nitro);
+      soundFX.boost();
+    }
+  };
+
+  const triggerNitroP2 = () => {
+    const s = stateRef.current;
+    if (s.p2.nitro > 20) {
+      s.p2.speed = 6.2;
+      s.p2.nitro -= 25;
+      setP2Nitro(s.p2.nitro);
+      soundFX.boost();
+    }
+  };
+
   useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => { stateRef.current.keys[e.code] = true; };
+    const onKeyDown = (e: KeyboardEvent) => {
+      stateRef.current.keys[e.code] = true;
+      if (e.code === "KeyE") triggerNitroP1();
+      if (e.code === "ControlRight") triggerNitroP2();
+    };
     const onKeyUp = (e: KeyboardEvent) => { stateRef.current.keys[e.code] = false; };
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
@@ -635,34 +847,58 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
       const s = stateRef.current;
       const { p1, p2, keys, checkpoints } = s;
 
-      // P1 Driving Physics
-      if (keys["KeyA"]) p1.angle -= 0.06;
-      if (keys["KeyD"]) p1.angle += 0.06;
-      if (keys["KeyW"]) p1.speed = Math.min(4.8, p1.speed + 0.15);
-      else p1.speed = Math.max(0, p1.speed - 0.05);
+      // P1 Steering & Acceleration
+      if (keys["KeyA"]) p1.angle -= 0.065;
+      if (keys["KeyD"]) p1.angle += 0.065;
+      if (keys["KeyW"]) p1.speed = Math.min(5.0, p1.speed + 0.16);
+      else p1.speed = Math.max(0, p1.speed - 0.06);
 
       p1.x += Math.cos(p1.angle) * p1.speed;
       p1.y += Math.sin(p1.angle) * p1.speed;
 
-      // P2 Driving Physics
+      // Slowly recharge Nitro
+      p1.nitro = Math.min(100, p1.nitro + 0.08);
+      p2.nitro = Math.min(100, p2.nitro + 0.08);
+
+      // P2 Steering & Acceleration
       if (mode === "pass_and_play") {
-        if (keys["ArrowLeft"]) p2.angle -= 0.06;
-        if (keys["ArrowRight"]) p2.angle += 0.06;
-        if (keys["ArrowUp"]) p2.speed = Math.min(4.8, p2.speed + 0.15);
-        else p2.speed = Math.max(0, p2.speed - 0.05);
+        if (keys["ArrowLeft"]) p2.angle -= 0.065;
+        if (keys["ArrowRight"]) p2.angle += 0.065;
+        if (keys["ArrowUp"]) p2.speed = Math.min(5.0, p2.speed + 0.16);
+        else p2.speed = Math.max(0, p2.speed - 0.06);
       } else {
-        // AI Pathfinding to next checkpoint
+        // AI Pathfinding with dynamic overtaking
         const targetCp = checkpoints[p2.checkpoint];
         const targetAngle = Math.atan2(targetCp.y - p2.y, targetCp.x - p2.x);
         let diff = targetAngle - p2.angle;
         while (diff < -Math.PI) diff += Math.PI * 2;
         while (diff > Math.PI) diff -= Math.PI * 2;
-        p2.angle += Math.max(-0.055, Math.min(0.055, diff));
-        p2.speed = Math.min(4.2, p2.speed + 0.1);
+        p2.angle += Math.max(-0.06, Math.min(0.06, diff));
+        p2.speed = Math.min(4.4, p2.speed + 0.12);
+
+        // AI auto-nitro on straightaways
+        if (p2.checkpoint === 1 && p2.nitro > 40 && Math.random() < 0.03) {
+          p2.speed = 5.8;
+          p2.nitro -= 25;
+        }
       }
 
       p2.x += Math.cos(p2.angle) * p2.speed;
       p2.y += Math.sin(p2.angle) * p2.speed;
+
+      // Bumper Car Collisions (Bump friends away!)
+      const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+      if (dist < 22) {
+        soundFX.hit();
+        if (window.navigator?.vibrate) window.navigator.vibrate(20);
+        const bumpAngle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+        p1.x -= Math.cos(bumpAngle) * 3;
+        p1.y -= Math.sin(bumpAngle) * 3;
+        p2.x += Math.cos(bumpAngle) * 3;
+        p2.y += Math.sin(bumpAngle) * 3;
+        p1.speed *= 0.8;
+        p2.speed *= 0.8;
+      }
 
       // Checkpoint tracking for P1
       const cp1 = checkpoints[p1.checkpoint];
@@ -702,35 +938,35 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
       }
 
       // ---------------- RENDER ----------------
-      ctx.fillStyle = "#E2E8F0"; // Infield ground
+      ctx.fillStyle = "#E2E8F0";
       ctx.fillRect(0, 0, w, h);
 
-      // Track Asphalt (rounded oval circuit)
+      // Asphalt Track
       ctx.strokeStyle = "#0F172A";
-      ctx.lineWidth = 64;
+      ctx.lineWidth = 66;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.beginPath();
       ctx.roundRect(85, 55, 430, 230, 90);
       ctx.stroke();
 
-      // Track White Curb Lines
+      // Curb Lines
       ctx.strokeStyle = "#FFFFFF";
       ctx.lineWidth = 2;
       ctx.setLineDash([14, 14]);
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Start/Finish Line
+      // Start/Finish Line Checkered
       ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(296, 238, 8, 64);
+      ctx.fillRect(296, 238, 8, 66);
       ctx.fillStyle = "#0F172A";
-      ctx.fillRect(300, 238, 4, 32);
-      ctx.fillRect(296, 270, 4, 32);
+      ctx.fillRect(300, 238, 4, 33);
+      ctx.fillRect(296, 271, 4, 33);
 
-      // Boost Pad on top straight
+      // Boost Pad
       ctx.fillStyle = "#F59E0B";
-      ctx.fillRect(280, 24, 40, 62);
+      ctx.fillRect(280, 22, 40, 66);
       ctx.fillStyle = "#FFFFFF";
       ctx.font = "bold 13px sans-serif";
       ctx.fillText(">>>", 286, 60);
@@ -743,8 +979,13 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
       ctx.beginPath();
       ctx.roundRect(-12, -7, 24, 14, 4);
       ctx.fill();
-      ctx.fillStyle = "#C8F53A"; // Windshield
+      ctx.fillStyle = "#C8F53A";
       ctx.fillRect(2, -4, 5, 8);
+      // Flame trail on high speed
+      if (p1.speed > 5) {
+        ctx.fillStyle = "#F97316";
+        ctx.fillRect(-18, -3, 6, 6);
+      }
       ctx.restore();
 
       // Car 2 (Emerald)
@@ -757,6 +998,10 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
       ctx.fill();
       ctx.fillStyle = "#FFFFFF";
       ctx.fillRect(2, -4, 5, 8);
+      if (p2.speed > 5) {
+        ctx.fillStyle = "#F97316";
+        ctx.fillRect(-18, -3, 6, 6);
+      }
       ctx.restore();
 
       s.animId = requestAnimationFrame(loop);
@@ -770,8 +1015,8 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
     setP1Lap(1);
     setP2Lap(1);
     setWinner(null);
-    stateRef.current.p1 = { x: 300, y: 260, angle: 0, speed: 0, lap: 1, checkpoint: 0 };
-    stateRef.current.p2 = { x: 300, y: 282, angle: 0, speed: 0, lap: 1, checkpoint: 0 };
+    stateRef.current.p1 = { x: 300, y: 260, angle: 0, speed: 0, lap: 1, checkpoint: 0, nitro: 100 };
+    stateRef.current.p2 = { x: 300, y: 284, angle: 0, speed: 0, lap: 1, checkpoint: 0, nitro: 100 };
   };
 
   return (
@@ -784,7 +1029,7 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
         </div>
 
         <div className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md">
-          {winner ? (winner === "p1" ? "🏆 P1 Finished 1st!" : "🏆 P2 Finished 1st!") : "🏁 3-Lap Grand Prix"}
+          {winner ? (winner === "p1" ? "🏆 P1 Crossed Finish Line!" : "🏆 P2 Crossed Finish Line!") : "🏁 3-Lap Bumper Sprint"}
         </div>
 
         <div className="flex items-center gap-2 text-emerald-700">
@@ -829,13 +1074,20 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
           >
             <Flame size={13} /> Gas
           </button>
+          <button
+            onClick={triggerNitroP1}
+            className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl active:scale-95 shadow-xs flex items-center gap-1"
+            title="Nitro Boost"
+          >
+            <Zap size={13} /> Nitro
+          </button>
         </div>
 
         <button
           onClick={restartRace}
           className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 text-xs"
         >
-          <RotateCcw size={13} /> Restart Race
+          <RotateCcw size={13} /> Rematch
         </button>
 
         {mode === "pass_and_play" && (
@@ -868,6 +1120,13 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
             >
               <Flame size={13} /> Gas
             </button>
+            <button
+              onClick={triggerNitroP2}
+              className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl active:scale-95 shadow-xs flex items-center gap-1"
+              title="Nitro Boost"
+            >
+              <Zap size={13} /> Nitro
+            </button>
           </div>
         )}
       </div>
@@ -876,70 +1135,25 @@ function RacingGame({ mode, onWin }: RacingGameProps) {
 }
 
 // ==========================================
-// 3. MIND RUSH (Puzzle Solving Game)
+// 3. MIND RUSH: DUAL BUZZER CLASH (Simultaneous Puzzle Race!)
 // ==========================================
 interface PuzzleQuestion {
   prompt: string;
   subPrompt: string;
   options: string[];
   answer: string;
-  type: "math" | "stroop" | "sequence";
-  colorWord?: string;
   fontColorClass?: string;
 }
 
 const SAMPLE_PUZZLES: PuzzleQuestion[] = [
-  {
-    prompt: "24 × 3 - 18 = ?",
-    subPrompt: "Quick Mental Arithmetic",
-    options: ["54", "48", "56", "62"],
-    answer: "54",
-    type: "math"
-  },
-  {
-    prompt: "YELLOW",
-    subPrompt: "Pick the INK color of the word!",
-    options: ["Blue", "Yellow", "Red", "Green"],
-    answer: "Blue",
-    type: "stroop",
-    fontColorClass: "text-blue-600"
-  },
-  {
-    prompt: "2, 6, 18, 54, ?",
-    subPrompt: "Find the next pattern number",
-    options: ["162", "148", "108", "180"],
-    answer: "162",
-    type: "sequence"
-  },
-  {
-    prompt: "65 - 28 + 15 = ?",
-    subPrompt: "Quick Mental Arithmetic",
-    options: ["52", "48", "54", "50"],
-    answer: "52",
-    type: "math"
-  },
-  {
-    prompt: "RED",
-    subPrompt: "Pick the INK color of the word!",
-    options: ["Green", "Red", "Blue", "Purple"],
-    answer: "Green",
-    type: "stroop",
-    fontColorClass: "text-emerald-600"
-  },
-  {
-    prompt: "5, 10, 20, 40, ?",
-    subPrompt: "Find the next pattern number",
-    options: ["80", "60", "75", "100"],
-    answer: "80",
-    type: "sequence"
-  },
-  {
-    prompt: "12 × 12 - 44 = ?",
-    subPrompt: "Quick Mental Arithmetic",
-    options: ["100", "96", "110", "104"],
-    answer: "100",
-    type: "math"
-  }
+  { prompt: "24 × 3 - 18 = ?", subPrompt: "Quick Mental Math", options: ["54", "48", "56", "62"], answer: "54" },
+  { prompt: "YELLOW", subPrompt: "Pick the INK color of the word!", options: ["Blue", "Yellow", "Red", "Green"], answer: "Blue", fontColorClass: "text-blue-600" },
+  { prompt: "2, 6, 18, 54, ?", subPrompt: "Find next pattern number", options: ["162", "148", "108", "180"], answer: "162" },
+  { prompt: "65 - 28 + 15 = ?", subPrompt: "Quick Mental Math", options: ["52", "48", "54", "50"], answer: "52" },
+  { prompt: "RED", subPrompt: "Pick the INK color of the word!", options: ["Green", "Red", "Blue", "Purple"], answer: "Green", fontColorClass: "text-emerald-600" },
+  { prompt: "5, 10, 20, 40, ?", subPrompt: "Find next pattern number", options: ["80", "60", "75", "100"], answer: "80" },
+  { prompt: "12 × 12 - 44 = ?", subPrompt: "Quick Mental Math", options: ["100", "96", "110", "104"], answer: "100" },
+  { prompt: "7 × 8 + 14 = ?", subPrompt: "Quick Mental Math", options: ["70", "68", "72", "74"], answer: "70" }
 ];
 
 interface PuzzleGameProps {
@@ -949,146 +1163,189 @@ interface PuzzleGameProps {
 
 function PuzzleGame({ mode, onWin }: PuzzleGameProps) {
   const [qIndex, setQIndex] = useState(0);
-  const [p1Stars, setP1Stars] = useState(0);
-  const [p2Stars, setP2Stars] = useState(0);
-  const [turn, setTurn] = useState<"p1" | "p2">("p1");
+  const [p1Score, setP1Score] = useState(0);
+  const [p2Score, setP2Score] = useState(0);
+  const [p1Frozen, setP1Frozen] = useState(false);
+  const [p2Frozen, setP2Frozen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
   const currentQ = SAMPLE_PUZZLES[qIndex % SAMPLE_PUZZLES.length];
 
-  // AI solving interval in ai_rival mode
+  // AI solving in ai_rival mode
   useEffect(() => {
-    if (mode !== "ai_rival" || p1Stars >= 5 || p2Stars >= 5) return;
-    const aiTimer = setInterval(() => {
-      // AI solves a question occasionally
-      if (Math.random() < 0.65) {
-        setP2Stars((s) => {
+    if (mode !== "ai_rival" || p1Score >= 5 || p2Score >= 5) return;
+    const aiTimer = setTimeout(() => {
+      // AI buzzes in with correct answer if player didn't answer in time
+      if (!p2Frozen) {
+        soundFX.correct();
+        setP2Score((s) => {
           const next = s + 1;
           if (next >= 5) {
             soundFX.win();
             onWin("p2");
-          } else {
-            soundFX.correct();
           }
           return next;
         });
+        setFeedback("🤖 AI Rival answered first!");
+        setTimeout(() => {
+          setFeedback(null);
+          setQIndex((i) => i + 1);
+        }, 600);
       }
-    }, 3800);
+    }, 3600);
 
-    return () => clearInterval(aiTimer);
-  }, [mode, p1Stars, p2Stars, onWin]);
+    return () => clearTimeout(aiTimer);
+  }, [mode, p1Score, p2Score, p2Frozen, qIndex, onWin]);
 
-  const handleSelect = (option: string) => {
-    const isCorrect = option === currentQ.answer;
-
-    if (isCorrect) {
+  const handleP1Choice = (choice: string) => {
+    if (p1Frozen) return;
+    if (choice === currentQ.answer) {
       soundFX.correct();
-      setFeedback("✨ Correct!");
-
-      if (turn === "p1") {
-        const next = p1Stars + 1;
-        setP1Stars(next);
-        if (next >= 5) {
-          soundFX.win();
-          onWin("p1");
-          return;
-        }
-      } else {
-        const next = p2Stars + 1;
-        setP2Stars(next);
-        if (next >= 5) {
-          soundFX.win();
-          onWin("p2");
-          return;
-        }
+      setFeedback("✨ Player 1 Won the Question!");
+      const next = p1Score + 1;
+      setP1Score(next);
+      if (next >= 5) {
+        soundFX.win();
+        onWin("p1");
+        return;
       }
-
       setTimeout(() => {
         setFeedback(null);
         setQIndex((i) => i + 1);
-        if (mode === "pass_and_play") {
-          setTurn((t) => (t === "p1" ? "p2" : "p1"));
-        }
       }, 500);
     } else {
       soundFX.wrong();
-      setFeedback("❌ Try again!");
-      setTimeout(() => setFeedback(null), 500);
+      setP1Frozen(true);
+      setTimeout(() => setP1Frozen(false), 1400);
+    }
+  };
+
+  const handleP2Choice = (choice: string) => {
+    if (p2Frozen) return;
+    if (choice === currentQ.answer) {
+      soundFX.correct();
+      setFeedback("✨ Player 2 Won the Question!");
+      const next = p2Score + 1;
+      setP2Score(next);
+      if (next >= 5) {
+        soundFX.win();
+        onWin("p2");
+        return;
+      }
+      setTimeout(() => {
+        setFeedback(null);
+        setQIndex((i) => i + 1);
+      }, 500);
+    } else {
+      soundFX.wrong();
+      setP2Frozen(true);
+      setTimeout(() => setP2Frozen(false), 1400);
     }
   };
 
   const restartPuzzle = () => {
-    setP1Stars(0);
-    setP2Stars(0);
+    setP1Score(0);
+    setP2Score(0);
     setQIndex(0);
-    setTurn("p1");
+    setP1Frozen(false);
+    setP2Frozen(false);
     setFeedback(null);
   };
 
   return (
-    <div className="space-y-4 max-w-md mx-auto">
+    <div className="space-y-4 max-w-xl mx-auto">
       {/* Score Header */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs flex items-center justify-between text-xs font-bold">
         <div>
-          <span className="text-[10px] uppercase font-black text-violet-600">P1 Score</span>
+          <span className="text-[10px] uppercase font-black text-violet-600">Player 1</span>
           <div className="text-base text-violet-700 font-mono">
-            {"★".repeat(p1Stars) + "☆".repeat(Math.max(0, 5 - p1Stars))}
+            {"★".repeat(p1Score) + "☆".repeat(Math.max(0, 5 - p1Score))}
           </div>
         </div>
 
         <div className="text-center">
-          <span className="text-[10px] text-slate-400 uppercase font-black">First to 5</span>
-          <div className="text-slate-800 text-xs">
-            {turn === "p1" ? "Player 1's Turn" : (mode === "ai_rival" ? "Your Turn vs AI" : "Player 2's Turn")}
-          </div>
+          <span className="text-[10px] text-slate-400 uppercase font-black">Simultaneous Race</span>
+          <div className="text-slate-800 text-xs font-extrabold">First to 5 Stars Wins!</div>
         </div>
 
         <div className="text-right">
-          <span className="text-[10px] uppercase font-black text-emerald-600">{mode === "ai_rival" ? "AI Rival" : "P2 Score"}</span>
+          <span className="text-[10px] uppercase font-black text-emerald-600">{mode === "ai_rival" ? "AI Rival" : "Player 2"}</span>
           <div className="text-base text-emerald-700 font-mono">
-            {"★".repeat(p2Stars) + "☆".repeat(Math.max(0, 5 - p2Stars))}
+            {"★".repeat(p2Score) + "☆".repeat(Math.max(0, 5 - p2Score))}
           </div>
         </div>
       </div>
 
-      {/* Puzzle Card */}
-      <div className="bg-white border-2 border-slate-200/90 rounded-3xl p-6 shadow-sm text-center space-y-4 relative overflow-hidden">
-        <div>
-          <span className="text-[11px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full border border-indigo-100">
-            {currentQ.subPrompt}
-          </span>
-          <h3 className={`text-3xl sm:text-4xl font-black mt-3 font-['Fredoka',sans-serif] ${currentQ.fontColorClass || "text-slate-900"}`}>
-            {currentQ.prompt}
-          </h3>
-        </div>
-
-        {/* 4 Answer Buttons */}
-        <div className="grid grid-cols-2 gap-2.5 pt-2">
-          {currentQ.options.map((opt, i) => (
-            <button
-              key={i}
-              onClick={() => handleSelect(opt)}
-              className="py-3.5 px-4 bg-slate-50 hover:bg-violet-50 hover:border-violet-300 border border-slate-200 rounded-2xl font-black text-base sm:text-lg text-slate-800 hover:text-violet-700 transition-all active:scale-95 shadow-xs"
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-
-        {feedback && (
-          <div className="text-xs font-black animate-pulse text-indigo-600">
-            {feedback}
-          </div>
-        )}
+      {/* Main Question Card in Center */}
+      <div className="bg-white border-2 border-slate-200/90 rounded-3xl p-5 shadow-sm text-center space-y-2">
+        <span className="text-[11px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+          {currentQ.subPrompt}
+        </span>
+        <h3 className={`text-3xl sm:text-4xl font-black font-['Fredoka',sans-serif] ${currentQ.fontColorClass || "text-slate-900"}`}>
+          {currentQ.prompt}
+        </h3>
+        {feedback && <div className="text-xs font-black text-violet-600 animate-pulse">{feedback}</div>}
       </div>
 
-      {/* Restart */}
+      {/* Dual Split Buzzers for 2-Player */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* P1 Keypad */}
+        <div className={`p-4 rounded-3xl border-2 transition-all ${
+          p1Frozen ? "bg-rose-50 border-rose-300 opacity-60" : "bg-white border-violet-200 shadow-sm"
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-black text-violet-700 uppercase">P1 Buzzers</span>
+            {p1Frozen && <span className="text-[10px] text-rose-600 font-black">⚠️ Frozen!</span>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {currentQ.options.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => handleP1Choice(opt)}
+                disabled={p1Frozen}
+                className="py-3 px-3 rounded-2xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-900 font-black text-sm active:scale-95 transition-all shadow-xs"
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* P2 Keypad */}
+        <div className={`p-4 rounded-3xl border-2 transition-all ${
+          p2Frozen ? "bg-rose-50 border-rose-300 opacity-60" : "bg-white border-emerald-200 shadow-sm"
+        }`}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-black text-emerald-700 uppercase">
+              {mode === "ai_rival" ? "AI Auto-Buzzer" : "P2 Buzzers"}
+            </span>
+            {p2Frozen && <span className="text-[10px] text-rose-600 font-black">⚠️ Frozen!</span>}
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {currentQ.options.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => handleP2Choice(opt)}
+                disabled={p2Frozen || mode === "ai_rival"}
+                className={`py-3 px-3 rounded-2xl border font-black text-sm transition-all shadow-xs ${
+                  mode === "ai_rival" 
+                    ? "bg-slate-50 border-slate-200 text-slate-400 cursor-not-allowed" 
+                    : "bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-900 active:scale-95"
+                }`}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="flex justify-center">
         <button
           onClick={restartPuzzle}
           className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 text-xs font-bold"
         >
-          <RotateCcw size={13} /> Reset Puzzle Match
+          <RotateCcw size={13} /> Reset Match
         </button>
       </div>
     </div>
@@ -1096,7 +1353,7 @@ function PuzzleGame({ mode, onWin }: PuzzleGameProps) {
 }
 
 // ==========================================
-// 4. CYBER PONG RALLY (Table Tennis)
+// 4. CYBER PONG RALLY (Paddle Tennis with Spin)
 // ==========================================
 interface PongGameProps {
   mode: "pass_and_play" | "ai_rival";
@@ -1113,7 +1370,7 @@ function PongGame({ mode, onWin }: PongGameProps) {
     p2Y: 130,
     ballX: 300,
     ballY: 160,
-    ballVx: 4.5,
+    ballVx: 4.8,
     ballVy: 2.2,
     keys: {} as Record<string, boolean>,
     animId: 0
@@ -1144,55 +1401,55 @@ function PongGame({ mode, onWin }: PongGameProps) {
     const loop = () => {
       const s = stateRef.current;
 
-      // Move P1 paddle
-      if (s.keys["KeyW"]) s.p1Y = Math.max(30, s.p1Y - 5);
-      if (s.keys["KeyS"]) s.p1Y = Math.min(h - 30, s.p1Y + 5);
+      // P1 Paddle
+      if (s.keys["KeyW"]) s.p1Y = Math.max(32, s.p1Y - 5.2);
+      if (s.keys["KeyS"]) s.p1Y = Math.min(h - 32, s.p1Y + 5.2);
 
-      // Move P2 paddle
+      // P2 Paddle
       if (mode === "pass_and_play") {
-        if (s.keys["ArrowUp"]) s.p2Y = Math.max(30, s.p2Y - 5);
-        if (s.keys["ArrowDown"]) s.p2Y = Math.min(h - 30, s.p2Y + 5);
+        if (s.keys["ArrowUp"]) s.p2Y = Math.max(32, s.p2Y - 5.2);
+        if (s.keys["ArrowDown"]) s.p2Y = Math.min(h - 32, s.p2Y + 5.2);
       } else {
-        // AI Paddle
-        if (s.p2Y < s.ballY - 10) s.p2Y += 3.8;
-        else if (s.p2Y > s.ballY + 10) s.p2Y -= 3.8;
-        s.p2Y = Math.max(30, Math.min(h - 30, s.p2Y));
+        if (s.p2Y < s.ballY - 8) s.p2Y += 4.0;
+        else if (s.p2Y > s.ballY + 8) s.p2Y -= 4.0;
+        s.p2Y = Math.max(32, Math.min(h - 32, s.p2Y));
       }
 
-      // Ball Movement
       s.ballX += s.ballVx;
       s.ballY += s.ballVy;
 
-      // Top/Bottom bounce
+      // Wall reflections
       if (s.ballY <= 10 || s.ballY >= h - 10) {
         s.ballVy *= -1;
         soundFX.pong();
       }
 
-      // P1 Paddle Collision (x ~ 30)
-      if (s.ballX <= 38 && s.ballX >= 22 && Math.abs(s.ballY - s.p1Y) < 36) {
+      // P1 Paddle Collision
+      if (s.ballX <= 38 && s.ballX >= 20 && Math.abs(s.ballY - s.p1Y) < 38) {
         s.ballVx = Math.abs(s.ballVx) * 1.05;
-        const delta = (s.ballY - s.p1Y) / 36;
-        s.ballVy = delta * 5.5;
+        const delta = (s.ballY - s.p1Y) / 38;
+        s.ballVy = delta * 5.8;
         soundFX.pong();
+        if (window.navigator?.vibrate) window.navigator.vibrate(15);
       }
 
-      // P2 Paddle Collision (x ~ 570)
-      if (s.ballX >= 562 && s.ballX <= 578 && Math.abs(s.ballY - s.p2Y) < 36) {
+      // P2 Paddle Collision
+      if (s.ballX >= 562 && s.ballX <= 580 && Math.abs(s.ballY - s.p2Y) < 38) {
         s.ballVx = -Math.abs(s.ballVx) * 1.05;
-        const delta = (s.ballY - s.p2Y) / 36;
-        s.ballVy = delta * 5.5;
+        const delta = (s.ballY - s.p2Y) / 38;
+        s.ballVy = delta * 5.8;
         soundFX.pong();
+        if (window.navigator?.vibrate) window.navigator.vibrate(15);
       }
 
-      // Score for P2
+      // Point P2
       if (s.ballX < 0) {
         s2++;
         setP2Score(s2);
         soundFX.hit();
         s.ballX = 300;
         s.ballY = 160;
-        s.ballVx = 4.5;
+        s.ballVx = 4.8;
         s.ballVy = (Math.random() - 0.5) * 4;
         if (s2 >= 5) {
           soundFX.win();
@@ -1201,14 +1458,14 @@ function PongGame({ mode, onWin }: PongGameProps) {
         }
       }
 
-      // Score for P1
+      // Point P1
       if (s.ballX > w) {
         s1++;
         setP1Score(s1);
         soundFX.hit();
         s.ballX = 300;
         s.ballY = 160;
-        s.ballVx = -4.5;
+        s.ballVx = -4.8;
         s.ballVy = (Math.random() - 0.5) * 4;
         if (s1 >= 5) {
           soundFX.win();
@@ -1217,11 +1474,11 @@ function PongGame({ mode, onWin }: PongGameProps) {
         }
       }
 
-      // ---------------- RENDER ----------------
+      // RENDER
       ctx.fillStyle = "#0F172A";
       ctx.fillRect(0, 0, w, h);
 
-      // Center net
+      // Net
       ctx.strokeStyle = "#334155";
       ctx.lineWidth = 2;
       ctx.setLineDash([8, 8]);
@@ -1245,9 +1502,12 @@ function PongGame({ mode, onWin }: PongGameProps) {
 
       // Ball
       ctx.fillStyle = "#FFFFFF";
+      ctx.shadowColor = "#FFFFFF";
+      ctx.shadowBlur = 8;
       ctx.beginPath();
       ctx.arc(s.ballX, s.ballY, 7, 0, Math.PI * 2);
       ctx.fill();
+      ctx.shadowBlur = 0;
 
       s.animId = requestAnimationFrame(loop);
     };
@@ -1261,32 +1521,27 @@ function PongGame({ mode, onWin }: PongGameProps) {
     setP2Score(0);
     stateRef.current.ballX = 300;
     stateRef.current.ballY = 160;
-    stateRef.current.ballVx = 4.5;
+    stateRef.current.ballVx = 4.8;
   };
 
   return (
     <div className="space-y-3">
-      {/* Score Header */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3 shadow-xs flex items-center justify-between text-xs font-bold">
         <div className="text-violet-700">
           Player 1 (Left): <span className="text-lg font-black">{p1Score}</span>
         </div>
-
         <div className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-md">
           First to 5 Points
         </div>
-
         <div className="text-emerald-700">
           <span className="text-lg font-black">{p2Score}</span> :{mode === "ai_rival" ? " AI Rival (Right)" : " Player 2 (Right)"}
         </div>
       </div>
 
-      {/* Canvas */}
       <div className="w-full h-72 sm:h-80 border-2 border-slate-200 rounded-2xl overflow-hidden shadow-xs relative bg-slate-900 flex items-center justify-center">
         <canvas ref={canvasRef} width={600} height={320} className="w-full h-full" />
       </div>
 
-      {/* Controls */}
       <div className="bg-white border border-slate-200/90 rounded-2xl p-3 flex items-center justify-between gap-3 text-xs font-bold">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] uppercase font-black text-violet-600 mr-1">P1 (W/S):</span>
@@ -1314,7 +1569,7 @@ function PongGame({ mode, onWin }: PongGameProps) {
           onClick={resetPong}
           className="p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 flex items-center gap-1 text-xs"
         >
-          <RotateCcw size={13} /> Reset Rally
+          <RotateCcw size={13} /> Rematch
         </button>
 
         {mode === "pass_and_play" && (
@@ -1346,7 +1601,7 @@ function PongGame({ mode, onWin }: PongGameProps) {
 }
 
 // ==========================================
-// 5. TIC-TAC-TOE GRID
+// 5. BLITZ TIC-TAC-TOE (5s Blitz Timer)
 // ==========================================
 interface TicTacToeGameProps {
   mode: "pass_and_play" | "ai_rival";
@@ -1364,6 +1619,27 @@ function TicTacToeGame({ mode, onWin }: TicTacToeGameProps) {
     p2Wins: 0,
     draws: 0
   });
+
+  const [blitzTimer, setBlitzTimer] = useState(5);
+
+  // Blitz countdown clock per turn
+  useEffect(() => {
+    if (ttt.status !== "playing") return;
+    const timer = setInterval(() => {
+      setBlitzTimer((prev) => {
+        if (prev <= 1) {
+          // Timeout: switch turn automatically!
+          soundFX.wrong();
+          const nextTurn = ttt.currentTurn === "p1" ? "p2" : "p1";
+          setTtt((t) => ({ ...t, currentTurn: nextTurn }));
+          return 5;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [ttt.status, ttt.currentTurn]);
 
   const checkWinner = (board: (string | null)[]) => {
     const lines = [
@@ -1410,6 +1686,7 @@ function TicTacToeGame({ mode, onWin }: TicTacToeGameProps) {
 
     const nextTurn = ttt.currentTurn === "p1" ? "p2" : "p1";
     setTtt((prev) => ({ ...prev, board: next, currentTurn: nextTurn }));
+    setBlitzTimer(5);
 
     if (mode === "ai_rival" && nextTurn === "p2") {
       setTimeout(() => {
@@ -1448,11 +1725,13 @@ function TicTacToeGame({ mode, onWin }: TicTacToeGameProps) {
       }
     } else {
       setTtt((prev) => ({ ...prev, board: next, currentTurn: "p1" }));
+      setBlitzTimer(5);
     }
   };
 
   const restartTtt = () => {
     soundFX.move();
+    setBlitzTimer(5);
     setTtt((prev) => ({
       ...prev,
       board: Array(9).fill(null),
@@ -1484,20 +1763,17 @@ function TicTacToeGame({ mode, onWin }: TicTacToeGameProps) {
         </div>
       </div>
 
-      <div className="text-xs font-bold text-slate-600">
-        {ttt.status === "playing" ? (
-          <span>
-            Current Turn:{" "}
-            <span className={ttt.currentTurn === "p1" ? "text-violet-600 font-black" : "text-emerald-600 font-black"}>
-              {ttt.currentTurn === "p1" ? "Player 1 (X)" : (mode === "ai_rival" ? "AI Rival (O)" : "Player 2 (O)")}
-            </span>
+      <div className="flex items-center justify-between w-full px-2 text-xs font-bold text-slate-600">
+        <div>
+          Turn:{" "}
+          <span className={ttt.currentTurn === "p1" ? "text-violet-600 font-black" : "text-emerald-600 font-black"}>
+            {ttt.currentTurn === "p1" ? "Player 1 (X)" : (mode === "ai_rival" ? "AI Rival (O)" : "Player 2 (O)")}
           </span>
-        ) : ttt.winnerId === "draw" ? (
-          <span className="text-slate-600 font-black">🤝 It's a Tie! Well Played!</span>
-        ) : (
-          <span className="text-emerald-600 font-black">
-            🏆 {ttt.winnerId === "p1" ? "Player 1 (X)" : (mode === "ai_rival" ? "AI Rival" : "Player 2 (O)")} Wins!
-          </span>
+        </div>
+        {ttt.status === "playing" && (
+          <div className="flex items-center gap-1 font-mono text-[11px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
+            <Clock size={11} /> {blitzTimer}s Blitz
+          </div>
         )}
       </div>
 
@@ -1555,6 +1831,7 @@ export function DuoGamesArena({
   const [gameMode, setGameMode] = useState<"pass_and_play" | "ai_rival">("pass_and_play");
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [matchSeries, setMatchSeries] = useState({ p1: 0, p2: 0 });
 
   useEffect(() => {
     soundFX.enabled = soundEnabled;
@@ -1564,9 +1841,13 @@ export function DuoGamesArena({
     if (initialGame) setActiveGame(initialGame);
   }, [initialGame]);
 
-  const handleGameWin = () => {
+  const handleGameWin = (winner: "p1" | "p2") => {
     setShowConfetti(true);
-    setTimeout(() => setShowConfetti(false), 3500);
+    setMatchSeries((prev) => ({
+      ...prev,
+      [winner]: prev[winner] + 1
+    }));
+    setTimeout(() => setShowConfetti(false), 3800);
   };
 
   if (!isOpen) return null;
@@ -1604,13 +1885,13 @@ export function DuoGamesArena({
                   {activeGame === "racing" && "🏎️ Turbo Speed Drift"}
                   {activeGame === "puzzle" && "🧩 Mind Rush: Dual Matrix"}
                   {activeGame === "pong" && "🏓 Cyber Pong Rally"}
-                  {activeGame === "tictactoe" && "⭕ Tic-Tac-Toe Grid"}
+                  {activeGame === "tictactoe" && "⭕ Blitz Tic-Tac-Toe"}
                   {!activeGame && "Duo Competitive Arena"}
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium hidden sm:block">
                   {!activeGame 
-                    ? "Challenging reflex, racing, shooting & puzzle games" 
-                    : `${gameMode === "pass_and_play" ? "2-Player Pass & Play" : "Singleplayer vs AI Rival"}`}
+                    ? "Interactive reflex, racing, shooting & puzzle duels" 
+                    : `Match Series: P1 (${matchSeries.p1}) — P2 (${matchSeries.p2})`}
                 </p>
               </div>
             </div>
@@ -1664,25 +1945,23 @@ export function DuoGamesArena({
         {/* Modal Content */}
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 bg-slate-50/50">
 
-          {/* ------------------------------------------ */}
-          {/* MENU VIEW (ALL GAMES)                      */}
-          {/* ------------------------------------------ */}
+          {/* MENU VIEW */}
           {!activeGame && (
             <div className="space-y-4">
               <div className="text-center max-w-sm mx-auto space-y-1 mb-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-violet-600 bg-violet-50 px-2.5 py-1 rounded-full border border-violet-100">
-                  Instant Duo Battle
+                  Competitive Duo Arena
                 </span>
                 <h4 className="text-lg font-black text-slate-900 font-['Fredoka',sans-serif]">
-                  Select a Competitive Challenge
+                  Select a Challenge to Play
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Challenge a friend on this device or test your reflexes against the AI Rival!
+                  Play head-to-head with a friend on this device or challenge the AI Rival!
                 </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* 1. SHOOTING */}
+                {/* 1. SHOOTER */}
                 <div 
                   onClick={() => setActiveGame("shooter")}
                   className="bg-white border border-slate-200/90 hover:border-violet-400 hover:shadow-md rounded-2xl p-4 transition-all cursor-pointer flex flex-col justify-between group text-left active:scale-[0.99]"
@@ -1693,7 +1972,7 @@ export function DuoGamesArena({
                         <Target size={18} />
                       </div>
                       <span className="text-[10px] font-bold text-violet-600 bg-violet-50/80 px-2 py-0.5 rounded-md">
-                        Shooter Duel
+                        Power-Ups & Shields
                       </span>
                     </div>
                     <div>
@@ -1701,7 +1980,7 @@ export function DuoGamesArena({
                         🎯 Laser Cannon Duel
                       </h5>
                       <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                        Aim and fire glowing laser beams past moving energy barriers. 3 hearts each!
+                        Collect shield orbs and triple-laser power-ups past destructible barriers! 3 HP combat.
                       </p>
                     </div>
                   </div>
@@ -1721,20 +2000,20 @@ export function DuoGamesArena({
                         <Flame size={18} />
                       </div>
                       <span className="text-[10px] font-bold text-amber-600 bg-amber-50/80 px-2 py-0.5 rounded-md">
-                        Speed Racing
+                        Bumping & Nitro
                       </span>
                     </div>
                     <div>
                       <h5 className="text-sm font-black text-slate-900 group-hover:text-amber-600 transition-colors">
-                        🏎️ Turbo Track Sprint
+                        🏎️ Turbo Speed Drift
                       </h5>
                       <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                        3-lap grand prix drift circuit with boost pads, smooth cornering, and top speed!
+                        Ram into opponents, trigger nitro boosts, and conquer 3-lap grand prix circuits!
                       </p>
                     </div>
                   </div>
                   <div className="pt-4 flex items-center gap-1 text-xs font-bold text-amber-600 group-hover:translate-x-1 transition-transform">
-                    <span>Play Racing Sprint</span> →
+                    <span>Play Racing Drift</span> →
                   </div>
                 </div>
 
@@ -1749,7 +2028,7 @@ export function DuoGamesArena({
                         <Brain size={18} />
                       </div>
                       <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50/80 px-2 py-0.5 rounded-md">
-                        Brain Battle
+                        Dual Buzzers
                       </span>
                     </div>
                     <div>
@@ -1757,7 +2036,7 @@ export function DuoGamesArena({
                         🧩 Mind Rush: Dual Matrix
                       </h5>
                       <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                        Speed math, Stroop color clash, and number sequence puzzles. First to 5 stars wins!
+                        Simultaneous buzzer race! Math, Stroop color clash & patterns. Wrong answer freezes you!
                       </p>
                     </div>
                   </div>
@@ -1785,7 +2064,7 @@ export function DuoGamesArena({
                         🏓 Cyber Pong Rally
                       </h5>
                       <p className="text-xs text-slate-500 leading-relaxed mt-1">
-                        High-speed paddle tennis with accelerating ball physics and spin deflection!
+                        Accelerating ball physics and curve spins. First to 5 points takes the set!
                       </p>
                     </div>
                   </div>
@@ -1806,10 +2085,10 @@ export function DuoGamesArena({
                       </div>
                       <div>
                         <h5 className="text-sm font-black text-slate-900 group-hover:text-violet-600 transition-colors">
-                          ⭕ Tactical Tic-Tac-Toe Grid
+                          ⭕ Blitz Tic-Tac-Toe Grid
                         </h5>
                         <p className="text-xs text-slate-500">
-                          Classic 3×3 grid duel with smart AI rival and match streak tracker.
+                          Rapid 5-second blitz turns with timeout penalties and series win streaks!
                         </p>
                       </div>
                     </div>
