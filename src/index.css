@@ -60,11 +60,16 @@ html {
   background-size: 20px 20px;
 }
 
-/* GPU-accelerated canvas rendering */
+/* Hardware & GPU-accelerated canvas rendering */
 canvas {
-  will-change: contents;
-  image-rendering: -webkit-optimize-contrast;
-  contain: strict;
+  will-change: transform;
+  image-rendering: auto;
+  contain: layout paint size;
+  transform: translateZ(0);
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* Minimalist Scrollbar */

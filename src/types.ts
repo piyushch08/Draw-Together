@@ -43,6 +43,7 @@ export interface DrawingData {
   prevMidY?: number;
   strokeId?: string;
   userId?: string;
+  pressure?: number;
 }
 
 export interface ChatMessage {
