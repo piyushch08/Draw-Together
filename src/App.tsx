@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "motion/react";
 import QRCode from "qrcode";
-import { Tool, BrushStyle, DrawingData, ChatMessage, UserPresence, CursorUpdate, Layer, CustomPalette, PlacedText, PlacedShape, CanvasAction, GameType } from "./types";
+import { Tool, BrushStyle, DrawingData, ChatMessage, UserPresence, CursorUpdate, Layer, CustomPalette, PlacedText, PlacedShape, CanvasAction } from "./types";
 import {
   Palette,
   Eraser,
@@ -66,12 +66,9 @@ import {
   Smartphone,
   Mail,
   SlidersHorizontal,
-  Gamepad2,
-  Swords,
   Flame
 } from "lucide-react";
 import { cn } from "./lib/utils";
-import { DuoGamesArena } from "./DuoGames";
 
 export const getCanvasDimensions = (aspectRatio?: string): { width: number; height: number } => {
   switch (aspectRatio) {
@@ -758,10 +755,6 @@ export function LandingPage({
     typeof window !== "undefined" && window.innerWidth < 768 && window.innerHeight > window.innerWidth ? "9:16" : "16:9"
   );
 
-  // Homescreen Duo Games Arena State
-  const [isDuoGamesOpen, setIsDuoGamesOpen] = useState<boolean>(false);
-  const [selectedDuoGame, setSelectedDuoGame] = useState<GameType | null>(null);
-
   // Interactive Review & Feedback State
   const [userRating, setUserRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
@@ -821,9 +814,9 @@ export function LandingPage({
 
   const FEATURES = [
     {
-      icon: <Gamepad2 className="w-5 h-5 text-violet-600" />,
-      title: "Competitive Duo Games",
-      desc: "Fast-paced Laser Cannon shooting, Turbo drift racing, Mind Rush puzzles, and Cyber Pong!"
+      icon: <Layers className="w-5 h-5 text-violet-600" />,
+      title: "Multi-Layer Vector Studio",
+      desc: "Organize artwork across multiple isolated layers with opacity, visibility, and blending controls."
     },
     {
       icon: <Zap className="w-5 h-5 text-[#7C3AED]" />,
@@ -942,17 +935,6 @@ export function LandingPage({
                   >
                     <Users size={14} className={isJoining ? "text-[#7C3AED]" : ""} />
                     <span className="hidden xs:inline">Join</span> Room
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedDuoGame(null);
-                      setIsDuoGamesOpen(true);
-                    }}
-                    className="flex-1 py-2 sm:py-3 text-xs sm:text-sm font-black rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5 bg-violet-100/90 text-violet-700 hover:bg-violet-200 border border-violet-200 shadow-xs active:scale-95"
-                    title="Play Duo Mini-Games"
-                  >
-                    <Gamepad2 size={14} className="text-violet-600" />
-                    <span>Duo Games</span>
                   </button>
                 </div>
 
@@ -1155,66 +1137,6 @@ export function LandingPage({
               ))}
             </div>
 
-            {/* Duo Games Arena Showcase Banner (Interactive & Minimalist) */}
-            <div className="w-full bg-white border border-slate-200/90 rounded-3xl p-5 sm:p-7 text-slate-900 shadow-md relative overflow-hidden text-left">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
-                <div className="space-y-2 max-w-xl">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-violet-50 border border-violet-200/70 text-[11px] font-black uppercase tracking-wider text-violet-700">
-                    <Gamepad2 size={13} className="text-violet-600" />
-                    <span>Homescreen Duo Mini-Games</span>
-                  </div>
-                  <h3 className="text-lg sm:text-xl md:text-2xl font-black font-['Fredoka',sans-serif] tracking-tight text-slate-900">
-                    Fast 2-Player Challenges in Real-Time
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                    Choose from 5 competitive duels: 🎯 <strong className="text-slate-900">Laser Cannon Duel</strong>, 🏎️ <strong className="text-slate-900">Turbo Drift Racing</strong>, 🧩 <strong className="text-slate-900">Mind Rush Puzzles</strong>, 🏓 <strong className="text-slate-900">Cyber Pong</strong>, and ⭕ <strong className="text-slate-900">Tic-Tac-Toe</strong>! Play with a friend on this device or test against the AI.
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 sm:gap-2.5 w-full md:w-auto shrink-0 font-medium text-xs">
-                  <button
-                    onClick={() => {
-                      setSelectedDuoGame("shooter");
-                      setIsDuoGamesOpen(true);
-                    }}
-                    className="bg-slate-50 hover:bg-violet-50 hover:border-violet-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-violet-700"
-                  >
-                    <span>🎯 Laser Duel</span>
-                    <span className="text-[10px] text-violet-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedDuoGame("racing");
-                      setIsDuoGamesOpen(true);
-                    }}
-                    className="bg-slate-50 hover:bg-amber-50 hover:border-amber-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-amber-700"
-                  >
-                    <span>🏎️ Turbo Racing</span>
-                    <span className="text-[10px] text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedDuoGame("puzzle");
-                      setIsDuoGamesOpen(true);
-                    }}
-                    className="bg-slate-50 hover:bg-emerald-50 hover:border-emerald-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-emerald-700"
-                  >
-                    <span>🧩 Mind Rush</span>
-                    <span className="text-[10px] text-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedDuoGame("pong");
-                      setIsDuoGamesOpen(true);
-                    }}
-                    className="bg-slate-50 hover:bg-indigo-50 hover:border-indigo-300 px-3.5 py-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-2 transition-all active:scale-95 group font-bold text-slate-700 hover:text-indigo-700"
-                  >
-                    <span>🏓 Cyber Pong</span>
-                    <span className="text-[10px] text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">Play →</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
             {/* Dual Cursor Indicator Badge */}
             <div className="flex justify-center pt-1 sm:pt-2">
               <div className="inline-flex items-center gap-2.5 sm:gap-3 px-4 py-2 sm:py-2.5 rounded-2xl bg-slate-950 text-white shadow-lg text-xs font-semibold">
@@ -1296,7 +1218,7 @@ export function LandingPage({
               </span>
             </div>
             <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-sm mx-auto sm:mx-0">
-              High-performance collaborative studio canvas for duos and teams. Real-time dual-cursor sync, custom aspect ratios, and cross-device stylus pairing.
+              High-performance collaborative studio canvas for creators and teams. Real-time dual-cursor sync, custom aspect ratios, and cross-device stylus pairing.
             </p>
           </div>
 
@@ -1578,13 +1500,6 @@ export function LandingPage({
         )}
       </AnimatePresence>
 
-      {/* Homescreen Minimalist Duo Games Arena Modal */}
-      <DuoGamesArena
-        isOpen={isDuoGamesOpen}
-        onClose={() => setIsDuoGamesOpen(false)}
-        initialGame={selectedDuoGame}
-        username={username || "Player"}
-      />
     </div>
   );
 }
