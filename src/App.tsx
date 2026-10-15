@@ -192,34 +192,38 @@ const CustomCursor: React.FC<CustomCursorProps> = React.memo(({
   eraserSize,
   scale,
 }) => {
-  if (!isOverCanvas || isHandTool || (typeof window !== "undefined" && 'ontouchstart' in window)) return null;
+  if (!isOverCanvas || isHandTool) return null;
 
-  const cursorSize = (tool === "eraser" ? eraserSize : size) * scale;
+  const cursorSize = Math.max(6, (tool === "eraser" ? eraserSize : size) * scale);
   const icons: Record<string, React.ReactNode> = {
-    pencil: <Pencil size={12} />,
-    brush: <Brush size={12} />,
-    spray: <CloudRain size={12} />,
-    smudge: <Fingerprint size={12} />,
-    eraser: <Eraser size={12} />
+    pencil: <Pencil size={11} />,
+    brush: <Brush size={11} />,
+    spray: <CloudRain size={11} />,
+    smudge: <Fingerprint size={11} />,
+    eraser: <Eraser size={11} />
   };
 
   return (
     <div
       ref={cursorRef}
-      className="fixed pointer-events-none z-[9999] flex items-center justify-center -translate-x-1/2 -translate-y-1/2 will-change-[left,top]"
-      style={{ left: -100, top: -100 }}
+      className="fixed pointer-events-none z-[9999] flex items-center justify-center will-change-transform"
+      style={{
+        left: 0,
+        top: 0,
+        transform: "translate3d(-100px, -100px, 0) translate(-50%, -50%)",
+      }}
     >
       <div
         className={cn(
-          "rounded-full border border-slate-400/50 flex items-center justify-center",
-          tool === "eraser" ? "bg-white/20" : "bg-transparent"
+          "rounded-full border border-slate-500/60 flex items-center justify-center transition-[width,height] duration-75",
+          tool === "eraser" ? "bg-rose-500/10 border-rose-400" : "bg-indigo-500/5"
         )}
         style={{
           width: cursorSize,
           height: cursorSize,
         }}
       >
-        <div className="bg-white/90 p-0.5 rounded shadow-lg text-slate-700 flex items-center justify-center transform scale-90">
+        <div className="bg-white/95 p-0.5 rounded-md shadow-md text-slate-800 flex items-center justify-center transform scale-90 ring-1 ring-slate-200">
           {icons[tool]}
         </div>
       </div>
@@ -241,47 +245,10 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
   users,
 }) => {
   const [remoteCursors, setRemoteCursors] = useState<Record<string, UserPresence>>({});
-  const [now, setNow] = useState(Date.now());
-  const rafRef = useRef<number | null>(null);
-  const isTickingRef = useRef(false);
-  const remoteCursorsRef = useRef<Record<string, UserPresence>>({});
-  remoteCursorsRef.current = remoteCursors;
-
   const usersRef = useRef(users);
   useEffect(() => {
     usersRef.current = users;
   }, [users]);
-
-  const TRAIL_LIFETIME = 500;
-
-  const startTickIfNeeded = useCallback(() => {
-    if (isTickingRef.current) return;
-    isTickingRef.current = true;
-
-    const tick = () => {
-      const currentNow = Date.now();
-      setNow(currentNow);
-
-      let hasActiveTrails = false;
-      const currentCursors = remoteCursorsRef.current;
-      for (const uid in currentCursors) {
-        const trail = currentCursors[uid]?.trail;
-        if (trail && trail.some(t => currentNow - t.timestamp < TRAIL_LIFETIME)) {
-          hasActiveTrails = true;
-          break;
-        }
-      }
-
-      if (hasActiveTrails) {
-        rafRef.current = requestAnimationFrame(tick);
-      } else {
-        isTickingRef.current = false;
-        rafRef.current = null;
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-  }, []);
 
   useEffect(() => {
     if (!socket) return;
@@ -291,45 +258,20 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
 
     const flushUpdates = () => {
       rafFlushId = null;
-      const updates = { ...pendingUpdates };
+      const updates = pendingUpdates;
       pendingUpdates = {};
 
-      if (Object.keys(updates).length > 0) {
+      const keys = Object.keys(updates);
+      if (keys.length > 0) {
         setRemoteCursors(prev => {
           const next = { ...prev };
           let changed = false;
-          let addedTrail = false;
 
-          for (const userId in updates) {
+          for (let i = 0; i < keys.length; i++) {
+            const userId = keys[i];
             const data = updates[userId];
             const prevCursor = prev[userId];
             const userInfo = usersRef.current[userId];
-            const prevX = prevCursor?.cursorX;
-            const prevY = prevCursor?.cursorY;
-            let trail = prevCursor?.trail || [];
-
-            if (prevX !== undefined && prevY !== undefined && data.x !== undefined && data.y !== undefined) {
-              const dx = data.x - prevX;
-              const dy = data.y - prevY;
-              const dist = Math.hypot(dx, dy);
-
-              if (dist > 12) {
-                const numSteps = Math.min(Math.floor(dist / 14), 4);
-                const newPoints = [];
-                for (let i = 1; i <= numSteps; i++) {
-                  const ratio = i / (numSteps + 1);
-                  newPoints.push({
-                    x: prevX + dx * ratio,
-                    y: prevY + dy * ratio,
-                    timestamp: Date.now() - (1 - ratio) * 50,
-                    id: `${data.userId}-${Date.now()}-${i}-${Math.random()}`,
-                    size: Math.max(2.5, Math.min(dist / 8, 10))
-                  });
-                }
-                trail = [...newPoints, ...trail].slice(0, 15);
-                addedTrail = true;
-              }
-            }
 
             next[userId] = {
               id: data.userId,
@@ -339,14 +281,9 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
               cursorY: data.y,
               tool: data.tool,
               isDrawing: data.isDrawing,
-              trail,
               lastActiveAt: Date.now()
             };
             changed = true;
-          }
-
-          if (addedTrail) {
-            startTickIfNeeded();
           }
 
           return changed ? next : prev;
@@ -377,9 +314,8 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
       socket.off("cursor-move", handleCursorMove);
       socket.off("user-left", handleUserLeft);
       if (rafFlushId) cancelAnimationFrame(rafFlushId);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [socket, startTickIfNeeded]);
+  }, [socket]);
 
   return (
     <div
@@ -389,96 +325,71 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
       )}
       style={{
         transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-        transformOrigin: '0 0'
+        transformOrigin: "0 0"
       }}
     >
-      {(Object.values(remoteCursors) as UserPresence[]).filter(u => u.id !== socket?.id && typeof u.cursorX === 'number' && !isNaN(u.cursorX) && isFinite(u.cursorX) && typeof u.cursorY === 'number' && !isNaN(u.cursorY) && isFinite(u.cursorY)).map(u => {
-        const activeTrail = (u.trail || []).filter(t => now - t.timestamp < TRAIL_LIFETIME);
-        return (
-          <React.Fragment key={u.id}>
-            {activeTrail.map((point) => {
-              const age = now - point.timestamp;
-              const ratio = Math.max(0, 1 - age / TRAIL_LIFETIME);
-              return (
-                <div
-                  key={point.id}
-                  className="absolute rounded-full pointer-events-none transform -translate-x-1/2 -translate-y-1/2 will-change-[width,height,opacity]"
-                  style={{
-                    left: point.x,
-                    top: point.y,
-                    width: (point.size || 5) * ratio * 1.5,
-                    height: (point.size || 5) * ratio * 1.5,
-                    backgroundColor: u.color,
-                    opacity: ratio * 0.55,
-                    boxShadow: `0 0 6px ${u.color}`,
-                  }}
+      {(Object.values(remoteCursors) as UserPresence[])
+        .filter(u => u.id !== socket?.id && typeof u.cursorX === "number" && !isNaN(u.cursorX) && isFinite(u.cursorX) && typeof u.cursorY === "number" && !isNaN(u.cursorY) && isFinite(u.cursorY))
+        .map(u => (
+          <div
+            key={u.id}
+            className="absolute flex flex-col items-start gap-1 will-change-transform"
+            style={{
+              transform: `translate3d(${u.cursorX}px, ${u.cursorY}px, 0)`,
+              transition: isTransitioning ? "none" : "transform 60ms linear",
+              zIndex: u.isDrawing ? 20 : 10,
+            }}
+          >
+            <div className="relative">
+              <svg
+                width="22" height="22" viewBox="0 0 24 24" fill="none"
+                className="drop-shadow-md -translate-x-[2px] -translate-y-[2px]"
+                style={{ color: u.color }}
+              >
+                <path
+                  d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z"
+                  fill="currentColor"
+                  stroke="white"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
                 />
-              );
-            })}
+              </svg>
 
-            <motion.div
-              initial={false}
-              animate={{ x: u.cursorX, y: u.cursorY }}
-              transition={{ type: "spring", stiffness: 800, damping: 60, mass: 0.2 }}
-              className="absolute flex flex-col items-start gap-1"
-              style={{
-                zIndex: u.isDrawing ? 20 : 10,
-              }}
-            >
-              <div className="relative">
-                <svg
-                  width="24" height="24" viewBox="0 0 24 24" fill="none"
-                  className="drop-shadow-2xl -translate-x-[2px] -translate-y-[2px]"
-                  style={{ color: u.color }}
-                >
-                  <path
-                    d="M3 3L10.07 19.97L12.58 12.58L19.97 10.07L3 3Z"
-                    fill="currentColor"
-                    stroke="white"
-                    strokeWidth="2"
-                    strokeLinejoin="round"
-                  />
-                </svg>
+              {u.isDrawing && (
+                <div
+                  className="absolute left-0 top-0 w-2.5 h-2.5 rounded-full -translate-x-1/2 -translate-y-1/2 animate-ping"
+                  style={{ backgroundColor: u.color }}
+                />
+              )}
+            </div>
 
-                {u.isDrawing && (
-                  <motion.div
-                    initial={{ scale: 0, opacity: 1 }}
-                    animate={{ scale: 4, opacity: 0 }}
-                    transition={{ duration: 1, repeat: Infinity }}
-                    className="absolute left-0 top-0 w-2 h-2 rounded-full -translate-x-1/2 -translate-y-1/2"
-                    style={{ backgroundColor: u.color }}
-                  />
+            <div className="flex items-center gap-1.5 -translate-x-1 mt-0.5">
+              <div
+                className={cn(
+                  "w-5 h-5 rounded-md border-2 border-white shadow-sm flex items-center justify-center bg-white overflow-hidden transition-transform",
+                  u.isDrawing && "scale-110"
                 )}
-              </div>
-
-              <div className="flex items-center gap-1.5 -translate-x-1 mt-1">
-                <motion.div
-                  animate={u.isDrawing ? { scale: [1, 1.2, 1], rotate: [-10, 10, -10] } : { scale: 1, rotate: 0 }}
-                  transition={{ repeat: Infinity, duration: 2 }}
-                  className="w-6 h-6 rounded-lg border-2 border-white shadow-xl flex items-center justify-center transition-all bg-white overflow-hidden"
-                >
-                  <div className="absolute inset-0 opacity-20" style={{ backgroundColor: u.color }} />
-                  <div className="relative">
-                    {u.tool === "pencil" && <Pencil size={12} style={{ color: u.color }} />}
-                    {u.tool === "brush" && <Brush size={12} style={{ color: u.color }} />}
-                    {u.tool === "spray" && <CloudRain size={12} style={{ color: u.color }} />}
-                    {u.tool === "smudge" && <Fingerprint size={12} style={{ color: u.color }} />}
-                    {u.tool === "eraser" && <Eraser size={12} className="text-slate-400" />}
-                    {u.tool === "shape" && <Shapes size={12} style={{ color: u.color }} />}
-                    {u.tool === "text" && <Type size={12} style={{ color: u.color }} />}
-                    {u.tool === "stamp" && <Sticker size={12} style={{ color: u.color }} />}
-                    {u.tool === "picker" && <Pipette size={12} style={{ color: u.color }} />}
-                  </div>
-                </motion.div>
-
-                <div className="bg-slate-900/90 backdrop-blur-md text-white text-[9px] font-black px-2 py-1 rounded-lg whitespace-nowrap shadow-2xl border border-slate-700/50 uppercase tracking-tighter shadow-indigo-500/10">
-                  {u.username}
+              >
+                <div className="absolute inset-0 opacity-20" style={{ backgroundColor: u.color }} />
+                <div className="relative">
+                  {u.tool === "pencil" && <Pencil size={11} style={{ color: u.color }} />}
+                  {u.tool === "brush" && <Brush size={11} style={{ color: u.color }} />}
+                  {u.tool === "spray" && <CloudRain size={11} style={{ color: u.color }} />}
+                  {u.tool === "smudge" && <Fingerprint size={11} style={{ color: u.color }} />}
+                  {u.tool === "eraser" && <Eraser size={11} className="text-slate-400" />}
+                  {u.tool === "shape" && <Shapes size={11} style={{ color: u.color }} />}
+                  {u.tool === "text" && <Type size={11} style={{ color: u.color }} />}
+                  {u.tool === "stamp" && <Sticker size={11} style={{ color: u.color }} />}
+                  {u.tool === "picker" && <Pipette size={11} style={{ color: u.color }} />}
                 </div>
               </div>
-            </motion.div>
-          </React.Fragment>
-        );
-      })}
+
+              <div className="bg-slate-900/90 backdrop-blur-md text-white text-[9px] font-black px-1.5 py-0.5 rounded whitespace-nowrap shadow-sm border border-slate-700/50 uppercase tracking-tighter">
+                {u.username}
+              </div>
+            </div>
+          </div>
+        ))}
     </div>
   );
 });
@@ -1730,6 +1641,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const [jitter, setJitter] = useState(0);
   const [symmetryMode, setSymmetryMode] = useState<"none" | "horizontal" | "vertical" | "both">("none");
   const [tool, setTool] = useState<Tool>("brush");
+  const toolRef = useRef<Tool>("brush");
+  toolRef.current = tool;
+  const [isQuickSizeOpen, setIsQuickSizeOpen] = useState(false);
   const [smoothing, setSmoothing] = useState(0.8); // Ultra smooth drawing tracking!
   const [showGrid, setShowGrid] = useState(false);
   const [isSmoothingEnabled, setIsSmoothingEnabled] = useState(true);
@@ -1878,9 +1792,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const networkQueueRef = useRef<DrawingData[]>([]);
-  const networkIntervalId = useRef<number | null>(null);
+  const networkRafId = useRef<number | null>(null);
 
   const flushNetworkQueue = useCallback(() => {
+    if (networkRafId.current) {
+      cancelAnimationFrame(networkRafId.current);
+      networkRafId.current = null;
+    }
     if (networkQueueRef.current.length > 0) {
       const segments = networkQueueRef.current;
       networkQueueRef.current = [];
@@ -1891,12 +1809,23 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     }
   }, [roomId, socket]);
 
-  useEffect(() => {
-    networkIntervalId.current = window.setInterval(flushNetworkQueue, 4);
-    return () => {
-      if (networkIntervalId.current) clearInterval(networkIntervalId.current);
-    };
+  const queueDrawingSegment = useCallback((seg: DrawingData) => {
+    networkQueueRef.current.push(seg);
+    if (networkQueueRef.current.length >= 6) {
+      flushNetworkQueue();
+    } else if (!networkRafId.current) {
+      networkRafId.current = requestAnimationFrame(() => {
+        networkRafId.current = null;
+        flushNetworkQueue();
+      });
+    }
   }, [flushNetworkQueue]);
+
+  useEffect(() => {
+    return () => {
+      if (networkRafId.current) cancelAnimationFrame(networkRafId.current);
+    };
+  }, []);
 
   // --- LAYER TYPES & HELPERS ---
   interface LayerHistoryState {
@@ -2529,12 +2458,81 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   // Hand tool toggle logic
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === "Space" && !e.repeat && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+      const isInputFocused = document.activeElement?.tagName === "INPUT" || 
+                             document.activeElement?.tagName === "TEXTAREA" || 
+                             (document.activeElement as HTMLElement)?.isContentEditable;
+
+      if (e.code === "Space" && !e.repeat && !isInputFocused) {
         setIsHandTool(true);
       }
 
+      // Pro Creative Keyboard Shortcuts for Speed & Precision Control
+      if (!isInputFocused && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (e.code === "KeyB") {
+          handleToolChange("brush");
+        } else if (e.code === "KeyE") {
+          handleToolChange("eraser");
+        } else if (e.code === "KeyP" || e.code === "KeyI") {
+          handleToolChange("picker");
+        } else if (e.code === "KeyT") {
+          handleToolChange("text");
+        } else if (e.code === "KeyS") {
+          handleToolChange("shape");
+        } else if (e.code === "KeyH") {
+          setIsHandTool(prev => !prev);
+          vibrate(5);
+        } else if (e.code === "KeyG") {
+          setShowGrid(prev => !prev);
+          vibrate(5);
+        } else if (e.code === "BracketLeft") {
+          // [ to decrease brush/eraser size
+          e.preventDefault();
+          if (toolRef.current === "eraser") {
+            setEraserSize(prev => Math.max(2, prev <= 10 ? prev - 2 : prev - 5));
+          } else {
+            setSize(prev => Math.max(1, prev <= 10 ? prev - 2 : prev - 5));
+          }
+          vibrate(5);
+        } else if (e.code === "BracketRight") {
+          // ] to increase brush/eraser size
+          e.preventDefault();
+          if (toolRef.current === "eraser") {
+            setEraserSize(prev => Math.min(150, prev < 10 ? prev + 2 : prev + 5));
+          } else {
+            setSize(prev => Math.min(100, prev < 10 ? prev + 2 : prev + 5));
+          }
+          vibrate(5);
+        } else if (e.code === "Digit0") {
+          // 0 to Reset & Fit Canvas to Screen
+          e.preventDefault();
+          fitToScreen();
+          vibrate(10);
+        } else if (e.code === "Equal") {
+          // + or = to Zoom In
+          e.preventDefault();
+          setTransformSmooth((prev: any) => ({ ...prev, scale: Math.min(prev.scale + 0.25, 10) }));
+          vibrate(5);
+        } else if (e.code === "Minus") {
+          // - to Zoom Out
+          e.preventDefault();
+          setTransformSmooth((prev: any) => ({ ...prev, scale: Math.max(prev.scale - 0.25, 0.1) }));
+          vibrate(5);
+        } else if (e.code === "Escape") {
+          if (editingTextIdRef.current) setEditingTextId(null);
+          if (editingShapeIdRef.current) {
+            setEditingShapeId(null);
+            setSelectedShapeIds([]);
+            selectedShapeIdsRef.current = [];
+          }
+          setShowInvite(false);
+          setIsLayersOpen(false);
+          setIsPaletteOpen(false);
+          setIsQuickSizeOpen(false);
+        }
+      }
+
       // Delete/Backspace shortcut for active sticker, text, or shape
-      if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
+      if ((e.key === "Delete" || e.key === "Backspace") && !isInputFocused) {
         if (editingTextIdRef.current) {
           const next = placedTextsRef.current.filter(t => t.id !== editingTextIdRef.current);
           setPlacedTexts(next);
@@ -3094,7 +3092,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       }
 
       const hardnessVal = data.hardness ?? 1.0;
-      ctx.lineWidth = data.size;
+      let effectiveLineWidth = data.size;
+      if (data.pressure && data.pressure > 0 && data.pressure !== 0.5) {
+        effectiveLineWidth = Math.max(1, data.size * (0.35 + data.pressure * 1.3));
+      }
+      ctx.lineWidth = effectiveLineWidth;
       const effectiveFlow = data.flow ?? 1.0;
       ctx.globalAlpha = data.opacity * effectiveFlow;
 
@@ -3331,7 +3333,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
 
-      const containerRect = container.getBoundingClientRect();
+      const containerRect = containerRectRef.current || container.getBoundingClientRect();
       const relativeMouseX = e.clientX - containerRect.left;
       const relativeMouseY = e.clientY - containerRect.top;
 
@@ -3429,18 +3431,26 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       }
     };
     updateRect();
-    window.addEventListener('resize', updateRect);
-    window.addEventListener('orientationchange', updateRect);
-    window.addEventListener('scroll', updateRect, true);
+    window.addEventListener('resize', updateRect, { passive: true });
+    window.addEventListener('orientationchange', updateRect, { passive: true });
+    window.addEventListener('scroll', updateRect, { passive: true, capture: true });
+
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      ro = new ResizeObserver(updateRect);
+      ro.observe(containerRef.current);
+    }
+
     return () => {
       window.removeEventListener('resize', updateRect);
       window.removeEventListener('orientationchange', updateRect);
       window.removeEventListener('scroll', updateRect, true);
+      ro?.disconnect();
     };
   }, []);
 
   function getCoordinates(e: any) {
-    const rect = containerRef.current?.getBoundingClientRect() || containerRectRef.current;
+    const rect = containerRectRef.current || (containerRef.current ? (containerRectRef.current = containerRef.current.getBoundingClientRect()) : null);
     if (!rect) return { x: 0, y: 0 };
 
     let clientX = e.clientX;
@@ -3915,6 +3925,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         currentColor = `hsl(${hueRef.current}, 100%, 50%)`;
       }
 
+      const rawPressure = typeof e.pressure === "number" && e.pressure > 0 ? e.pressure : (e.nativeEvent?.pressure ?? 0.5);
+      const hasPressure = (e.pointerType === "pen" || e.nativeEvent?.pointerType === "pen") || (rawPressure > 0 && rawPressure !== 0.5);
+      const pressure = hasPressure ? rawPressure : undefined;
+
       const initialDot: DrawingData = {
         roomId,
         x,
@@ -3927,6 +3941,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         prevMidY: y,
         color: currentColor,
         size: tool === "eraser" ? eraserSize : size,
+        pressure,
         tool,
         brushStyle,
         symmetryMode,
@@ -3952,7 +3967,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
       currentStrokeSegmentsRef.current.push(initialDot);
       drawOnCanvas(initialDot, true);
-      networkQueueRef.current.push(initialDot);
+      queueDrawingSegment(initialDot);
     }
 
     emitCursorUpdate(x, y, true);
@@ -4189,6 +4204,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       currentColor = `hsl(${hueRef.current}, 100%, 50%)`;
     }
 
+    const rawPressure = typeof e.pressure === "number" && e.pressure > 0 ? e.pressure : (e.nativeEvent?.pressure ?? 0.5);
+    const hasPressure = (e.pointerType === "pen" || e.nativeEvent?.pointerType === "pen") || (rawPressure > 0 && rawPressure !== 0.5);
+    const pressure = hasPressure ? rawPressure : undefined;
+
     const data: DrawingData = {
       roomId,
       x,
@@ -4201,6 +4220,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       prevMidY,
       color: currentColor,
       size: tool === "eraser" ? eraserSize : size,
+      pressure,
       tool,
       brushStyle,
       symmetryMode,
@@ -4231,10 +4251,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     // Instant local drawing for zero-latency response!
     drawOnCanvas(data, false);
     scheduleCompositeLayers();
-    networkQueueRef.current.push(data);
-    if (networkQueueRef.current.length >= 2) {
-      flushNetworkQueue();
-    }
+    queueDrawingSegment(data);
 
     drawingState.current.lastX = x;
     drawingState.current.lastY = y;
@@ -4308,7 +4325,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           currentStrokeSegmentsRef.current.push(finishData);
         }
         drawOnCanvas(finishData, false);
-        networkQueueRef.current.push(finishData);
+        queueDrawingSegment(finishData);
       }
       flushNetworkQueue();
       compositeLayers();
@@ -4949,6 +4966,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
   // Optimized Touch Handlers
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (cursorRef.current) {
+      cursorRef.current.style.display = "none";
+    }
     if (e.touches.length === 1) {
       const touch = e.touches[0];
       // Save raw screen coordinates for panning mode
@@ -4971,7 +4991,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       const centerX = (t1.clientX + t2.clientX) / 2;
       const centerY = (t1.clientY + t2.clientY) / 2;
 
-      const containerRect = containerRef.current?.getBoundingClientRect();
+      const containerRect = containerRectRef.current || containerRef.current?.getBoundingClientRect();
       if (containerRect) {
         const mouseX = centerX - containerRect.left;
         const mouseY = centerY - containerRect.top;
@@ -5043,7 +5063,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           // Translate calculation: move shape center matching finger center shift
           const centerX = (t1.clientX + t2.clientX) / 2;
           const centerY = (t1.clientY + t2.clientY) / 2;
-          const containerRect = containerRef.current?.getBoundingClientRect();
+          const containerRect = containerRectRef.current || containerRef.current?.getBoundingClientRect();
           let newX = s.x;
           let newY = s.y;
 
@@ -5087,7 +5107,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       const centerX = (t1.clientX + t2.clientX) / 2;
       const centerY = (t1.clientY + t2.clientY) / 2;
 
-      const containerRect = containerRef.current?.getBoundingClientRect();
+      const containerRect = containerRectRef.current || containerRef.current?.getBoundingClientRect();
       if (containerRect) {
         const mouseX = centerX - containerRect.left;
         const mouseY = centerY - containerRect.top;
@@ -5131,8 +5151,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     if (e.pointerType === "touch") return;
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     if (cursorRef.current) {
-      cursorRef.current.style.left = `${e.clientX}px`;
-      cursorRef.current.style.top = `${e.clientY}px`;
+      cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
+      cursorRef.current.style.display = "flex";
     }
 
     const nativeEvent = e.nativeEvent as PointerEvent;
@@ -5163,8 +5183,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     mousePosRef.current = { x: e.clientX, y: e.clientY };
     // Direct DOM update for custom cursor for 60fps performance without React overhead
     if (cursorRef.current) {
-      cursorRef.current.style.left = `${e.clientX}px`;
-      cursorRef.current.style.top = `${e.clientY}px`;
+      cursorRef.current.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0) translate(-50%, -50%)`;
+      cursorRef.current.style.display = "flex";
     }
 
     draw(e.nativeEvent);
@@ -6226,6 +6246,87 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-3 px-1.5 sm:px-4 shrink-0 mr-1">
+              {/* Quick Size Controller */}
+              <div className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickSizeOpen(prev => !prev)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs select-none",
+                    isQuickSizeOpen
+                      ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
+                      : "bg-slate-50 border-slate-200 text-slate-700 hover:text-indigo-600 hover:bg-slate-100"
+                  )}
+                  title="Quick Size: [ to decrease, ] to increase"
+                >
+                  <div
+                    className="rounded-full bg-current transition-all shrink-0"
+                    style={{
+                      width: Math.max(4, Math.min(12, (tool === "eraser" ? eraserSize : size) / 3)),
+                      height: Math.max(4, Math.min(12, (tool === "eraser" ? eraserSize : size) / 3))
+                    }}
+                  />
+                  <span className="text-[10px] sm:text-xs font-mono font-bold tabular-nums">
+                    {tool === "eraser" ? eraserSize : size}px
+                  </span>
+                </button>
+                <AnimatePresence>
+                  {isQuickSizeOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-xl border border-slate-200 shadow-2xl rounded-2xl p-3 w-56 space-y-2.5 z-50 text-slate-800"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                          {tool === "eraser" ? "Eraser Size" : "Brush Size"}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                          {tool === "eraser" ? eraserSize : size}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max={tool === "eraser" ? 150 : 100}
+                        value={tool === "eraser" ? eraserSize : size}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value);
+                          if (tool === "eraser") setEraserSize(val);
+                          else setSize(val);
+                        }}
+                        className="w-full h-1.5 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
+                      <div className="grid grid-cols-4 gap-1">
+                        {(tool === "eraser" ? [10, 25, 50, 100] : [2, 6, 16, 36]).map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => {
+                              if (tool === "eraser") setEraserSize(preset);
+                              else setSize(preset);
+                              vibrate(5);
+                            }}
+                            className={cn(
+                              "py-1 rounded-lg text-[9px] font-bold border transition-all active:scale-95",
+                              (tool === "eraser" ? eraserSize : size) === preset
+                                ? "bg-indigo-600 text-white border-indigo-600"
+                                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                            )}
+                          >
+                            {preset}px
+                          </button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="w-[1px] h-6 bg-slate-200/60 shrink-0" />
+
               <Tooltip label="Custom Color Picker" side="top">
                 <label
                   className="w-8 h-8 xs:w-9 xs:h-9 sm:w-11 sm:h-11 flex items-center justify-center border-2 sm:border-4 border-white rounded-lg sm:rounded-xl shadow-md ring-1 ring-slate-200 hover:scale-105 active:scale-90 transition-all cursor-pointer overflow-hidden relative shrink-0 group"
