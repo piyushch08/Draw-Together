@@ -39,6 +39,7 @@ interface RoomData {
   activeLayerId?: string;
   backgroundColor?: string;
   aspectRatio?: string;
+  isSettingsLocked?: boolean;
 }
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -196,21 +197,25 @@ async function startServer() {
       socket.join(cleanRoomId);
       const room = getOrCreateRoom(cleanRoomId);
 
-      // Lock in creator's canvas settings if creator is setting them or if room has none
-      if (isCreator) {
+      // Canvas ratio and background color are decided solely by the room creator at creation time.
+      // They are identical across all clients and unchangeable inside the canvas.
+      if (isCreator && (!room.isSettingsLocked || room.users.size <= 1)) {
+        room.backgroundColor = backgroundColor || room.backgroundColor || "#FFFFFF";
+        room.aspectRatio = aspectRatio || room.aspectRatio || "16:9";
+        room.isSettingsLocked = true;
+        // Broadcast creator's locked settings to any connected clients
+        socket.to(cleanRoomId).emit("room-settings-updated", {
+          roomId: cleanRoomId,
+          backgroundColor: room.backgroundColor,
+          aspectRatio: room.aspectRatio
+        });
+      } else if (!room.isSettingsLocked) {
+        // If room was created without explicit creator flag, lock first available settings
         if (backgroundColor) room.backgroundColor = backgroundColor;
         if (aspectRatio) room.aspectRatio = aspectRatio;
-        if (backgroundColor || aspectRatio) {
-          socket.to(cleanRoomId).emit("room-settings-updated", {
-            roomId: cleanRoomId,
-            backgroundColor: room.backgroundColor || "#FFFFFF",
-            aspectRatio: room.aspectRatio || "16:9"
-          });
+        if (room.backgroundColor && room.aspectRatio) {
+          room.isSettingsLocked = true;
         }
-      } else {
-        // If non-creator, only set if room has never had one and value is explicitly not default 16:9
-        if (!room.backgroundColor && backgroundColor) room.backgroundColor = backgroundColor;
-        if (!room.aspectRatio && aspectRatio && aspectRatio !== "16:9") room.aspectRatio = aspectRatio;
       }
 
       const user: ConnectedUser = {
@@ -329,13 +334,12 @@ async function startServer() {
       const targetRoom = data.roomId.trim().toUpperCase();
       const room = getOrCreateRoom(targetRoom);
       room.canvasData = data.canvasData;
-      if (data.backgroundColor) room.backgroundColor = data.backgroundColor;
-      if (data.aspectRatio) room.aspectRatio = data.aspectRatio;
+      // Do not overwrite room.backgroundColor or room.aspectRatio - enforce creator's locked settings
       room.lastActivity = Date.now();
       socket.to(targetRoom).emit("sync-canvas", { 
         ...data, 
-        backgroundColor: room.backgroundColor || data.backgroundColor || "#FFFFFF",
-        aspectRatio: room.aspectRatio || data.aspectRatio || "16:9",
+        backgroundColor: room.backgroundColor || "#FFFFFF",
+        aspectRatio: room.aspectRatio || "16:9",
         roomId: targetRoom 
       });
     });
@@ -352,13 +356,12 @@ async function startServer() {
         const room = rooms.get(targetRoom);
         if (room) {
           room.canvasData = data.canvasData;
-          if (data.backgroundColor) room.backgroundColor = data.backgroundColor;
-          if (data.aspectRatio) room.aspectRatio = data.aspectRatio;
+          // Do not overwrite room.backgroundColor or room.aspectRatio
         }
         io.to(data.requesterId).emit("sync-canvas", { 
           canvasData: data.canvasData,
-          backgroundColor: room?.backgroundColor || data.backgroundColor || "#FFFFFF",
-          aspectRatio: room?.aspectRatio || data.aspectRatio || "16:9",
+          backgroundColor: room?.backgroundColor || "#FFFFFF",
+          aspectRatio: room?.aspectRatio || "16:9",
           roomId: targetRoom
         });
       }
@@ -444,13 +447,8 @@ async function startServer() {
     });
 
     socket.on("update-room-settings", (data: { roomId: string; backgroundColor: string; aspectRatio: string }) => {
-      if (!data?.roomId) return;
-      const targetRoom = data.roomId.trim().toUpperCase();
-      const room = getOrCreateRoom(targetRoom);
-      room.backgroundColor = data.backgroundColor;
-      room.aspectRatio = data.aspectRatio;
-      room.lastActivity = Date.now();
-      io.to(targetRoom).emit("room-settings-updated", { ...data, roomId: targetRoom });
+      // Intentionally rejected: Canvas ratio and background color are decided by the room creator and remain unchangeable inside the canvas
+      console.log(`[Room Settings] Ignored inside-canvas modification attempt for room ${data?.roomId}`);
     });
 
     socket.on("disconnecting", () => {

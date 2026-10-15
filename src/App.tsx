@@ -18,6 +18,7 @@ import {
   Copy,
   Check,
   Smile,
+  Lock,
   LogOut,
   Maximize,
   Square,
@@ -883,11 +884,29 @@ export function LandingPage({
                         />
                       </div>
 
+                      {/* Creator Canvas Master Settings Notice */}
+                      <div className="p-2.5 sm:p-3 rounded-xl bg-violet-50/80 border border-violet-200/80 flex items-start gap-2.5">
+                        <Lock size={15} className="text-violet-600 mt-0.5 shrink-0" />
+                        <div className="space-y-0.5">
+                          <p className="text-[11px] sm:text-xs font-black text-violet-950 uppercase tracking-wide">
+                            Creator Canvas Setup
+                          </p>
+                          <p className="text-[10px] sm:text-[11px] text-violet-700 font-medium leading-relaxed">
+                            Your selected ratio and background color are synchronized and unchangeable inside the canvas for all collaborators.
+                          </p>
+                        </div>
+                      </div>
+
                       {/* Canvas Size & Aspect Ratio Grid */}
                       <div className="space-y-2">
-                        <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
-                          Canvas Size & Ratio
-                        </label>
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700">
+                            Canvas Size & Ratio
+                          </label>
+                          <span className="text-[10px] sm:text-xs font-mono font-bold text-violet-700 bg-violet-100/70 px-2 py-0.5 rounded">
+                            {creatorAspectRatio} ({ASPECT_RATIOS.find(a => a.id === creatorAspectRatio)?.sub})
+                          </span>
+                        </div>
                         <div className="grid grid-cols-5 gap-1 sm:gap-2">
                           {ASPECT_RATIOS.map(ar => (
                             <button
@@ -921,10 +940,10 @@ export function LandingPage({
                       {/* Canvas Background Color Presets */}
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-600">
-                            Canvas Color
+                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700">
+                            Canvas Background Color
                           </label>
-                          <span className="text-[10px] sm:text-xs font-mono text-slate-500 uppercase font-bold bg-slate-100 px-2 py-0.5 rounded">
+                          <span className="text-[10px] sm:text-xs font-mono text-slate-600 uppercase font-bold bg-slate-100 px-2 py-0.5 rounded">
                             {creatorBgColor}
                           </span>
                         </div>
@@ -5392,17 +5411,25 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </button>
           </Tooltip>
 
-          {/* Canvas Settings / Aspect Ratio Button - VISIBLE ON ALL SCREENS */}
-          <Tooltip label="Canvas Ratio & Color" side="bottom">
+          {/* Canvas Format (Locked by Room Creator) - VISIBLE ON ALL SCREENS */}
+          <Tooltip label={`Canvas Format: ${roomSettings.aspectRatio} (${getCanvasDimensions(roomSettings.aspectRatio).width}×${getCanvasDimensions(roomSettings.aspectRatio).height}px) • Background: ${roomSettings.backgroundColor} • Fixed by Room Creator`} side="bottom">
             <button
+              type="button"
               onClick={() => {
                 setShowTemplateModal(true);
                 vibrate(5);
               }}
-              className="p-1 xs:p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-slate-200 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center justify-center"
-              title="Canvas Ratio & Color"
+              className="px-2 py-1 xs:py-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl border border-slate-200/90 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center gap-1.5"
+              title="Canvas Specifications (Fixed by Creator)"
             >
-              <SlidersHorizontal size={13} className="sm:w-4 sm:h-4" />
+              <div
+                className="w-3 h-3 rounded-full border border-slate-300 shrink-0 shadow-2xs"
+                style={{ backgroundColor: roomSettings.backgroundColor }}
+              />
+              <span className="text-[10px] font-mono font-bold tracking-tight text-slate-700">
+                {roomSettings.aspectRatio}
+              </span>
+              <Lock size={11} className="text-slate-400 shrink-0" />
             </button>
           </Tooltip>
 
@@ -8119,7 +8146,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           )}
         </AnimatePresence>
 
-        {/* Template Settings Modal */}
+        {/* Template Specifications Modal (Locked by Room Creator) */}
         <AnimatePresence>
           {showTemplateModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
@@ -8127,127 +8154,92 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="w-full max-w-sm bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-8 shadow-2xl border border-slate-200 my-auto max-h-[92vh] overflow-y-auto"
+                className="w-full max-w-sm bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-7 shadow-2xl border border-slate-200 my-auto"
               >
-                <div className="flex flex-col gap-6">
-                  <div className="space-y-2">
-                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Room Template</h3>
-                    <p className="text-slate-500 text-sm font-medium leading-relaxed">
-                      Choose your canvas settings. You can always change this later.
-                    </p>
+                <div className="flex flex-col gap-4 sm:gap-5">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0">
+                        <Lock size={18} />
+                      </div>
+                      <div>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
+                          Canvas Specifications
+                        </h3>
+                        <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
+                          Fixed by Room Creator
+                        </span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowTemplateModal(false)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
                   </div>
-                  
-                  <div className="space-y-3">
-                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Background Color</label>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {[
-                        { label: "Pure White", val: "#FFFFFF" },
-                        { label: "Soft Slate", val: "#F8FAFC" },
-                        { label: "Cloud Gray", val: "#F1F5F9" },
-                        { label: "Warm Beige", val: "#FEF3C7" },
-                        { label: "Mint Green", val: "#DCFCE7" },
-                        { label: "Lavender", val: "#E0E7FF" },
-                        { label: "Dark Slate", val: "#1E293B" },
-                        { label: "Onyx Black", val: "#0F172A" }
-                      ].map(c => (
-                        <button
-                          key={c.val}
-                          type="button"
-                          title={c.label}
-                          onClick={() => {
-                            const next = { ...roomSettingsRef.current, backgroundColor: c.val };
-                            setRoomSettings(next);
-                            if (socket && roomId) {
-                              socket.emit("update-room-settings", {
-                                roomId,
-                                backgroundColor: next.backgroundColor,
-                                aspectRatio: next.aspectRatio
-                              });
-                            }
-                          }}
-                          className={cn(
-                            "w-8 h-8 rounded-full border-2 transition-transform shadow-xs",
-                            roomSettingsRef.current.backgroundColor === c.val ? "border-indigo-600 scale-110 ring-2 ring-indigo-200" : "border-slate-300 hover:scale-105"
-                          )}
-                          style={{ backgroundColor: c.val }}
-                        />
-                      ))}
-                      <label title="Custom Color" className="w-8 h-8 rounded-full border-2 border-slate-300 hover:border-indigo-500 cursor-pointer overflow-hidden flex items-center justify-center relative shadow-xs">
-                        <input
-                          type="color"
-                          value={roomSettingsRef.current.backgroundColor.startsWith("#") ? roomSettingsRef.current.backgroundColor : "#FFFFFF"}
-                          onChange={(e) => {
-                            const next = { ...roomSettingsRef.current, backgroundColor: e.target.value };
-                            setRoomSettings(next);
-                            if (socket && roomId) {
-                              socket.emit("update-room-settings", {
-                                roomId,
-                                backgroundColor: next.backgroundColor,
-                                aspectRatio: next.aspectRatio
-                              });
-                            }
-                          }}
-                          className="opacity-0 absolute inset-0 cursor-pointer w-full h-full"
-                        />
-                        <span className="text-[10px]">🎨</span>
-                      </label>
+
+                  <p className="text-slate-500 text-xs font-medium leading-relaxed">
+                    The canvas aspect ratio and background color were chosen by the room creator at creation time. To preserve identical alignment and visual fidelity across all collaborators, these parameters are unchangeable inside the canvas.
+                  </p>
+
+                  {/* Locked Ratio Card */}
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Aspect Ratio
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Lock size={9} /> Locked
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-black text-slate-800">
+                        {roomSettings.aspectRatio === "16:9" ? "16:9 Widescreen" :
+                         roomSettings.aspectRatio === "4:3" ? "4:3 Classic Standard" :
+                         roomSettings.aspectRatio === "1:1" ? "1:1 Square" :
+                         roomSettings.aspectRatio === "9:16" ? "9:16 Mobile Portrait" :
+                         roomSettings.aspectRatio === "3:4" ? "3:4 Tablet Portrait" : roomSettings.aspectRatio}
+                      </span>
+                      <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                        {getCanvasDimensions(roomSettings.aspectRatio).width} × {getCanvasDimensions(roomSettings.aspectRatio).height} px
+                      </span>
                     </div>
                   </div>
-                  
-                  <div className="space-y-3">
-                    <label className="block text-[10px] font-black uppercase tracking-wider text-slate-400">Aspect Ratio</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        { id: "16:9", label: "Widescreen (16:9)" },
-                        { id: "4:3", label: "Standard (4:3)" },
-                        { id: "1:1", label: "Square (1:1)" },
-                        { id: "9:16", label: "Mobile (9:16)" },
-                        { id: "3:4", label: "Tablet (3:4)" }
-                      ].map(ar => (
-                        <button
-                          key={ar.id}
-                          type="button"
-                          onClick={() => {
-                            const next = { ...roomSettingsRef.current, aspectRatio: ar.id };
-                            setRoomSettings(next);
-                            if (socket && roomId) {
-                              socket.emit("update-room-settings", {
-                                roomId,
-                                backgroundColor: next.backgroundColor,
-                                aspectRatio: next.aspectRatio
-                              });
-                            }
-                            setTimeout(() => fitToScreen(), 50);
-                          }}
-                          className={cn(
-                            "py-3 px-4 rounded-xl text-xs font-bold transition-all border",
-                            roomSettingsRef.current.aspectRatio === ar.id 
-                              ? "bg-indigo-50 border-indigo-200 text-indigo-700" 
-                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                          )}
-                        >
-                          {ar.label}
-                        </button>
-                      ))}
+
+                  {/* Locked Background Color Card */}
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        Canvas Background Color
+                      </span>
+                      <span className="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Lock size={9} /> Locked
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className="w-6 h-6 rounded-lg border border-slate-300 shadow-2xs"
+                          style={{ backgroundColor: roomSettings.backgroundColor }}
+                        />
+                        <span className="text-xs font-mono font-bold text-slate-800 uppercase">
+                          {roomSettings.backgroundColor}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
+                        Synchronized
+                      </span>
                     </div>
                   </div>
 
                   <button
-                    onClick={() => {
-                      vibrate([20]);
-                      setShowTemplateModal(false);
-                      if (socket && roomId) {
-                        socket.emit("update-room-settings", { 
-                          roomId, 
-                          backgroundColor: roomSettingsRef.current.backgroundColor, 
-                          aspectRatio: roomSettingsRef.current.aspectRatio 
-                        });
-                      }
-                      setTimeout(() => fitToScreen(), 50);
-                    }}
-                    className="w-full mt-2 py-4 px-6 rounded-2xl bg-indigo-600 text-white font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-200 active:scale-95 text-sm"
+                    type="button"
+                    onClick={() => setShowTemplateModal(false)}
+                    className="w-full py-3 px-4 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all active:scale-98 text-xs uppercase tracking-wider shadow-md"
                   >
-                    Start Drawing
+                    Got It
                   </button>
                 </div>
               </motion.div>
