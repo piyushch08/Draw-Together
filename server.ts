@@ -482,9 +482,19 @@ async function startServer() {
       io.to(targetRoom).emit("clear-canvas");
     });
 
-    socket.on("update-room-settings", (data: { roomId: string; backgroundColor: string; aspectRatio: string }) => {
-      // Intentionally rejected: Canvas ratio and background color are decided by the room creator and remain unchangeable inside the canvas
-      console.log(`[Room Settings] Ignored inside-canvas modification attempt for room ${data?.roomId}`);
+    socket.on("update-room-settings", (data: { roomId: string; backgroundColor?: string; aspectRatio?: string }) => {
+      if (!data?.roomId) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const room = getOrCreateRoom(targetRoom);
+      if (data.backgroundColor) room.backgroundColor = data.backgroundColor;
+      if (data.aspectRatio) room.aspectRatio = data.aspectRatio;
+      room.lastActivity = Date.now();
+      console.log(`[Room Settings] Updated room ${targetRoom}: color=${room.backgroundColor}, ratio=${room.aspectRatio}`);
+      io.to(targetRoom).emit("room-settings-updated", {
+        roomId: targetRoom,
+        backgroundColor: room.backgroundColor || "#FFFFFF",
+        aspectRatio: room.aspectRatio || "16:9"
+      });
     });
 
     socket.on("disconnecting", () => {

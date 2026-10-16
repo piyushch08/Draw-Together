@@ -87,6 +87,24 @@ export const getCanvasDimensions = (aspectRatio?: string): { width: number; heig
   }
 };
 
+export const ASPECT_RATIOS = [
+  { id: "16:9", label: "16:9", name: "Wide", sub: "1920 × 1080", boxW: "w-8", boxH: "h-4.5" },
+  { id: "4:3", label: "4:3", name: "Classic", sub: "1440 × 1080", boxW: "w-7", boxH: "h-5" },
+  { id: "1:1", label: "1:1", name: "Square", sub: "1080 × 1080", boxW: "w-6", boxH: "h-6" },
+  { id: "9:16", label: "9:16", name: "Mobile", sub: "1080 × 1920", boxW: "w-4.5", boxH: "h-8" },
+  { id: "3:4", label: "3:4", name: "Tablet", sub: "1080 × 1440", boxW: "w-5", boxH: "h-7" }
+];
+
+export const COLOR_PRESETS = [
+  { color: "#FFFFFF", name: "Pure White" },
+  { color: "#F8FAFC", name: "Soft Slate" },
+  { color: "#F1F5F9", name: "Muted Gray" },
+  { color: "#FEF3C7", name: "Warm Cream" },
+  { color: "#DCFCE7", name: "Pastel Mint" },
+  { color: "#E0E7FF", name: "Pastel Indigo" },
+  { color: "#1E293B", name: "Dark Slate" },
+  { color: "#0F172A", name: "Pitch Black" }
+];
 
 const COLORS = [
   "#000000", "#FF0000", "#00FF00", "#0000FF"
@@ -727,11 +745,6 @@ export function LandingPage({
   isFullscreen,
   toggleFullscreen
 }: any) {
-  const [creatorBgColor, setCreatorBgColor] = useState("#FFFFFF");
-  const [creatorAspectRatio, setCreatorAspectRatio] = useState(() => 
-    typeof window !== "undefined" && window.innerWidth < 768 && window.innerHeight > window.innerWidth ? "9:16" : "16:9"
-  );
-
   // Interactive Review & Feedback State
   const [userRating, setUserRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
@@ -767,27 +780,9 @@ export function LandingPage({
 
   const handleCreateSubmit = () => {
     if (!username.trim()) return;
-    onCreate({ backgroundColor: creatorBgColor, aspectRatio: creatorAspectRatio });
+    const defaultRatio = typeof window !== "undefined" && window.innerWidth < 768 && window.innerHeight > window.innerWidth ? "9:16" : "16:9";
+    onCreate({ backgroundColor: "#FFFFFF", aspectRatio: defaultRatio });
   };
-
-  const ASPECT_RATIOS = [
-    { id: "16:9", label: "16:9", name: "Wide", sub: "1920 × 1080", boxW: "w-8", boxH: "h-4.5" },
-    { id: "4:3", label: "4:3", name: "Classic", sub: "1440 × 1080", boxW: "w-7", boxH: "h-5" },
-    { id: "1:1", label: "1:1", name: "Square", sub: "1080 × 1080", boxW: "w-6", boxH: "h-6" },
-    { id: "9:16", label: "9:16", name: "Mobile", sub: "1080 × 1920", boxW: "w-4.5", boxH: "h-8" },
-    { id: "3:4", label: "3:4", name: "Tablet", sub: "1080 × 1440", boxW: "w-5", boxH: "h-7" }
-  ];
-
-  const COLOR_PRESETS = [
-    { color: "#FFFFFF", name: "Pure White" },
-    { color: "#F8FAFC", name: "Soft Slate" },
-    { color: "#F1F5F9", name: "Muted Gray" },
-    { color: "#FEF3C7", name: "Warm Cream" },
-    { color: "#DCFCE7", name: "Pastel Mint" },
-    { color: "#E0E7FF", name: "Pastel Indigo" },
-    { color: "#1E293B", name: "Dark Slate" },
-    { color: "#0F172A", name: "Pitch Black" }
-  ];
 
   const FEATURES = [
     {
@@ -803,7 +798,7 @@ export function LandingPage({
     {
       icon: <Palette className="w-5 h-5 text-indigo-600" />,
       title: "Synced Canvas Studio",
-      desc: "Creator canvas aspect ratios and custom background colors synchronize across all peers."
+      desc: "Live synchronized canvas aspect ratios and custom background colors across all peers in real-time."
     },
     {
       icon: <Smartphone className="w-5 h-5 text-emerald-600" />,
@@ -947,94 +942,6 @@ export function LandingPage({
                           placeholder="e.g. STUDIO-ROOM"
                           className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-sm sm:text-base uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
                         />
-                      </div>
-
-                      {/* Canvas Size & Aspect Ratio Grid */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700">
-                            Canvas Size & Ratio
-                          </label>
-                          <span className="text-[10px] sm:text-xs font-mono font-bold text-violet-700 bg-violet-100/70 px-2 py-0.5 rounded">
-                            {creatorAspectRatio} ({ASPECT_RATIOS.find(a => a.id === creatorAspectRatio)?.sub})
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-5 gap-1 sm:gap-2">
-                          {ASPECT_RATIOS.map(ar => (
-                            <button
-                              key={ar.id}
-                              type="button"
-                              onClick={() => setCreatorAspectRatio(ar.id)}
-                              className={cn(
-                                "py-2 px-1 sm:py-3.5 sm:px-2 rounded-xl sm:rounded-2xl text-center border-2 transition-all flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-w-0",
-                                creatorAspectRatio === ar.id
-                                  ? "bg-[#7C3AED]/10 border-[#7C3AED] text-[#7C3AED] font-black shadow-sm scale-[1.02]"
-                                  : "bg-[#F8FAFC] border-slate-200/90 text-slate-600 hover:bg-slate-100 font-semibold"
-                              )}
-                            >
-                              <div
-                                className={cn(
-                                  "border-2 rounded transition-colors flex items-center justify-center shrink-0",
-                                  ar.boxW,
-                                  ar.boxH,
-                                  creatorAspectRatio === ar.id
-                                    ? "border-[#7C3AED] bg-[#7C3AED]/20"
-                                    : "border-slate-300 bg-white"
-                                )}
-                              />
-                              <span className="text-[10px] sm:text-xs font-black leading-tight truncate">{ar.label}</span>
-                              <span className="text-[8px] sm:text-[9px] opacity-70 leading-tight font-medium hidden xs:inline truncate">{ar.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Canvas Background Color Presets */}
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <label className="block text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700">
-                            Canvas Background Color
-                          </label>
-                          <span className="text-[10px] sm:text-xs font-mono text-slate-600 uppercase font-bold bg-slate-100 px-2 py-0.5 rounded">
-                            {creatorBgColor}
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-                          {COLOR_PRESETS.map(c => (
-                            <button
-                              key={c.color}
-                              type="button"
-                              onClick={() => setCreatorBgColor(c.color)}
-                              className={cn(
-                                "w-8 h-8 xs:w-9 xs:h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 transition-all shadow-sm flex items-center justify-center shrink-0",
-                                creatorBgColor.toUpperCase() === c.color.toUpperCase()
-                                  ? "border-[#7C3AED] scale-105 ring-2 sm:ring-4 ring-[#7C3AED]/25 shadow-md"
-                                  : "border-slate-200 hover:scale-105"
-                              )}
-                              style={{ backgroundColor: c.color }}
-                              title={c.name}
-                            >
-                              {creatorBgColor.toUpperCase() === c.color.toUpperCase() && (
-                                <Check size={13} className={c.color === "#FFFFFF" || c.color === "#FEF3C7" || c.color === "#DCFCE7" || c.color === "#E0E7FF" ? "text-slate-900" : "text-white"} />
-                              )}
-                            </button>
-                          ))}
-                          <label
-                            className={cn(
-                              "w-8 h-8 xs:w-9 xs:h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 hover:border-[#7C3AED] flex items-center justify-center cursor-pointer transition-all bg-white relative shrink-0",
-                              !COLOR_PRESETS.some(cp => cp.color.toUpperCase() === creatorBgColor.toUpperCase()) && "border-[#7C3AED] ring-2 sm:ring-4 ring-[#7C3AED]/25"
-                            )}
-                            title="Custom Color"
-                          >
-                            <Palette size={15} className="text-slate-500" />
-                            <input
-                              type="color"
-                              value={creatorBgColor}
-                              onChange={(e) => setCreatorBgColor(e.target.value)}
-                              className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                            />
-                          </label>
-                        </div>
                       </div>
 
                       {/* Large High-Impact Create CTA */}
@@ -1500,6 +1407,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const roomId = (rawRoomId || "DEFAULT-ROOM").trim().toUpperCase();
   const [networkInfo, setNetworkInfo] = useState<{ primaryHost?: string; addresses?: string[] } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showCanvasSettingsModal, setShowCanvasSettingsModal] = useState(false);
   const hasLocalDrawnRef = useRef(false);
 
   useEffect(() => {
@@ -1605,6 +1513,39 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     if (resizeCanvasRef.current) resizeCanvasRef.current();
     else compositeLayers();
+  };
+
+  const handleUpdateCanvasSettings = (newSettings: { backgroundColor: string; aspectRatio: string }) => {
+    setRoomSettings(newSettings);
+    requestAnimationFrame(() => {
+      compositeLayers();
+      fitToScreen();
+    });
+    setTimeout(() => {
+      compositeLayers();
+      fitToScreen();
+    }, 50);
+    setTimeout(() => {
+      fitToScreen();
+    }, 150);
+    if (socketRef.current) {
+      socketRef.current.emit("update-room-settings", {
+        roomId,
+        backgroundColor: newSettings.backgroundColor,
+        aspectRatio: newSettings.aspectRatio
+      });
+    }
+    try {
+      fetch("/api/room/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomId,
+          backgroundColor: newSettings.backgroundColor,
+          aspectRatio: newSettings.aspectRatio
+        })
+      }).catch(() => {});
+    } catch {}
   };
 
   const fitToScreen = () => {
@@ -5492,6 +5433,34 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </button>
           </Tooltip>
 
+          {/* Canvas Format & Background Color Button - VISIBLE ON ALL SCREENS */}
+          <Tooltip label="Canvas Size & Background" side="bottom">
+            <button
+              onClick={() => {
+                setShowCanvasSettingsModal(true);
+                vibrate(5);
+              }}
+              className={cn(
+                "flex items-center gap-1.5 p-1 xs:p-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl font-bold transition-all border active:scale-95 shadow-xs shrink-0 cursor-pointer",
+                showCanvasSettingsModal
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-100"
+                  : "bg-white/95 text-slate-700 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+              )}
+              title="Canvas Ratio & Background Color"
+            >
+              <SlidersHorizontal size={13} className={cn("sm:w-4 sm:h-4", showCanvasSettingsModal ? "text-white" : "text-indigo-600")} />
+              <span className="text-[10px] uppercase font-black tracking-widest hidden md:inline">Canvas</span>
+              <span
+                className={cn(
+                  "w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-slate-300 shadow-2xs shrink-0",
+                  showCanvasSettingsModal && "border-white"
+                )}
+                style={{ backgroundColor: roomSettings.backgroundColor }}
+                title={`Current Background: ${roomSettings.backgroundColor}`}
+              />
+            </button>
+          </Tooltip>
+
           {/* Tools Toggle Button (Stroke Configs & Presets) - VISIBLE ON ALL SCREENS */}
           <Tooltip label={showInvite ? "Close Tools" : "Tools"} side="bottom">
             <button
@@ -7652,6 +7621,27 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 <div className="space-y-4">
                   <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Project</label>
                   <div className="space-y-3 bg-slate-50 border border-slate-100 rounded-[1.5rem] p-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCanvasSettingsModal(true);
+                        setShowInvite(false);
+                      }}
+                      className="w-full flex items-center justify-between p-2.5 sm:p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-xs active:scale-98 cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal size={14} className="text-indigo-600" />
+                        <span>Canvas Setup</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold text-slate-500">
+                        <span>{roomSettings.aspectRatio}</span>
+                        <span
+                          className="w-2.5 h-2.5 rounded-full border border-slate-300"
+                          style={{ backgroundColor: roomSettings.backgroundColor }}
+                        />
+                      </div>
+                    </button>
+
                     <div className="space-y-1.5">
                       <span className="text-[9px] font-bold text-slate-400 uppercase ml-1">Filename</span>
                       <input
@@ -8123,6 +8113,186 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 </div>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Inside-Canvas Format & Background Color Setup Modal */}
+        <AnimatePresence>
+          {showCanvasSettingsModal && (
+            <div
+              onClick={() => setShowCanvasSettingsModal(false)}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-950/65 backdrop-blur-md overflow-y-auto"
+            >
+              <motion.div
+                onClick={(e) => e.stopPropagation()}
+                initial={{ opacity: 0, scale: 0.92, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.92, y: 16 }}
+                transition={{ type: "spring", stiffness: 350, damping: 26 }}
+                className="w-full max-w-lg bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-7 shadow-2xl border border-slate-200/90 my-auto max-h-[92vh] overflow-y-auto space-y-5 sm:space-y-6"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center shadow-xs">
+                      <SlidersHorizontal size={19} />
+                    </div>
+                    <div>
+                      <h3 className="text-base sm:text-lg font-black text-slate-950 tracking-tight flex items-center gap-2">
+                        Canvas Format & Color
+                      </h3>
+                      <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
+                        Live real-time sync for everyone in room <span className="font-mono font-bold text-indigo-600">#{roomId}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setShowCanvasSettingsModal(false)}
+                    className="p-1.5 sm:p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                    title="Close"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Aspect Ratio Selector */}
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span>Aspect Ratio</span>
+                    </label>
+                    <span className="text-[10px] sm:text-xs font-mono font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                      {roomSettings.aspectRatio} ({ASPECT_RATIOS.find(a => a.id === roomSettings.aspectRatio)?.sub})
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                    {ASPECT_RATIOS.map(ar => (
+                      <button
+                        key={ar.id}
+                        type="button"
+                        onClick={() => {
+                          handleUpdateCanvasSettings({
+                            backgroundColor: roomSettings.backgroundColor,
+                            aspectRatio: ar.id
+                          });
+                          vibrate(5);
+                        }}
+                        className={cn(
+                          "py-2.5 px-1 sm:py-3.5 sm:px-2 rounded-xl sm:rounded-2xl text-center border-2 transition-all flex flex-col items-center justify-center gap-1 sm:gap-1.5 min-w-0 cursor-pointer",
+                          roomSettings.aspectRatio === ar.id
+                            ? "bg-indigo-50 border-indigo-600 text-indigo-600 font-black shadow-xs scale-[1.02]"
+                            : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300 font-semibold"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "border-2 rounded transition-colors flex items-center justify-center shrink-0",
+                            ar.boxW,
+                            ar.boxH,
+                            roomSettings.aspectRatio === ar.id
+                              ? "border-indigo-600 bg-indigo-200/50"
+                              : "border-slate-300 bg-white"
+                          )}
+                        />
+                        <span className="text-[11px] sm:text-xs font-black leading-tight truncate">{ar.label}</span>
+                        <span className="text-[8px] sm:text-[9px] opacity-70 leading-tight font-medium hidden xs:inline truncate">{ar.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Canvas Background Color Presets */}
+                <div className="space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <label className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                      <span>Canvas Background Color</span>
+                    </label>
+                    <span className="text-[10px] sm:text-xs font-mono text-slate-700 uppercase font-bold bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full border border-slate-300" style={{ backgroundColor: roomSettings.backgroundColor }} />
+                      {roomSettings.backgroundColor}
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
+                    {COLOR_PRESETS.map(c => (
+                      <button
+                        key={c.color}
+                        type="button"
+                        onClick={() => {
+                          handleUpdateCanvasSettings({
+                            backgroundColor: c.color,
+                            aspectRatio: roomSettings.aspectRatio
+                          });
+                          vibrate(5);
+                        }}
+                        className={cn(
+                          "w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 transition-all shadow-xs flex items-center justify-center shrink-0 cursor-pointer",
+                          roomSettings.backgroundColor.toUpperCase() === c.color.toUpperCase()
+                            ? "border-indigo-600 scale-105 ring-2 sm:ring-4 ring-indigo-500/25 shadow-md"
+                            : "border-slate-200 hover:scale-105 hover:border-slate-300"
+                        )}
+                        style={{ backgroundColor: c.color }}
+                        title={c.name}
+                      >
+                        {roomSettings.backgroundColor.toUpperCase() === c.color.toUpperCase() && (
+                          <Check
+                            size={14}
+                            className={
+                              c.color === "#FFFFFF" || c.color === "#FEF3C7" || c.color === "#DCFCE7" || c.color === "#E0E7FF"
+                                ? "text-slate-900"
+                                : "text-white"
+                            }
+                          />
+                        )}
+                      </button>
+                    ))}
+
+                    {/* Custom Color Input */}
+                    <label
+                      className={cn(
+                        "w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-300 hover:border-indigo-600 flex items-center justify-center cursor-pointer transition-all bg-white relative shrink-0",
+                        !COLOR_PRESETS.some(cp => cp.color.toUpperCase() === roomSettings.backgroundColor.toUpperCase()) &&
+                          "border-indigo-600 ring-2 sm:ring-4 ring-indigo-500/25"
+                      )}
+                      title="Custom Color Picker"
+                    >
+                      <Palette size={16} className="text-slate-500" />
+                      <input
+                        type="color"
+                        value={roomSettings.backgroundColor}
+                        onChange={(e) => {
+                          handleUpdateCanvasSettings({
+                            backgroundColor: e.target.value,
+                            aspectRatio: roomSettings.aspectRatio
+                          });
+                        }}
+                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* Instant Sync Alert Note */}
+                <div className="flex items-start gap-2.5 p-3 rounded-2xl bg-indigo-50/80 border border-indigo-100 text-indigo-800 text-xs font-semibold leading-relaxed">
+                  <Zap size={15} className="text-indigo-600 shrink-0 mt-0.5" />
+                  <span>
+                    Ratio and background updates are broadcast live to all collaborators. Existing artwork and vector strokes automatically resize and remain intact.
+                  </span>
+                </div>
+
+                {/* Footer Actions */}
+                <div className="pt-1 flex justify-end">
+                  <button
+                    onClick={() => setShowCanvasSettingsModal(false)}
+                    className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl sm:rounded-2xl text-xs sm:text-sm font-black transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Check size={15} />
+                    <span>Done</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
 
