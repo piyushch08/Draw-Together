@@ -110,20 +110,38 @@ const COLORS = [
   "#000000", "#FF0000", "#00FF00", "#0000FF"
 ];
 
-export const QUICK_REACTIONS = ["❤️", "🔥", "😂", "🎉", "👍", "👏", "🚀", "✨"];
+export const QUICK_REACTIONS = ["❤️", "🔥", "😘", "💋", "😂", "🎉", "👍", "👏", "🚀", "✨"];
+
+export const QUICK_KEYWORDS = [
+  { id: "wow", text: "Wow! 🤩", label: "Wow!", bg: "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-300" },
+  { id: "damn", text: "Damn! ⚡", label: "Damn!", bg: "bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-300" },
+  { id: "awesome", text: "Awesome! ✨", label: "Awesome!", bg: "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300" },
+  { id: "good", text: "Good! 👍", label: "Good!", bg: "bg-blue-50 hover:bg-blue-100 text-blue-800 border-blue-300" },
+  { id: "not-bad", text: "Not bad! 👌", label: "Not bad", bg: "bg-teal-50 hover:bg-teal-100 text-teal-800 border-teal-300" },
+  { id: "poor", text: "Poor 😅", label: "Poor", bg: "bg-rose-50 hover:bg-rose-100 text-rose-800 border-rose-300" },
+  { id: "love", text: "Love it! 😘", label: "Love it!", bg: "bg-pink-50 hover:bg-pink-100 text-pink-800 border-pink-300" },
+  { id: "kiss", text: "Kiss! 💋", label: "Kiss!", bg: "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-300" },
+  { id: "masterpiece", text: "Masterpiece! 🎨", label: "Art!", bg: "bg-violet-50 hover:bg-violet-100 text-violet-800 border-violet-300" }
+];
 
 export const EMOJI_CATEGORIES = [
   {
     id: "trending",
     name: "Trending",
     icon: "🔥",
-    emojis: ["🔥", "❤️", "😂", "✨", "🎉", "👍", "👏", "🚀", "💯", "👀", "💖", "⭐", "🙌", "😍", "🥰", "🤩", "💡", "🎨"]
+    emojis: ["🔥", "❤️", "😘", "💋", "😂", "✨", "🎉", "👍", "👏", "🚀", "💯", "👀", "💖", "⭐", "🙌", "😍", "🥰", "🤩", "💡", "🎨"]
+  },
+  {
+    id: "kisses",
+    name: "Kisses & Love",
+    icon: "😘",
+    emojis: ["😘", "💋", "😚", "😙", "😗", "😽", "🥰", "😍", "❤️‍🔥", "💖", "💘", "💝", "💞", "💓", "💌", "👄", "🫦", "🌹", "💐", "💏"]
   },
   {
     id: "emotions",
     name: "Emotions",
     icon: "😄",
-    emojis: ["😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😋", "😜", "🤪", "😎", "🥳", "😏", "🤔", "🤫", "🤭", "🤯", "😱", "🥵", "🥶"]
+    emojis: ["😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😚", "😙", "😗", "💋", "😋", "😜", "🤪", "😎", "🥳", "😏", "🤔", "🤫", "🤭", "🤯", "😱", "🥵", "🥶"]
   },
   {
     id: "creative",
@@ -8427,34 +8445,48 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         {/* Live Floating Reactions Overlay */}
         <div className="fixed inset-0 pointer-events-none z-[90] overflow-hidden select-none">
           <AnimatePresence>
-            {floatingReactions.map(r => (
-              <motion.div
-                key={r.id}
-                initial={{
-                  x: r.x + (Math.random() * 40 - 20),
-                  y: r.y,
-                  opacity: 0,
-                  scale: 0.5,
-                  rotate: Math.random() * 24 - 12
-                }}
-                animate={{
-                  y: r.y - 220 - Math.random() * 90,
-                  opacity: [0, 1, 1, 0],
-                  scale: [0.5, 1.4, 1.25, 0.75],
-                  rotate: (Math.random() * 36 - 18)
-                }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 2.2, ease: "easeOut" }}
-                className="absolute flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-2xl border border-slate-200/90 pointer-events-none select-none text-2xl filter drop-shadow-md"
-              >
-                <span>{r.emoji}</span>
-                {r.username && (
-                  <span className="text-[10px] font-black text-slate-700 max-w-[85px] truncate">
-                    {r.username}
+            {floatingReactions.map(r => {
+              const isKiss = /[\u{1F618}\u{1F617}\u{1F619}\u{1F61A}\u{1F48B}\u{1F63D}]/u.test(r.emoji) || r.emoji.toLowerCase().includes("kiss");
+              const isWord = r.emoji.length > 2 && !/^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}|\uFE0F|\u200D|\s)+$/u.test(r.emoji);
+
+              return (
+                <motion.div
+                  key={r.id}
+                  initial={{
+                    x: r.x + (Math.random() * 40 - 20),
+                    y: r.y,
+                    opacity: 0,
+                    scale: 0.5,
+                    rotate: Math.random() * 24 - 12
+                  }}
+                  animate={{
+                    y: r.y - 220 - Math.random() * 90,
+                    opacity: [0, 1, 1, 0],
+                    scale: [0.5, 1.4, 1.25, 0.75],
+                    rotate: (Math.random() * 36 - 18)
+                  }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 2.2, ease: "easeOut" }}
+                  className={cn(
+                    "absolute flex items-center gap-1.5 backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-2xl pointer-events-none select-none filter drop-shadow-md border",
+                    isKiss
+                      ? "bg-gradient-to-r from-pink-50/95 via-rose-50/95 to-white/95 border-pink-300 shadow-pink-500/25 ring-2 ring-pink-400/20"
+                      : isWord
+                        ? "bg-white/95 border-indigo-200 shadow-indigo-500/20 ring-2 ring-indigo-400/20"
+                        : "bg-white/95 border-slate-200/90 shadow-black/10"
+                  )}
+                >
+                  <span className={cn(isWord ? "text-sm sm:text-base font-black text-slate-800" : "text-2xl")}>
+                    {r.emoji}
                   </span>
-                )}
-              </motion.div>
-            ))}
+                  {r.username && (
+                    <span className="text-[10px] font-black text-slate-700 max-w-[85px] truncate">
+                      {r.username}
+                    </span>
+                  )}
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </div>
 
@@ -8685,6 +8717,43 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
     }
   };
 
+  const handleKeywordClick = (item: typeof QUICK_KEYWORDS[0], e?: React.MouseEvent) => {
+    vibrate?.(12);
+    const messageData: ChatMessage = {
+      id: nanoid(),
+      roomId,
+      username,
+      message: item.text,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    socket?.emit("chat-message", messageData);
+    socket?.emit("floating-reaction", { roomId, emoji: item.text, username });
+    onFloatingReaction?.(item.text);
+
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const burstEmoji = item.text.split(" ").slice(-1)[0] || "✨";
+      const burst = { id: nanoid(), emoji: burstEmoji, x: rect.left + rect.width / 2, y: rect.top };
+      setLocalParticle(burst);
+      setTimeout(() => setLocalParticle(null), 1200);
+    }
+  };
+
+  const getKeywordStyle = (text: string) => {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    if (lower.includes("wow")) return { badge: "WOW!", icon: "🤩", badgeBg: "bg-amber-100 text-amber-800 border-amber-300" };
+    if (lower.includes("damn")) return { badge: "DAMN!", icon: "⚡", badgeBg: "bg-purple-100 text-purple-800 border-purple-300" };
+    if (lower.includes("awesome") || lower.includes("awasome")) return { badge: "AWESOME!", icon: "✨", badgeBg: "bg-emerald-100 text-emerald-800 border-emerald-300" };
+    if (lower.includes("good")) return { badge: "GOOD!", icon: "👍", badgeBg: "bg-blue-100 text-blue-800 border-blue-300" };
+    if (lower.includes("not bad")) return { badge: "NOT BAD!", icon: "👌", badgeBg: "bg-teal-100 text-teal-800 border-teal-300" };
+    if (lower.includes("poor")) return { badge: "POOR", icon: "😅", badgeBg: "bg-rose-100 text-rose-800 border-rose-300" };
+    if (/[\u{1F618}\u{1F617}\u{1F619}\u{1F61A}\u{1F48B}\u{1F63D}]/u.test(text) || lower.includes("kiss")) {
+      return { badge: "KISS", icon: "😘", badgeBg: "bg-pink-100 text-pink-800 border-pink-300" };
+    }
+    return null;
+  };
+
   const handleToggleReaction = (messageId: string, emoji: string, e?: React.MouseEvent) => {
     vibrate?.(10);
     socket?.emit("message-reaction", { roomId, messageId, emoji, username });
@@ -8717,6 +8786,13 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
       if (firstEmoji) {
         socket?.emit("floating-reaction", { roomId, emoji: firstEmoji, username });
         onFloatingReaction?.(firstEmoji);
+      }
+    } else {
+      const kw = getKeywordStyle(trimmed);
+      if (kw) {
+        const floatText = trimmed.length <= 15 ? trimmed : `${kw.badge} ${kw.icon}`;
+        socket?.emit("floating-reaction", { roomId, emoji: floatText, username });
+        onFloatingReaction?.(floatText);
       }
     }
 
@@ -8859,6 +8935,32 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
             </div>
           </div>
 
+          {/* Quick Keyword Shoutouts Bar */}
+          <div className="px-3 py-1 bg-white border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full">
+              <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider shrink-0 mr-0.5 flex items-center gap-1">
+                <Sparkles size={11} className="text-violet-500" />
+                <span>Shoutouts:</span>
+              </span>
+              {QUICK_KEYWORDS.map((kw) => (
+                <motion.button
+                  key={kw.id}
+                  type="button"
+                  whileHover={{ scale: 1.06, y: -1 }}
+                  whileTap={{ scale: 0.94 }}
+                  onClick={(e) => handleKeywordClick(kw, e)}
+                  className={cn(
+                    "px-2.5 py-0.5 rounded-lg border text-[10px] font-bold transition-all shrink-0 cursor-pointer shadow-2xs",
+                    kw.bg
+                  )}
+                  title={`Send shoutout "${kw.text}"`}
+                >
+                  {kw.text}
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
           {/* Message List Area */}
           <div
             ref={scrollRef}
@@ -8881,7 +8983,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                 </div>
                 <p className="text-xs font-bold text-slate-700">No messages yet</p>
                 <p className="text-[11px] text-slate-400 max-w-[200px] leading-relaxed">
-                  Brainstorm artwork ideas or tap any reaction above to celebrate with collaborators!
+                  Brainstorm artwork ideas, tap quick shoutouts above or send reactions to celebrate with collaborators!
                 </p>
               </div>
             ) : (
@@ -8889,6 +8991,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                 {chat.map((c: any, i: number) => {
                   const isOwn = c.username === username;
                   const isJumbo = isOnlyEmojis(c.message);
+                  const kwInfo = getKeywordStyle(c.message);
 
                   return (
                     <motion.div
@@ -8933,6 +9036,17 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                               )
                         )}
                       >
+                        {kwInfo && !isJumbo && (
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className={cn(
+                              "inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider border",
+                              isOwn ? "bg-white/20 text-white border-white/30" : kwInfo.badgeBg
+                            )}>
+                              <span>{kwInfo.icon}</span>
+                              <span>{kwInfo.badge}</span>
+                            </span>
+                          </div>
+                        )}
                         {isJumbo ? (
                           <div className="text-4xl sm:text-5xl my-1 select-text select-none leading-none drop-shadow-xs animate-in zoom-in-75 duration-200">
                             {c.message}
@@ -8954,7 +9068,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                             animate={{ scale: 1, y: 0 }}
                             className="bg-white/95 border border-slate-200/90 rounded-2xl px-1.5 py-1 flex items-center gap-0.5 shadow-xl backdrop-blur-md"
                           >
-                            {QUICK_REACTIONS.slice(0, 6).map(emoji => (
+                            {QUICK_REACTIONS.slice(0, 8).map(emoji => (
                               <motion.button
                                 key={emoji}
                                 type="button"
