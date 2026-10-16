@@ -110,7 +110,42 @@ const COLORS = [
   "#000000", "#FF0000", "#00FF00", "#0000FF"
 ];
 
-const EMOJIS = ["😂", "😢", "💖", "⭐", "💎", "🔥", "👍", "👎", "🎉", "👏", "😡", "🤔", "😮", "💯", "✨", "🚀", "💡", "🎨", "👀", "🙌"];
+export const QUICK_REACTIONS = ["❤️", "🔥", "😂", "🎉", "👍", "👏", "🚀", "✨"];
+
+export const EMOJI_CATEGORIES = [
+  {
+    id: "trending",
+    name: "Trending",
+    icon: "🔥",
+    emojis: ["🔥", "❤️", "😂", "✨", "🎉", "👍", "👏", "🚀", "💯", "👀", "💖", "⭐", "🙌", "😍", "🥰", "🤩", "💡", "🎨"]
+  },
+  {
+    id: "emotions",
+    name: "Emotions",
+    icon: "😄",
+    emojis: ["😀", "😃", "😄", "😁", "😆", "😅", "🤣", "😂", "🙂", "🙃", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😋", "😜", "🤪", "😎", "🥳", "😏", "🤔", "🤫", "🤭", "🤯", "😱", "🥵", "🥶"]
+  },
+  {
+    id: "creative",
+    name: "Studio",
+    icon: "🎨",
+    emojis: ["🎨", "🖌️", "✏️", "🖍️", "🎭", "🌈", "🌟", "✨", "💫", "⚡", "🔮", "🪄", "💎", "💡", "🎯", "🖼️", "📸", "📐", "✂️", "🧵"]
+  },
+  {
+    id: "gestures",
+    name: "Hands",
+    icon: "🙌",
+    emojis: ["👍", "👎", "👏", "🙌", "🤝", "👊", "✌️", "🤞", "🤟", "🤘", "👌", "🤙", "👋", "🙏", "💪", "👑", "👀", "🧠"]
+  },
+  {
+    id: "celebration",
+    name: "Party",
+    icon: "🎉",
+    emojis: ["🎉", "🎊", "🥳", "🎈", "🍾", "🎂", "🍕", "🍔", "🍦", "🍩", "☕", "🚀", "🛸", "🕹️", "🏆", "🥇", "🎸", "🎵", "🎶", "👾"]
+  }
+];
+
+export const EMOJIS = Array.from(new Set(EMOJI_CATEGORIES.flatMap(c => c.emojis)));
 
 interface TooltipProps {
   children: ReactNode;
@@ -1456,6 +1491,23 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const socketRef = useRef<Socket | null>(null);
   socketRef.current = socket;
   const [isChatOpen, setIsChatOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
+  const [floatingReactions, setFloatingReactions] = useState<Array<{ id: string; emoji: string; username?: string; x: number; y: number }>>([]);
+
+  const triggerFloatingReaction = useCallback((emoji: string, originX?: number, originY?: number, senderName?: string) => {
+    const rx = originX ?? (typeof window !== "undefined" ? window.innerWidth * (0.35 + Math.random() * 0.4) : 300);
+    const ry = originY ?? (typeof window !== "undefined" ? window.innerHeight * 0.72 + (Math.random() * 50 - 25) : 500);
+    const newReaction = {
+      id: nanoid(),
+      emoji,
+      username: senderName || username,
+      x: rx,
+      y: ry
+    };
+    setFloatingReactions(prev => [...prev.slice(-25), newReaction]);
+    setTimeout(() => {
+      setFloatingReactions(prev => prev.filter(r => r.id !== newReaction.id));
+    }, 2400);
+  }, [username]);
   
   const getInitialSettings = () => {
     if (initialCanvasSettings) return initialCanvasSettings;
@@ -2691,6 +2743,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     });
 
     s.on("message-reaction", ({ messageId, emoji, username: reactingUser }: { messageId: string, emoji: string, username: string }) => {
+      triggerFloatingReaction(emoji, undefined, undefined, reactingUser);
       setChat(prev => prev.map(msg => {
         if (msg.id === messageId) {
           const reactions = { ...(msg.reactions || {}) };
@@ -2709,6 +2762,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         }
         return msg;
       }));
+    });
+
+    s.on("floating-reaction", (data: { emoji: string; username?: string; x?: number; y?: number }) => {
+      triggerFloatingReaction(data.emoji, data.x, data.y, data.username);
     });
 
     s.on("init-room-state", (data: {
@@ -8367,17 +8424,68 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           )}
         </AnimatePresence>
 
-        {/* Chat Section */}
+        {/* Live Floating Reactions Overlay */}
+        <div className="fixed inset-0 pointer-events-none z-[90] overflow-hidden select-none">
+          <AnimatePresence>
+            {floatingReactions.map(r => (
+              <motion.div
+                key={r.id}
+                initial={{
+                  x: r.x + (Math.random() * 40 - 20),
+                  y: r.y,
+                  opacity: 0,
+                  scale: 0.5,
+                  rotate: Math.random() * 24 - 12
+                }}
+                animate={{
+                  y: r.y - 220 - Math.random() * 90,
+                  opacity: [0, 1, 1, 0],
+                  scale: [0.5, 1.4, 1.25, 0.75],
+                  rotate: (Math.random() * 36 - 18)
+                }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 2.2, ease: "easeOut" }}
+                className="absolute flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-2xl border border-slate-200/90 pointer-events-none select-none text-2xl filter drop-shadow-md"
+              >
+                <span>{r.emoji}</span>
+                {r.username && (
+                  <span className="text-[10px] font-black text-slate-700 max-w-[85px] truncate">
+                    {r.username}
+                  </span>
+                )}
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Responsive Chat Section */}
         <AnimatePresence>
           {isChatOpen && (
-            <motion.div
-              initial={{ x: 24, opacity: 0, scale: 0.98 }}
-              animate={{ x: 0, opacity: 1, scale: 1 }}
-              exit={{ x: 24, opacity: 0, scale: 0.98 }}
-              transition={{ type: "spring", stiffness: 350, damping: 28 }}
-              className="fixed left-2 right-2 sm:left-auto sm:right-6 top-12 sm:top-20 bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] sm:bottom-28 sm:w-[350px] z-40 pointer-events-none"
-            >
-              <div className="pointer-events-auto h-full flex flex-col bg-white border border-slate-200/90 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.14)] rounded-2xl sm:rounded-3xl overflow-hidden ring-1 ring-black/5">
+            <>
+              {/* Mobile Backdrop Overlay - closes chat when tapped outside */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                onClick={() => setIsChatOpen(false)}
+                className="fixed inset-0 bg-slate-950/45 backdrop-blur-xs z-[60] sm:hidden"
+              />
+
+              {/* Chat Window Container (Drawer on Mobile, Floating Card on Tablet/Desktop) */}
+              <motion.div
+                initial={{ y: 40, opacity: 0, scale: 0.98 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 40, opacity: 0, scale: 0.98 }}
+                transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                className={cn(
+                  "fixed z-[70] pointer-events-auto flex flex-col bg-white overflow-hidden transition-all",
+                  // Mobile Drawer styles: slides up from bottom, rounded top, max 82vh
+                  "inset-x-0 bottom-0 h-[82vh] max-h-[88vh] rounded-t-[2rem] border-t border-slate-200 shadow-2xl",
+                  // Tablet/Desktop Floating Dock: stays at top right / bottom right
+                  "sm:inset-x-auto sm:top-20 sm:bottom-24 sm:right-6 sm:h-auto sm:max-h-[calc(100vh-11rem)] sm:w-[380px] md:w-[400px] sm:rounded-3xl sm:border border-slate-200/90 sm:shadow-[0_20px_50px_-10px_rgba(0,0,0,0.18)] ring-1 ring-black/5"
+                )}
+              >
                 <ChatSection
                   roomId={roomId}
                   username={username}
@@ -8386,9 +8494,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                   setChat={setChat}
                   vibrate={vibrate}
                   onClose={() => setIsChatOpen(false)}
+                  onFloatingReaction={(emoji: string) => {
+                    triggerFloatingReaction(emoji, undefined, undefined, username);
+                    socket?.emit("floating-reaction", { roomId, emoji, username });
+                  }}
                 />
-              </div>
-            </motion.div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
@@ -8460,23 +8572,37 @@ function ToolButton({ active, onClick, icon, label, color }: any) {
   );
 }
 
-function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose }: any) {
+function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose, onFloatingReaction }: any) {
   const [msg, setMsg] = useState("");
   const [isTypingUI, setIsTypingUI] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const [activeReactionId, setActiveReactionId] = useState<string | null>(null);
   const [showEmojis, setShowEmojis] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<string>("trending");
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [unreadInChat, setUnreadInChat] = useState(0);
+  const [isMinimized, setIsMinimized] = useState(false);
+  const [localParticle, setLocalParticle] = useState<{ id: string; emoji: string; x: number; y: number } | null>(null);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const isOnlyEmojis = (text: string): boolean => {
+    if (!text) return false;
+    const trimmed = text.trim();
+    if (!trimmed || trimmed.length > 12) return false;
+    const emojiRegex = /^(\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji_Modifier_Base}|\uFE0F|\u200D|\s)+$/u;
+    return emojiRegex.test(trimmed);
+  };
 
   const handleTouchStart = (msgId: string) => {
     if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
     pressTimerRef.current = setTimeout(() => {
       setActiveReactionId(msgId);
       vibrate?.(15);
-    }, 500);
+    }, 400);
   };
 
   const handleTouchEnd = () => {
@@ -8499,11 +8625,39 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
     return () => { socket.off("typing", handleTyping); };
   }, [socket]);
 
+  const handleScroll = () => {
+    if (!scrollRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+    const isNearBottom = scrollHeight - scrollTop - clientHeight < 70;
+    setShowScrollBottom(!isNearBottom);
+    if (isNearBottom) setUnreadInChat(0);
+  };
+
+  const scrollToBottom = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+      setUnreadInChat(0);
+    }
+  };
+
   useEffect(() => {
     if (scrollRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      if (isNearBottom) {
+        scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        setUnreadInChat(0);
+      } else {
+        setUnreadInChat(prev => prev + 1);
+      }
+    }
+  }, [chat?.length]);
+
+  useEffect(() => {
+    if (scrollRef.current && (showEmojis || typingUsers.length > 0)) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [chat, typingUsers, showEmojis]);
+  }, [showEmojis, typingUsers.length]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMsg(e.target.value);
@@ -8518,17 +8672,54 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
     }, 2000);
   };
 
+  const handleQuickReaction = (emoji: string, e?: React.MouseEvent) => {
+    vibrate?.(10);
+    onFloatingReaction?.(emoji);
+    socket?.emit("floating-reaction", { roomId, emoji, username });
+
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const burst = { id: nanoid(), emoji, x: rect.left + rect.width / 2, y: rect.top };
+      setLocalParticle(burst);
+      setTimeout(() => setLocalParticle(null), 1200);
+    }
+  };
+
+  const handleToggleReaction = (messageId: string, emoji: string, e?: React.MouseEvent) => {
+    vibrate?.(10);
+    socket?.emit("message-reaction", { roomId, messageId, emoji, username });
+    onFloatingReaction?.(emoji);
+    setActiveReactionId(null);
+
+    if (e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const burst = { id: nanoid(), emoji, x: rect.left + rect.width / 2, y: rect.top };
+      setLocalParticle(burst);
+      setTimeout(() => setLocalParticle(null), 1200);
+    }
+  };
+
   const sendMsg = () => {
     if (!msg.trim()) return;
-    vibrate?.(15);
+    vibrate?.(12);
+    const trimmed = msg.trim();
     const messageData: ChatMessage = {
       id: nanoid(),
       roomId,
       username,
-      message: msg.trim(),
+      message: trimmed,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     socket?.emit("chat-message", messageData);
+
+    if (isOnlyEmojis(trimmed)) {
+      const firstEmoji = Array.from(trimmed)[0];
+      if (firstEmoji) {
+        socket?.emit("floating-reaction", { roomId, emoji: firstEmoji, username });
+        onFloatingReaction?.(firstEmoji);
+      }
+    }
+
     if (isTypingUI) {
       setIsTypingUI(false);
       socket?.emit("typing", { roomId, username, isTyping: false });
@@ -8544,21 +8735,48 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
     }
   };
 
+  const currentCategoryObj = EMOJI_CATEGORIES.find(c => c.id === activeCategory) || EMOJI_CATEGORIES[0];
+
   return (
-    <div className="h-full flex flex-col bg-white select-none">
-      {/* Unified Single Header */}
-      <div className="px-3.5 py-3 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+    <div className="h-full flex flex-col bg-white select-none relative overflow-hidden">
+      {/* Local Burst Particle Animation */}
+      <AnimatePresence>
+        {localParticle && (
+          <motion.div
+            key={localParticle.id}
+            initial={{ opacity: 1, scale: 0.6, y: 0 }}
+            animate={{ opacity: 0, scale: 1.6, y: -45, rotate: [-10, 15, -5] }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.9, ease: "easeOut" }}
+            className="fixed pointer-events-none z-[120] text-2xl filter drop-shadow-md"
+            style={{ left: localParticle.x - 14, top: localParticle.y - 20 }}
+          >
+            {localParticle.emoji}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Drawer Pull Handle */}
+      <div
+        onClick={onClose}
+        className="w-full flex items-center justify-center pt-2 pb-1 sm:hidden cursor-pointer touch-manipulation"
+      >
+        <div className="w-10 h-1 rounded-full bg-slate-300 hover:bg-slate-400 transition-colors" />
+      </div>
+
+      {/* Unified Modern Header */}
+      <div className="px-3.5 py-2.5 sm:py-3 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-[#7E3BED] flex items-center justify-center text-white shadow-sm shadow-[#7E3BED]/25 shrink-0">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#7C3AED] to-[#6366f1] flex items-center justify-center text-white shadow-sm shadow-[#7C3AED]/25 shrink-0">
             <MessageSquare size={15} />
           </div>
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-1.5">
-              <h3 className="font-bold text-xs text-slate-900 tracking-tight leading-none">Live Chat</h3>
-              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-slate-50 border border-slate-200/80 text-[8px] font-bold text-slate-500 uppercase tracking-wider">
+              <h3 className="font-extrabold text-xs text-slate-900 tracking-tight leading-none">Studio Chat</h3>
+              <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[8px] font-black text-emerald-600 uppercase tracking-wider">
                 <span className="relative flex h-1.5 w-1.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#84cc16] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#84cc16]"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                 </span>
                 LIVE
               </span>
@@ -8572,18 +8790,32 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
             <Tooltip label="Clear chat view" side="bottom">
               <button
                 onClick={handleClearChat}
-                className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
                 title="Clear chat view"
               >
                 <Trash2 size={14} />
               </button>
             </Tooltip>
           )}
+
+          {/* Desktop Minimize Toggle */}
+          <div className="hidden sm:inline-block">
+            <Tooltip label={isMinimized ? "Expand chat" : "Minimize chat"} side="bottom">
+              <button
+                onClick={() => setIsMinimized(!isMinimized)}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition-colors cursor-pointer"
+                title={isMinimized ? "Expand chat" : "Minimize chat"}
+              >
+                {isMinimized ? <Maximize size={14} /> : <Minimize size={14} />}
+              </button>
+            </Tooltip>
+          </div>
+
           {onClose && (
             <Tooltip label="Close chat" side="bottom">
               <button
                 onClick={onClose}
-                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition-colors"
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-700 rounded-lg transition-colors cursor-pointer"
                 title="Close chat"
               >
                 <X size={15} />
@@ -8593,237 +8825,349 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
         </div>
       </div>
 
-      {/* Message List Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3.5 space-y-4 bg-slate-50/40 no-scrollbar relative scroll-smooth">
-        {/* Invisible backdrop to dismiss reaction picker on mobile */}
-        {activeReactionId && (
-          <div
-            className="fixed inset-0 z-20"
-            onTouchStart={() => setActiveReactionId(null)}
-            onClick={() => setActiveReactionId(null)}
-          />
-        )}
-
-        {chat.length === 0 ? (
-          <div className="h-full min-h-[180px] flex flex-col items-center justify-center p-6 text-center text-slate-400 space-y-2">
-            <div className="w-11 h-11 rounded-2xl bg-[#7E3BED]/10 flex items-center justify-center text-[#7E3BED]">
-              <MessageSquare size={20} strokeWidth={1.8} />
-            </div>
-            <p className="text-xs font-semibold text-slate-700">No messages yet</p>
-            <p className="text-[11px] text-slate-400 max-w-[190px] leading-relaxed">
-              Say hello or brainstorm drawing ideas with others in the room!
-            </p>
-          </div>
-        ) : (
-          <AnimatePresence initial={false}>
-            {chat.map((c: any, i: number) => (
-              <motion.div
-                key={c.id || i}
-                initial={{ opacity: 0, y: 8, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ type: "spring", stiffness: 350, damping: 26 }}
-                className={cn("flex flex-col gap-1 select-text", c.username === username ? "items-end" : "items-start")}
-              >
-                <div className="flex items-center gap-1.5 px-1">
-                  <span className={cn(
-                    "text-[9px] font-bold tracking-tight uppercase",
-                    c.username === username ? "text-[#7E3BED]" : "text-slate-500"
-                  )}>
-                    {c.username === username ? "You" : c.username}
-                  </span>
-                  <span className="text-[8px] font-medium text-slate-300 tabular-nums">{c.timestamp}</span>
-                </div>
-                <div
-                  onTouchStart={() => handleTouchStart(c.id)}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchMove={handleTouchEnd}
-                  onContextMenu={(e) => { e.preventDefault(); handleTouchStart(c.id); }}
-                  className={cn(
-                    "px-3.5 py-2 rounded-2xl text-xs font-normal shadow-xs max-w-[88%] break-words relative group mb-2 mt-0.5 transition-all",
-                    activeReactionId === c.id ? "z-30 ring-2 ring-[#7E3BED]/40" : "",
-                    c.username === username
-                      ? "bg-[#7E3BED] text-white rounded-tr-xs shadow-sm shadow-[#7E3BED]/20 border border-[#7E3BED]"
-                      : "bg-white text-slate-800 rounded-tl-xs border border-slate-200/90"
-                  )}
+      {/* When Minimized on Desktop */}
+      {isMinimized ? (
+        <div
+          onClick={() => setIsMinimized(false)}
+          className="p-4 flex items-center justify-between bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors text-xs font-bold text-slate-600"
+        >
+          <span>Chat collapsed. Click to expand</span>
+          <span className="text-[#7C3AED] font-black">{chat.length} msgs</span>
+        </div>
+      ) : (
+        <>
+          {/* Quick Floating Reaction Launcher Bar */}
+          <div className="px-3 py-1.5 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
+            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 w-full">
+              <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider shrink-0 mr-1 flex items-center gap-1">
+                <Zap size={11} className="text-amber-500" />
+                <span>React:</span>
+              </span>
+              {QUICK_REACTIONS.map((emoji) => (
+                <motion.button
+                  key={emoji}
+                  type="button"
+                  whileHover={{ scale: 1.35, y: -2 }}
+                  whileTap={{ scale: 0.85 }}
+                  onClick={(e) => handleQuickReaction(emoji, e)}
+                  className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs flex items-center justify-center text-sm transition-all shrink-0 cursor-pointer"
+                  title={`Launch floating ${emoji}`}
                 >
-                  {c.message}
+                  <span>{emoji}</span>
+                </motion.button>
+              ))}
+            </div>
+          </div>
 
-                  {/* Reaction Picker on Hover or Long Press */}
-                  <div className={cn(
-                    "absolute -top-11 flex gap-1 transition-all z-40",
-                    activeReactionId === c.id
-                      ? "opacity-100 pointer-events-auto"
-                      : "opacity-0 pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto",
-                    c.username === username ? "right-0" : "left-0"
-                  )}>
+          {/* Message List Area */}
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto p-3.5 space-y-3.5 bg-slate-50/40 no-scrollbar relative scroll-smooth"
+          >
+            {/* Invisible backdrop to dismiss reaction picker on mobile */}
+            {activeReactionId && (
+              <div
+                className="fixed inset-0 z-20"
+                onTouchStart={() => setActiveReactionId(null)}
+                onClick={() => setActiveReactionId(null)}
+              />
+            )}
+
+            {chat.length === 0 ? (
+              <div className="h-full min-h-[160px] flex flex-col items-center justify-center p-6 text-center text-slate-400 space-y-2">
+                <div className="w-11 h-11 rounded-2xl bg-[#7C3AED]/10 flex items-center justify-center text-[#7C3AED]">
+                  <MessageSquare size={20} strokeWidth={1.8} />
+                </div>
+                <p className="text-xs font-bold text-slate-700">No messages yet</p>
+                <p className="text-[11px] text-slate-400 max-w-[200px] leading-relaxed">
+                  Brainstorm artwork ideas or tap any reaction above to celebrate with collaborators!
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence initial={false}>
+                {chat.map((c: any, i: number) => {
+                  const isOwn = c.username === username;
+                  const isJumbo = isOnlyEmojis(c.message);
+
+                  return (
                     <motion.div
-                      initial={{ scale: 0.85, y: 8 }}
-                      whileInView={{ scale: 1, y: 0 }}
-                      className="bg-white border border-slate-200/90 rounded-2xl p-1.5 grid grid-cols-5 gap-1 shadow-xl backdrop-blur-md max-w-[170px]"
+                      key={c.id || i}
+                      initial={{ opacity: 0, y: 8, scale: 0.97 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ type: "spring", stiffness: 350, damping: 26 }}
+                      className={cn("flex flex-col gap-1 select-text relative group", isOwn ? "items-end" : "items-start")}
                     >
-                      {EMOJIS.slice(0, 10).map(emoji => (
-                        <button
-                          key={emoji}
-                          onClick={() => {
-                            socket?.emit("message-reaction", { roomId, messageId: c.id, emoji, username });
-                            vibrate?.(5);
-                            setActiveReactionId(null);
-                          }}
-                          className="hover:scale-135 transition-transform text-base active:scale-90 p-1 flex items-center justify-center rounded-lg hover:bg-slate-50"
-                        >
-                          {emoji}
-                        </button>
-                      ))}
+                      {/* Message Author and Timestamp */}
+                      <div className="flex items-center gap-1.5 px-1">
+                        <span className={cn(
+                          "text-[9px] font-extrabold tracking-tight uppercase",
+                          isOwn ? "text-[#7C3AED]" : "text-slate-500"
+                        )}>
+                          {isOwn ? "You" : c.username}
+                        </span>
+                        <span className="text-[8px] font-medium text-slate-400 tabular-nums">{c.timestamp}</span>
+                      </div>
+
+                      {/* Main Message Bubble */}
+                      <div
+                        onTouchStart={() => handleTouchStart(c.id)}
+                        onTouchEnd={handleTouchEnd}
+                        onTouchMove={handleTouchEnd}
+                        onClick={() => {
+                          if (window.innerWidth < 640) {
+                            setActiveReactionId(activeReactionId === c.id ? null : c.id);
+                          }
+                        }}
+                        onContextMenu={(e) => { e.preventDefault(); handleTouchStart(c.id); }}
+                        className={cn(
+                          "relative max-w-[88%] transition-all",
+                          activeReactionId === c.id ? "z-30" : "",
+                          isJumbo
+                            ? "my-0.5 select-text leading-tight"
+                            : cn(
+                                "px-3.5 py-2 rounded-2xl text-xs font-normal shadow-xs break-words",
+                                isOwn
+                                  ? "bg-gradient-to-r from-[#7C3AED] via-[#6D28D9] to-[#5B21B6] text-white rounded-tr-xs shadow-violet-500/20 border border-violet-600/50"
+                                  : "bg-white text-slate-800 rounded-tl-xs border border-slate-200/90 shadow-2xs"
+                              )
+                        )}
+                      >
+                        {isJumbo ? (
+                          <div className="text-4xl sm:text-5xl my-1 select-text select-none leading-none drop-shadow-xs animate-in zoom-in-75 duration-200">
+                            {c.message}
+                          </div>
+                        ) : (
+                          c.message
+                        )}
+
+                        {/* Interactive Reaction Popover on Hover or Tap */}
+                        <div className={cn(
+                          "absolute -top-10 flex gap-0.5 transition-all z-40 select-none",
+                          activeReactionId === c.id
+                            ? "opacity-100 pointer-events-auto scale-100"
+                            : "opacity-0 pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:scale-100 scale-90",
+                          isOwn ? "right-0" : "left-0"
+                        )}>
+                          <motion.div
+                            initial={{ scale: 0.85, y: 6 }}
+                            animate={{ scale: 1, y: 0 }}
+                            className="bg-white/95 border border-slate-200/90 rounded-2xl px-1.5 py-1 flex items-center gap-0.5 shadow-xl backdrop-blur-md"
+                          >
+                            {QUICK_REACTIONS.slice(0, 6).map(emoji => (
+                              <motion.button
+                                key={emoji}
+                                type="button"
+                                whileHover={{ scale: 1.4, y: -3 }}
+                                whileTap={{ scale: 0.85 }}
+                                onClick={(e) => handleToggleReaction(c.id, emoji, e)}
+                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-sm transition-transform cursor-pointer"
+                                title={`React with ${emoji}`}
+                              >
+                                <span>{emoji}</span>
+                              </motion.button>
+                            ))}
+                          </motion.div>
+                        </div>
+                      </div>
+
+                      {/* Displayed Reaction Badges */}
+                      {c.reactions && Object.keys(c.reactions).length > 0 && (
+                        <div className={cn(
+                          "flex flex-wrap gap-1 mt-0.5 z-20 select-none",
+                          isOwn ? "justify-end" : "justify-start"
+                        )}>
+                          {Object.entries(c.reactions as { [key: string]: string[] }).map(([emoji, userList]) => {
+                            const hasReacted = userList.includes(username);
+                            const reactorText = userList.length <= 3
+                              ? userList.map(u => (u === username ? "You" : u)).join(", ")
+                              : `${userList.slice(0, 2).map(u => (u === username ? "You" : u)).join(", ")} +${userList.length - 2}`;
+
+                            return (
+                              <Tooltip key={emoji} label={`${reactorText} reacted with ${emoji}`} side="top">
+                                <motion.button
+                                  type="button"
+                                  initial={{ scale: 0.6, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  whileHover={{ scale: 1.15, y: -1 }}
+                                  whileTap={{ scale: 0.85 }}
+                                  onClick={(e) => handleToggleReaction(c.id, emoji, e)}
+                                  className={cn(
+                                    "rounded-full px-2 py-0.5 text-[10px] flex items-center gap-1 shadow-2xs transition-all cursor-pointer border",
+                                    hasReacted
+                                      ? "bg-violet-100 border-violet-400 text-violet-900 font-black ring-2 ring-violet-500/20"
+                                      : "bg-white border-slate-200 hover:border-slate-300 text-slate-700 font-semibold"
+                                  )}
+                                >
+                                  <span className="text-xs">{emoji}</span>
+                                  <span className={cn("text-[10px]", hasReacted ? "text-violet-700 font-black" : "text-slate-600")}>
+                                    {userList.length}
+                                  </span>
+                                </motion.button>
+                              </Tooltip>
+                            );
+                          })}
+                        </div>
+                      )}
                     </motion.div>
-                  </div>
+                  );
+                })}
+              </AnimatePresence>
+            )}
 
-                  {/* Displayed Reactions */}
-                  {c.reactions && Object.keys(c.reactions).length > 0 && (
-                    <div className={cn(
-                      "absolute -bottom-3.5 flex flex-wrap gap-1 z-20",
-                      c.username === username ? "right-1" : "left-1"
-                    )}>
-                      {Object.entries(c.reactions as { [key: string]: string[] }).map(([emoji, users]) => {
-                        const reactorList = users.length > 5
-                          ? `${users.slice(0, 5).join(", ")} and ${users.length - 5} others`
-                          : users.join(", ");
-
-                        return (
-                          <Tooltip key={emoji} label={`${reactorList} reacted with ${emoji}`} side="top">
-                            <motion.button
-                              initial={{ scale: 0.6, opacity: 0 }}
-                              animate={{ scale: 1, opacity: 1 }}
-                              whileTap={{ scale: 0.85 }}
-                              onClick={() => {
-                                socket?.emit("message-reaction", { roomId, messageId: c.id, emoji, username });
-                                vibrate?.(5);
-                              }}
-                              className={cn(
-                                "bg-white border rounded-full px-1.5 py-0.5 text-[9px] flex items-center gap-1 shadow-xs transition-all hover:bg-slate-50",
-                                users.includes(username) ? "border-[#7E3BED]/40 bg-[#7E3BED]/5 ring-1 ring-[#7E3BED]/20" : "border-slate-200"
-                              )}
-                            >
-                              <span>{emoji}</span>
-                              <span className={cn("font-bold", users.includes(username) ? "text-[#7E3BED]" : "text-slate-500")}>
-                                {users.length}
-                              </span>
-                            </motion.button>
-                          </Tooltip>
-                        );
-                      })}
-                    </div>
-                  )}
+            {/* Typing Indicator */}
+            {typingUsers.filter(u => u !== username).map(u => (
+              <motion.div
+                key={u}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200/80 rounded-full shadow-xs w-fit text-[10px] text-slate-500"
+              >
+                <span className="font-bold text-slate-700">{u}</span> is typing
+                <div className="flex gap-1 items-center">
+                  {[0, 1, 2].map((idx) => (
+                    <motion.div
+                      key={idx}
+                      animate={{ scale: [1, 1.4, 1], opacity: [0.35, 1, 0.35] }}
+                      transition={{ repeat: Infinity, duration: 0.8, delay: idx * 0.15 }}
+                      className="w-1.5 h-1.5 bg-[#7C3AED] rounded-full"
+                    />
+                  ))}
                 </div>
               </motion.div>
             ))}
-          </AnimatePresence>
-        )}
+          </div>
 
-        {/* Typing indicator */}
-        {typingUsers.filter(u => u !== username).map(u => (
-          <motion.div
-            key={u}
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="flex items-center gap-2 px-2.5 py-1 bg-white border border-slate-200/80 rounded-full shadow-xs w-fit text-[10px] text-slate-500"
-          >
-            <span className="font-semibold text-slate-700">{u}</span> is typing
-            <div className="flex gap-1 items-center">
-              {[0, 1, 2].map((idx) => (
-                <motion.div
-                  key={idx}
-                  animate={{ scale: [1, 1.4, 1], opacity: [0.35, 1, 0.35] }}
-                  transition={{ repeat: Infinity, duration: 0.8, delay: idx * 0.15 }}
-                  className="w-1.5 h-1.5 bg-[#7E3BED] rounded-full"
-                />
-              ))}
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Collapsible Emoji Tray */}
-      <AnimatePresence>
-        {showEmojis && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="border-t border-slate-100 bg-slate-50/90 px-3 py-2.5 overflow-hidden shrink-0"
-          >
-            <div className="flex items-center justify-between pb-1.5 px-0.5">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Quick Emojis</span>
-              <button
-                type="button"
-                onClick={() => setShowEmojis(false)}
-                className="text-[10px] text-slate-400 hover:text-slate-700 font-medium transition-colors"
+          {/* Floating Scroll To Bottom Button */}
+          <AnimatePresence>
+            {showScrollBottom && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                className="absolute right-4 bottom-16 z-30 pointer-events-auto"
               >
-                Close
-              </button>
-            </div>
-            <div className="grid grid-cols-10 gap-1">
-              {EMOJIS.map(emoji => (
                 <button
-                  key={emoji}
                   type="button"
-                  onClick={() => {
-                    setMsg(prev => prev + emoji);
-                    vibrate?.(5);
-                    inputRef.current?.focus();
-                  }}
-                  className="h-7 flex items-center justify-center rounded-lg hover:bg-white hover:scale-120 active:scale-90 transition-all text-sm hover:shadow-xs"
+                  onClick={scrollToBottom}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 text-white text-[10px] font-bold shadow-lg hover:bg-slate-800 active:scale-95 transition-all cursor-pointer border border-slate-700"
                 >
-                  {emoji}
+                  <ChevronDown size={13} />
+                  <span>Latest</span>
+                  {unreadInChat > 0 && (
+                    <span className="px-1.5 py-0.2 bg-[#7C3AED] text-white rounded-full text-[9px] font-black">
+                      {unreadInChat}
+                    </span>
+                  )}
                 </button>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      {/* Input & Action Bar */}
-      <div className="p-2.5 bg-white border-t border-slate-100 flex items-center gap-1.5 shrink-0">
-        <button
-          type="button"
-          onClick={() => setShowEmojis(!showEmojis)}
-          className={cn(
-            "p-2 rounded-xl transition-all shrink-0",
-            showEmojis
-              ? "bg-[#7E3BED]/10 text-[#7E3BED] ring-1 ring-[#7E3BED]/30"
-              : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-          )}
-          title="Insert Emoji"
-        >
-          <Smile size={17} />
-        </button>
+          {/* Categorized Emoji Picker Tray */}
+          <AnimatePresence>
+            {showEmojis && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="border-t border-slate-100 bg-white px-3 py-2.5 overflow-hidden shrink-0 shadow-inner"
+              >
+                {/* Category Tabs */}
+                <div className="flex items-center gap-1 pb-2 border-b border-slate-100 overflow-x-auto no-scrollbar">
+                  {EMOJI_CATEGORIES.map(cat => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setActiveCategory(cat.id)}
+                      className={cn(
+                        "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all shrink-0 cursor-pointer",
+                        activeCategory === cat.id
+                          ? "bg-violet-100 text-violet-800 shadow-xs"
+                          : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"
+                      )}
+                    >
+                      <span>{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setShowEmojis(false)}
+                    className="ml-auto text-[10px] text-slate-400 hover:text-slate-700 font-semibold px-1"
+                  >
+                    ✕
+                  </button>
+                </div>
 
-        <input
-          ref={inputRef}
-          type="text"
-          value={msg}
-          onChange={handleInputChange}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              sendMsg();
-            }
-          }}
-          placeholder="Type a message..."
-          className="flex-1 bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7E3BED]/20 focus:border-[#7E3BED] focus:bg-white transition-all font-normal"
-        />
+                {/* Emoji Grid */}
+                <div className="pt-2 max-h-36 overflow-y-auto no-scrollbar grid grid-cols-8 xs:grid-cols-9 sm:grid-cols-10 gap-1">
+                  {currentCategoryObj.emojis.map(emoji => (
+                    <motion.button
+                      key={emoji}
+                      type="button"
+                      whileHover={{ scale: 1.35, y: -2 }}
+                      whileTap={{ scale: 0.85 }}
+                      onClick={() => {
+                        setMsg(prev => prev + emoji);
+                        vibrate?.(6);
+                        inputRef.current?.focus();
+                      }}
+                      className="h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 transition-colors text-base select-none cursor-pointer"
+                    >
+                      {emoji}
+                    </motion.button>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <button
-          type="button"
-          onClick={sendMsg}
-          disabled={!msg.trim()}
-          className="p-2 bg-[#7E3BED] text-white rounded-xl flex items-center justify-center transition-all hover:bg-[#6C2FE0] active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 shadow-sm shadow-[#7E3BED]/20 shrink-0"
-          title="Send message"
-        >
-          <Send size={15} className={cn("transition-transform", msg.trim() ? "translate-x-0.5 -translate-y-0.5" : "")} />
-        </button>
-      </div>
+          {/* Input & Action Bar with Safe Area support */}
+          <div className="p-2.5 pb-[max(0.6rem,env(safe-area-inset-bottom))] bg-white border-t border-slate-100 flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowEmojis(!showEmojis)}
+              className={cn(
+                "p-2 rounded-xl transition-all shrink-0 cursor-pointer",
+                showEmojis
+                  ? "bg-[#7C3AED]/15 text-[#7C3AED] ring-2 ring-[#7C3AED]/30"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              )}
+              title="Insert Emoji"
+            >
+              <Smile size={18} />
+            </button>
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={msg}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMsg();
+                }
+              }}
+              placeholder="Type message or emoji..."
+              className="flex-1 bg-slate-50 border border-slate-200/90 rounded-xl px-3.5 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/20 focus:border-[#7C3AED] focus:bg-white transition-all font-medium"
+            />
+
+            <button
+              type="button"
+              onClick={sendMsg}
+              disabled={!msg.trim()}
+              className="p-2.5 bg-gradient-to-r from-[#7C3AED] to-[#6D28D9] text-white rounded-xl flex items-center justify-center transition-all hover:opacity-95 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed disabled:active:scale-100 shadow-md shadow-[#7C3AED]/20 shrink-0 cursor-pointer"
+              title="Send message"
+            >
+              <Send size={15} className={cn("transition-transform", msg.trim() ? "translate-x-0.5 -translate-y-0.5" : "")} />
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -467,6 +467,12 @@ async function startServer() {
       io.to(targetRoom).emit("message-reaction", { ...data, roomId: targetRoom });
     });
 
+    socket.on("floating-reaction", (data: { roomId: string; emoji: string; username?: string; x?: number; y?: number }) => {
+      if (!data?.roomId) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      io.to(targetRoom).emit("floating-reaction", { ...data, roomId: targetRoom });
+    });
+
     socket.on("clear-canvas", (data: any) => {
       const rawRoom = typeof data === "string" ? data : data?.roomId;
       if (!rawRoom) return;
