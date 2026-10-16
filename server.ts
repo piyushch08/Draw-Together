@@ -150,6 +150,38 @@ async function startServer() {
     res.json({ rooms: publicRooms });
   });
 
+  app.get("/api/room/:roomId", (req, res) => {
+    const cleanRoomId = (req.params.roomId || "").trim().toUpperCase();
+    const room = rooms.get(cleanRoomId);
+    if (!room) {
+      return res.status(404).json({ exists: false });
+    }
+    res.json({
+      exists: true,
+      roomId: cleanRoomId,
+      backgroundColor: room.backgroundColor || "#FFFFFF",
+      aspectRatio: room.aspectRatio || "16:9",
+      isSettingsLocked: Boolean(room.isSettingsLocked),
+      userCount: room.users.size
+    });
+  });
+
+  app.post("/api/room/create", (req, res) => {
+    const { roomId, backgroundColor, aspectRatio } = req.body || {};
+    if (!roomId) return res.status(400).json({ error: "Missing roomId" });
+    const cleanRoomId = roomId.trim().toUpperCase();
+    const room = getOrCreateRoom(cleanRoomId);
+    if (backgroundColor) room.backgroundColor = backgroundColor;
+    if (aspectRatio) room.aspectRatio = aspectRatio;
+    room.isSettingsLocked = true;
+    res.json({
+      success: true,
+      roomId: cleanRoomId,
+      backgroundColor: room.backgroundColor || "#FFFFFF",
+      aspectRatio: room.aspectRatio || "16:9"
+    });
+  });
+
   app.get("/api/network-info", (req, res) => {
     const interfaces = os.networkInterfaces();
     const addresses: string[] = [];
@@ -199,7 +231,7 @@ async function startServer() {
 
       // Canvas ratio and background color are decided solely by the room creator at creation time.
       // They are identical across all clients and unchangeable inside the canvas.
-      if (isCreator && (!room.isSettingsLocked || room.users.size <= 1)) {
+      if (isCreator && (backgroundColor || aspectRatio)) {
         room.backgroundColor = backgroundColor || room.backgroundColor || "#FFFFFF";
         room.aspectRatio = aspectRatio || room.aspectRatio || "16:9";
         room.isSettingsLocked = true;

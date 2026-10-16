@@ -502,7 +502,25 @@ export default function App() {
       setJoinCode(initialRoom);
       setIsJoining(true); // default to joining view if URL contains a code
       window.scrollTo(0, 0);
-      setIsEntered(true); // auto-enter so mobile users opening link jump straight into the canvas room
+      fetch(`/api/room/${initialRoom}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data?.exists && (data.backgroundColor || data.aspectRatio)) {
+            const settings = {
+              backgroundColor: data.backgroundColor || "#FFFFFF",
+              aspectRatio: data.aspectRatio || "16:9"
+            };
+            setActiveCanvasSettings(settings);
+            activeCanvasSettingsRef.current = settings;
+            try {
+              sessionStorage.setItem("draw_together_settings_" + initialRoom, JSON.stringify(settings));
+            } catch {}
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          setIsEntered(true);
+        });
     }
 
     // Register hashchange so user can transition Rooms dynamically by editing URL
@@ -512,7 +530,25 @@ export default function App() {
         setRoomId(hashRoom);
         setJoinCode(hashRoom);
         window.scrollTo(0, 0);
-        setIsEntered(true);
+        fetch(`/api/room/${hashRoom}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data?.exists && (data.backgroundColor || data.aspectRatio)) {
+              const settings = {
+                backgroundColor: data.backgroundColor || "#FFFFFF",
+                aspectRatio: data.aspectRatio || "16:9"
+              };
+              setActiveCanvasSettings(settings);
+              activeCanvasSettingsRef.current = settings;
+              try {
+                sessionStorage.setItem("draw_together_settings_" + hashRoom, JSON.stringify(settings));
+              } catch {}
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            setIsEntered(true);
+          });
       } else {
         window.scrollTo(0, 0);
         setIsEntered(false);
@@ -566,7 +602,7 @@ export default function App() {
           setJoinCode={setJoinCode}
           isJoining={isJoining}
           setIsJoining={setIsJoining}
-          onCreate={(settings?: { backgroundColor: string; aspectRatio: string }) => {
+          onCreate={async (settings?: { backgroundColor: string; aspectRatio: string }) => {
             let target = createCustomName.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
             if (!target) {
               target = nanoid(6).toUpperCase();
@@ -578,16 +614,45 @@ export default function App() {
               try {
                 sessionStorage.setItem("draw_together_settings_" + target, JSON.stringify(settings));
               } catch {}
+              // Persist room settings to backend REST API immediately
+              try {
+                fetch("/api/room/create", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    roomId: target,
+                    backgroundColor: settings.backgroundColor,
+                    aspectRatio: settings.aspectRatio
+                  })
+                }).catch(() => {});
+              } catch {}
             }
             setIsNewRoom(true);
             navigateToRoom(target);
           }}
-          onJoin={() => {
-            if (joinCode.trim()) {
+          onJoin={async () => {
+            const cleanTarget = joinCode.trim().toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+            if (cleanTarget) {
               setIsNewRoom(false);
-              setActiveCanvasSettings(null);
-              activeCanvasSettingsRef.current = null;
-              navigateToRoom(joinCode);
+              // Fetch creator's decided canvas settings before entering room
+              try {
+                const res = await fetch(`/api/room/${cleanTarget}`);
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data?.exists && (data.backgroundColor || data.aspectRatio)) {
+                    const roomSettings = {
+                      backgroundColor: data.backgroundColor || "#FFFFFF",
+                      aspectRatio: data.aspectRatio || "16:9"
+                    };
+                    setActiveCanvasSettings(roomSettings);
+                    activeCanvasSettingsRef.current = roomSettings;
+                    try {
+                      sessionStorage.setItem("draw_together_settings_" + cleanTarget, JSON.stringify(roomSettings));
+                    } catch {}
+                  }
+                }
+              } catch {}
+              navigateToRoom(cleanTarget);
             }
           }}
         />
@@ -882,19 +947,6 @@ export function LandingPage({
                           placeholder="e.g. STUDIO-ROOM"
                           className="w-full bg-[#F8FAFC] border-2 border-slate-200/90 rounded-xl sm:rounded-2xl px-4 py-3 sm:px-5 sm:py-4 font-mono font-bold text-slate-900 outline-none focus:bg-white focus:border-[#7C3AED] focus:ring-4 focus:ring-[#7C3AED]/15 transition-all text-sm sm:text-base uppercase placeholder:normal-case placeholder:text-slate-400 shadow-sm"
                         />
-                      </div>
-
-                      {/* Creator Canvas Master Settings Notice */}
-                      <div className="p-2.5 sm:p-3 rounded-xl bg-violet-50/80 border border-violet-200/80 flex items-start gap-2.5">
-                        <Lock size={15} className="text-violet-600 mt-0.5 shrink-0" />
-                        <div className="space-y-0.5">
-                          <p className="text-[11px] sm:text-xs font-black text-violet-950 uppercase tracking-wide">
-                            Creator Canvas Setup
-                          </p>
-                          <p className="text-[10px] sm:text-[11px] text-violet-700 font-medium leading-relaxed">
-                            Your selected ratio and background color are synchronized and unchangeable inside the canvas for all collaborators.
-                          </p>
-                        </div>
                       </div>
 
                       {/* Canvas Size & Aspect Ratio Grid */}
@@ -1475,6 +1527,22 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       .then(data => setNetworkInfo(data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    fetch(`/api/room/${roomId}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data?.exists && (data.backgroundColor || data.aspectRatio)) {
+          const bg = data.backgroundColor || roomSettingsRef.current.backgroundColor;
+          const ar = data.aspectRatio || roomSettingsRef.current.aspectRatio;
+          if (bg !== roomSettingsRef.current.backgroundColor || ar !== roomSettingsRef.current.aspectRatio) {
+            setRoomSettings({ backgroundColor: bg, aspectRatio: ar });
+            requestAnimationFrame(() => fitToScreen());
+          }
+        }
+      })
+      .catch(() => {});
+  }, [roomId]);
 
   const [socket, setSocket] = useState<Socket | null>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -2779,9 +2847,31 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     });
 
     s.on("request-canvas-snapshot", ({ requesterId, roomId: reqRoomId }: { requesterId: string; roomId: string }) => {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const canvasData = canvas.toDataURL("image/png");
+      const masterCanvas = canvasRef.current;
+      if (masterCanvas) {
+        // Export transparent artwork layers snapshot without solid background fill
+        // to prevent overwriting or mismatching the creator's background color
+        const temp = document.createElement("canvas");
+        temp.width = masterCanvas.width;
+        temp.height = masterCanvas.height;
+        const tempCtx = temp.getContext("2d");
+        if (tempCtx) {
+          for (let i = layersRef.current.length - 1; i >= 0; i--) {
+            const layer = layersRef.current[i];
+            if (!layer.visible) continue;
+            tempCtx.save();
+            tempCtx.globalAlpha = layer.opacity;
+            if (layer.blendMode) {
+              tempCtx.globalCompositeOperation = layer.blendMode as GlobalCompositeOperation;
+            }
+            const offscreen = layerCanvasesRef.current[layer.id];
+            if (offscreen) {
+              tempCtx.drawImage(offscreen, 0, 0);
+            }
+            tempCtx.restore();
+          }
+        }
+        const canvasData = temp.toDataURL("image/png");
         s.emit("canvas-snapshot-reply", { 
           requesterId, 
           canvasData, 
