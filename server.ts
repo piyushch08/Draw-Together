@@ -73,6 +73,8 @@ if (isProd && cluster.isPrimary) {
 async function startServer() {
   const app = express();
   const httpServer = createServer(app);
+  httpServer.keepAliveTimeout = 65000;
+  httpServer.headersTimeout = 66000;
 
   const io = new Server(httpServer, {
     cors: {
@@ -81,7 +83,9 @@ async function startServer() {
     },
     transports: ["websocket", "polling"],
     perMessageDeflate: false,
-    maxHttpBufferSize: 1e7 // 10MB payload limit for canvas data snapshots
+    maxHttpBufferSize: 1e7, // 10MB payload limit for canvas data snapshots
+    pingInterval: 10000,
+    pingTimeout: 5000
   });
 
   if (isProd) {

@@ -1548,7 +1548,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const socketRef = useRef<Socket | null>(null);
   socketRef.current = socket;
   const [isChatOpen, setIsChatOpen] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
   
   const getInitialSettings = () => {
     if (initialCanvasSettings) return initialCanvasSettings;
@@ -1898,7 +1897,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
   const queueDrawingSegment = useCallback((seg: DrawingData) => {
     networkQueueRef.current.push(seg);
-    if (networkQueueRef.current.length >= 6) {
+    if (networkQueueRef.current.length >= 3) {
       flushNetworkQueue();
     } else if (!networkRafId.current) {
       networkRafId.current = requestAnimationFrame(() => {
@@ -2492,7 +2491,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const lastCursorEmitTime = useRef(0);
   const emitCursorUpdateThrottled = (x?: number, y?: number, drawingOverride?: boolean) => {
     const now = Date.now();
-    if (now - lastCursorEmitTime.current < 12 && drawingOverride === undefined) return; // Responsive 80-100fps cursor tracking
+    if (now - lastCursorEmitTime.current < 10 && drawingOverride === undefined) return; // Responsive 100fps cursor tracking
     lastCursorEmitTime.current = now;
     emitCursorUpdate(x, y, drawingOverride);
   };
@@ -2685,8 +2684,14 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
   useEffect(() => {
     const s = io({
-      transports: ["websocket"],
-      upgrade: false
+      transports: ["websocket", "polling"],
+      upgrade: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 400,
+      reconnectionDelayMax: 2000,
+      randomizationFactor: 0.2,
+      timeout: 10000,
     });
     socketRef.current = s;
     setSocket(s);
@@ -2702,6 +2707,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     };
 
     s.on("connect", onConnect);
+    s.io.on("reconnect", () => {
+      onConnect();
+    });
     if (s.connected) {
       onConnect();
     }
@@ -5501,28 +5509,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </button>
           </Tooltip>
 
-          {/* Canvas Format (Locked by Room Creator) - VISIBLE ON ALL SCREENS */}
-          <Tooltip label={`Canvas Format: ${roomSettings.aspectRatio} (${getCanvasDimensions(roomSettings.aspectRatio).width}×${getCanvasDimensions(roomSettings.aspectRatio).height}px) • Background: ${roomSettings.backgroundColor} • Fixed by Room Creator`} side="bottom">
-            <button
-              type="button"
-              onClick={() => {
-                setShowTemplateModal(true);
-                vibrate(5);
-              }}
-              className="px-2 py-1 xs:py-1.5 sm:px-2.5 sm:py-2 rounded-lg sm:rounded-xl border border-slate-200/90 bg-white/95 text-slate-700 hover:text-indigo-600 hover:border-slate-300 transition-all active:scale-95 shadow-xs shrink-0 flex items-center gap-1.5"
-              title="Canvas Specifications (Fixed by Creator)"
-            >
-              <div
-                className="w-3 h-3 rounded-full border border-slate-300 shrink-0 shadow-2xs"
-                style={{ backgroundColor: roomSettings.backgroundColor }}
-              />
-              <span className="text-[10px] font-mono font-bold tracking-tight text-slate-700">
-                {roomSettings.aspectRatio}
-              </span>
-              <Lock size={11} className="text-slate-400 shrink-0" />
-            </button>
-          </Tooltip>
-
           {/* Live Artists Count (shown on screens >= 768px) */}
           <Tooltip label="Live Artists" side="bottom">
             <div className="hidden md:flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
@@ -8233,107 +8219,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 />
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Template Specifications Modal (Locked by Room Creator) */}
-        <AnimatePresence>
-          {showTemplateModal && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="w-full max-w-sm bg-white rounded-2xl sm:rounded-[2rem] p-5 sm:p-7 shadow-2xl border border-slate-200 my-auto"
-              >
-                <div className="flex flex-col gap-4 sm:gap-5">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-xl bg-violet-50 border border-violet-200 flex items-center justify-center text-violet-700 shrink-0">
-                        <Lock size={18} />
-                      </div>
-                      <div>
-                        <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
-                          Canvas Specifications
-                        </h3>
-                        <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
-                          Fixed by Room Creator
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setShowTemplateModal(false)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  <p className="text-slate-500 text-xs font-medium leading-relaxed">
-                    The canvas aspect ratio and background color were chosen by the room creator at creation time. To preserve identical alignment and visual fidelity across all collaborators, these parameters are unchangeable inside the canvas.
-                  </p>
-
-                  {/* Locked Ratio Card */}
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Aspect Ratio
-                      </span>
-                      <span className="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Lock size={9} /> Locked
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-black text-slate-800">
-                        {roomSettings.aspectRatio === "16:9" ? "16:9 Widescreen" :
-                         roomSettings.aspectRatio === "4:3" ? "4:3 Classic Standard" :
-                         roomSettings.aspectRatio === "1:1" ? "1:1 Square" :
-                         roomSettings.aspectRatio === "9:16" ? "9:16 Mobile Portrait" :
-                         roomSettings.aspectRatio === "3:4" ? "3:4 Tablet Portrait" : roomSettings.aspectRatio}
-                      </span>
-                      <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                        {getCanvasDimensions(roomSettings.aspectRatio).width} × {getCanvasDimensions(roomSettings.aspectRatio).height} px
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Locked Background Color Card */}
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        Canvas Background Color
-                      </span>
-                      <span className="text-[9px] font-bold text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Lock size={9} /> Locked
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="w-6 h-6 rounded-lg border border-slate-300 shadow-2xs"
-                          style={{ backgroundColor: roomSettings.backgroundColor }}
-                        />
-                        <span className="text-xs font-mono font-bold text-slate-800 uppercase">
-                          {roomSettings.backgroundColor}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                        Synchronized
-                      </span>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowTemplateModal(false)}
-                    className="w-full py-3 px-4 rounded-xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all active:scale-98 text-xs uppercase tracking-wider shadow-md"
-                  >
-                    Got It
-                  </button>
-                </div>
-              </motion.div>
-            </div>
           )}
         </AnimatePresence>
 
