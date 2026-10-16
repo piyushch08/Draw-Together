@@ -8536,6 +8536,79 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           )}
         </AnimatePresence>
 
+        {/* Mobile Canvas Quick Reaction & Shoutouts Bar (when chat drawer is closed) */}
+        <AnimatePresence>
+          {!isChatOpen && (
+            <motion.div
+              initial={{ y: 24, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="fixed bottom-20 left-3 right-3 z-30 pointer-events-auto sm:hidden flex items-center justify-center select-none"
+            >
+              <div className="bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl shadow-xl px-2.5 py-1.5 flex items-center gap-1.5 max-w-full overflow-x-auto no-scrollbar touch-pan-x overscroll-x-contain">
+                <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider shrink-0 flex items-center gap-0.5">
+                  <Zap size={12} className="text-amber-500" />
+                </span>
+                {QUICK_REACTIONS.slice(0, 6).map((emoji) => (
+                  <motion.button
+                    key={emoji}
+                    type="button"
+                    whileTap={{ scale: 0.8 }}
+                    onClick={() => {
+                      vibrate(10);
+                      triggerFloatingReaction(emoji, undefined, undefined, username);
+                      socket?.emit("floating-reaction", { roomId, emoji, username });
+                    }}
+                    className="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center text-base transition-all shrink-0 cursor-pointer active:scale-90"
+                    title={`React ${emoji}`}
+                  >
+                    <span>{emoji}</span>
+                  </motion.button>
+                ))}
+                <div className="w-[1px] h-4 bg-slate-200 shrink-0 mx-0.5" />
+                {QUICK_KEYWORDS.slice(0, 4).map((kw) => (
+                  <motion.button
+                    key={kw.id}
+                    type="button"
+                    whileTap={{ scale: 0.85 }}
+                    onClick={() => {
+                      vibrate(12);
+                      const messageData: ChatMessage = {
+                        id: nanoid(),
+                        roomId,
+                        username,
+                        message: kw.text,
+                        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      };
+                      socket?.emit("chat-message", messageData);
+                      socket?.emit("floating-reaction", { roomId, emoji: kw.text, username });
+                      triggerFloatingReaction(kw.text, undefined, undefined, username);
+                    }}
+                    className={cn(
+                      "px-2.5 py-1 rounded-lg border text-[10px] font-black transition-all shrink-0 cursor-pointer active:scale-95 shadow-2xs",
+                      kw.bg
+                    )}
+                    title={`Shoutout ${kw.text}`}
+                  >
+                    {kw.text}
+                  </motion.button>
+                ))}
+                <div className="w-[1px] h-4 bg-slate-200 shrink-0 mx-0.5" />
+                <button
+                  type="button"
+                  onClick={() => setIsChatOpen(true)}
+                  className="px-2.5 py-1 rounded-lg bg-violet-600 text-white text-[10px] font-black transition-all shrink-0 cursor-pointer active:scale-95 flex items-center gap-1 shadow-xs"
+                  title="Open Chat"
+                >
+                  <MessageSquare size={12} />
+                  <span>Chat</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Clear Confirmation Modal */}
         <AnimatePresence>
           {isClearConfirmOpen && (
@@ -8914,7 +8987,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
         <>
           {/* Quick Floating Reaction Launcher Bar */}
           <div className="px-3 py-1.5 bg-slate-50/90 border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
-            <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5 w-full">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]">
               <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider shrink-0 mr-1 flex items-center gap-1">
                 <Zap size={11} className="text-amber-500" />
                 <span>React:</span>
@@ -8926,7 +8999,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                   whileHover={{ scale: 1.35, y: -2 }}
                   whileTap={{ scale: 0.85 }}
                   onClick={(e) => handleQuickReaction(emoji, e)}
-                  className="h-7 w-7 rounded-lg hover:bg-white hover:shadow-xs flex items-center justify-center text-sm transition-all shrink-0 cursor-pointer"
+                  className="h-8 w-8 sm:h-7 sm:w-7 rounded-xl hover:bg-white hover:shadow-xs flex items-center justify-center text-base sm:text-sm transition-all shrink-0 cursor-pointer active:scale-90"
                   title={`Launch floating ${emoji}`}
                 >
                   <span>{emoji}</span>
@@ -8937,7 +9010,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
 
           {/* Quick Keyword Shoutouts Bar */}
           <div className="px-3 py-1 bg-white border-b border-slate-100 flex items-center justify-between shrink-0 select-none">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 w-full touch-pan-x overscroll-x-contain [-webkit-overflow-scrolling:touch]">
               <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider shrink-0 mr-0.5 flex items-center gap-1">
                 <Sparkles size={11} className="text-violet-500" />
                 <span>Shoutouts:</span>
@@ -8950,7 +9023,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                   whileTap={{ scale: 0.94 }}
                   onClick={(e) => handleKeywordClick(kw, e)}
                   className={cn(
-                    "px-2.5 py-0.5 rounded-lg border text-[10px] font-bold transition-all shrink-0 cursor-pointer shadow-2xs",
+                    "px-2.5 py-1 sm:py-0.5 rounded-lg border text-xs sm:text-[10px] font-bold transition-all shrink-0 cursor-pointer shadow-2xs active:scale-95",
                     kw.bg
                   )}
                   title={`Send shoutout "${kw.text}"`}
@@ -9001,7 +9074,7 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                       transition={{ type: "spring", stiffness: 350, damping: 26 }}
                       className={cn("flex flex-col gap-1 select-text relative group", isOwn ? "items-end" : "items-start")}
                     >
-                      {/* Message Author and Timestamp */}
+                      {/* Message Author, Timestamp, and Mobile React Trigger */}
                       <div className="flex items-center gap-1.5 px-1">
                         <span className={cn(
                           "text-[9px] font-extrabold tracking-tight uppercase",
@@ -9010,6 +9083,26 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                           {isOwn ? "You" : c.username}
                         </span>
                         <span className="text-[8px] font-medium text-slate-400 tabular-nums">{c.timestamp}</span>
+
+                        {/* Mobile quick react trigger button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveReactionId(activeReactionId === c.id ? null : c.id);
+                            vibrate?.(10);
+                          }}
+                          className={cn(
+                            "sm:hidden px-1.5 py-0.5 rounded-full text-[9px] font-bold transition-all flex items-center gap-0.5 border cursor-pointer active:scale-90",
+                            activeReactionId === c.id
+                              ? "bg-violet-100 text-violet-700 border-violet-300 shadow-xs"
+                              : "bg-slate-100 text-slate-500 hover:text-slate-800 border-slate-200"
+                          )}
+                          title="React to message"
+                        >
+                          <Smile size={11} />
+                          <span>React</span>
+                        </button>
                       </div>
 
                       {/* Main Message Bubble */}
@@ -9055,27 +9148,31 @@ function ChatSection({ roomId, username, socket, chat, setChat, vibrate, onClose
                           c.message
                         )}
 
-                        {/* Interactive Reaction Popover on Hover or Tap */}
+                        {/* Interactive Reaction Popover on Hover (Desktop) or Tap / Button (Mobile) */}
                         <div className={cn(
-                          "absolute -top-10 flex gap-0.5 transition-all z-40 select-none",
+                          "z-40 select-none transition-all",
+                          "sm:absolute sm:-top-10",
+                          isOwn ? "sm:right-0" : "sm:left-0",
                           activeReactionId === c.id
-                            ? "opacity-100 pointer-events-auto scale-100"
-                            : "opacity-0 pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:scale-100 scale-90",
-                          isOwn ? "right-0" : "left-0"
+                            ? "block opacity-100 pointer-events-auto scale-100 my-1"
+                            : "hidden sm:flex sm:opacity-0 sm:pointer-events-none sm:group-hover:opacity-100 sm:group-hover:pointer-events-auto sm:group-hover:scale-100 scale-90"
                         )}>
                           <motion.div
-                            initial={{ scale: 0.85, y: 6 }}
-                            animate={{ scale: 1, y: 0 }}
-                            className="bg-white/95 border border-slate-200/90 rounded-2xl px-1.5 py-1 flex items-center gap-0.5 shadow-xl backdrop-blur-md"
+                            initial={{ scale: 0.9, opacity: 0, y: -4 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            className="bg-white/95 border border-slate-200/90 rounded-2xl px-2 py-1.5 flex items-center gap-1 shadow-xl backdrop-blur-md max-w-[calc(100vw-3rem)] overflow-x-auto no-scrollbar touch-pan-x"
                           >
-                            {QUICK_REACTIONS.slice(0, 8).map(emoji => (
+                            {QUICK_REACTIONS.map(emoji => (
                               <motion.button
                                 key={emoji}
                                 type="button"
-                                whileHover={{ scale: 1.4, y: -3 }}
-                                whileTap={{ scale: 0.85 }}
-                                onClick={(e) => handleToggleReaction(c.id, emoji, e)}
-                                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-sm transition-transform cursor-pointer"
+                                whileHover={{ scale: 1.35, y: -2 }}
+                                whileTap={{ scale: 0.8 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleReaction(c.id, emoji, e);
+                                }}
+                                className="w-8 h-8 sm:w-7 sm:h-7 flex items-center justify-center rounded-xl hover:bg-slate-100 text-base sm:text-sm transition-transform cursor-pointer shrink-0 active:scale-90"
                                 title={`React with ${emoji}`}
                               >
                                 <span>{emoji}</span>
