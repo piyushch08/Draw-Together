@@ -345,6 +345,10 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
             const prevCursor = prev[userId];
             const userInfo = usersRef.current[userId];
 
+            // If user is not present in active room users, do not resurrect cursor
+            if (!userInfo && !prevCursor) continue;
+            if (userId === socket?.id) continue;
+
             next[userId] = {
               id: data.userId,
               username: userInfo?.username || prevCursor?.username || "Artist",
@@ -364,6 +368,7 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
     };
 
     const handleCursorMove = (data: CursorUpdate) => {
+      if (!usersRef.current[data.userId]) return;
       pendingUpdates[data.userId] = data;
       if (!rafFlushId) {
         rafFlushId = requestAnimationFrame(flushUpdates);
@@ -371,6 +376,7 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
     };
 
     const handleUserLeft = ({ id }: { id: string }) => {
+      delete pendingUpdates[id];
       setRemoteCursors(prev => {
         if (!prev[id]) return prev;
         const next = { ...prev };
@@ -379,6 +385,21 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
       });
     };
 
+    const pruneInterval = setInterval(() => {
+      const now = Date.now();
+      setRemoteCursors(prev => {
+        let changed = false;
+        const next = { ...prev };
+        for (const id in next) {
+          if (!usersRef.current[id] || (now - (next[id].lastActiveAt || 0) > 8000)) {
+            delete next[id];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 2000);
+
     socket.on("cursor-move", handleCursorMove);
     socket.on("user-left", handleUserLeft);
 
@@ -386,6 +407,7 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
       socket.off("cursor-move", handleCursorMove);
       socket.off("user-left", handleUserLeft);
       if (rafFlushId) cancelAnimationFrame(rafFlushId);
+      clearInterval(pruneInterval);
     };
   }, [socket]);
 
@@ -401,7 +423,7 @@ const RemoteCursors: React.FC<RemoteCursorsProps> = React.memo(({
       }}
     >
       {(Object.values(remoteCursors) as UserPresence[])
-        .filter(u => u.id !== socket?.id && typeof u.cursorX === "number" && !isNaN(u.cursorX) && isFinite(u.cursorX) && typeof u.cursorY === "number" && !isNaN(u.cursorY) && isFinite(u.cursorY))
+        .filter(u => u.id !== socket?.id && Boolean(users[u.id]) && typeof u.cursorX === "number" && !isNaN(u.cursorX) && isFinite(u.cursorX) && typeof u.cursorY === "number" && !isNaN(u.cursorY) && isFinite(u.cursorY))
         .map(u => (
           <div
             key={u.id}
@@ -940,26 +962,26 @@ export function LandingPage({
                   <button
                     onClick={() => setIsJoining(false)}
                     className={cn(
-                      "flex-1 py-2 sm:py-3 text-xs sm:text-sm font-black rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5",
+                      "flex-1 py-2 sm:py-3 text-xs sm:text-sm font-black rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5",
                       !isJoining
                         ? "bg-white text-slate-950 shadow-md"
                         : "text-slate-500 hover:text-slate-900"
                     )}
                   >
                     <Plus size={14} className={!isJoining ? "text-[#7C3AED]" : ""} />
-                    <span className="hidden xs:inline">Create</span> Room
+                    <span>Create Room</span>
                   </button>
                   <button
                     onClick={() => setIsJoining(true)}
                     className={cn(
-                      "flex-1 py-2 sm:py-3 text-xs sm:text-sm font-black rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1 sm:gap-1.5",
+                      "flex-1 py-2 sm:py-3 text-xs sm:text-sm font-black rounded-lg sm:rounded-xl transition-all flex items-center justify-center gap-1.5",
                       isJoining
                         ? "bg-white text-slate-950 shadow-md"
                         : "text-slate-500 hover:text-slate-900"
                     )}
                   >
                     <Users size={14} className={isJoining ? "text-[#7C3AED]" : ""} />
-                    <span className="hidden xs:inline">Join</span> Room
+                    <span>Join Room</span>
                   </button>
                 </div>
 
@@ -1879,6 +1901,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     lastTouchY: 0
   });
   const [users, setUsers] = useState<Record<string, UserPresence>>({});
+  const [liveUserCount, setLiveUserCount] = useState<number>(1);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
@@ -2798,6 +2821,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       backgroundColor?: string;
       aspectRatio?: string;
     }) => {
+      if (typeof (data as any).userCount === "number") {
+        setLiveUserCount((data as any).userCount);
+      } else if (data.users && Array.isArray(data.users)) {
+        setLiveUserCount(Math.max(1, data.users.length));
+      }
       if (data.users && Array.isArray(data.users)) {
         const userMap: Record<string, UserPresence> = {};
         data.users.forEach(u => {
@@ -2834,11 +2862,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         activeLayerIdRef.current = data.activeLayerId;
       }
       
-      if (data.placedShapes && Array.isArray(data.placedShapes) && data.placedShapes.length > 0) {
+      if (data.placedShapes && Array.isArray(data.placedShapes)) {
         setPlacedShapes(data.placedShapes);
         placedShapesRef.current = data.placedShapes;
       }
-      if (data.placedTexts && Array.isArray(data.placedTexts) && data.placedTexts.length > 0) {
+      if (data.placedTexts && Array.isArray(data.placedTexts)) {
         setPlacedTexts(data.placedTexts);
         placedTextsRef.current = data.placedTexts;
       }
@@ -2906,22 +2934,38 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       }
     });
 
-    s.on("user-joined", (user: UserPresence) => {
-      setUsers(prev => ({
-        ...prev,
-        [user.id]: {
-          ...user,
-          lastActiveAt: Date.now()
-        }
-      }));
+    s.on("user-joined", (data: any) => {
+      const incomingUser = data.user || data;
+      if (typeof data.userCount === "number") {
+        setLiveUserCount(data.userCount);
+      } else {
+        setLiveUserCount(prev => prev + 1);
+      }
+      if (incomingUser && incomingUser.id && incomingUser.id !== s.id) {
+        setUsers(prev => ({
+          ...prev,
+          [incomingUser.id]: {
+            ...incomingUser,
+            lastActiveAt: Date.now()
+          }
+        }));
+      }
     });
 
-    s.on("user-left", ({ id }) => {
-      setUsers(prev => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
+    s.on("user-left", (data: any) => {
+      const id = data?.id;
+      if (typeof data?.userCount === "number") {
+        setLiveUserCount(data.userCount);
+      } else {
+        setLiveUserCount(prev => Math.max(1, prev - 1));
+      }
+      if (id) {
+        setUsers(prev => {
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        });
+      }
     });
 
     s.on("clear-canvas", () => {
@@ -5553,12 +5597,12 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
             </button>
           </Tooltip>
 
-          {/* Live Artists Count (shown on screens >= 768px) */}
+          {/* Live Artists Count */}
           <Tooltip label="Live Artists" side="bottom">
-            <div className="hidden md:flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default">
+            <div className="flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default" title="Live Artists">
               <Users size={13} className="text-indigo-500" />
               <span className="text-[10px] font-black tracking-wider text-slate-600">
-                {Object.keys(users).length}
+                {liveUserCount}
               </span>
             </div>
           </Tooltip>
@@ -5588,11 +5632,18 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         >
           {showGrid && (
             <div
-              className="absolute inset-0 pointer-events-none opacity-10 z-10"
+              className={cn(
+                "absolute pointer-events-none z-10 rounded-sm overflow-hidden",
+                isTransitioning && "transition-transform duration-300 ease-out"
+              )}
               style={{
-                backgroundImage: 'linear-gradient(to right, #000 1px, transparent 1px), linear-gradient(to bottom, #000 1px, transparent 1px)',
-                backgroundSize: `${40 * transform.scale}px ${40 * transform.scale}px`,
-                backgroundPosition: `${transform.x}px ${transform.y}px`
+                width: getCanvasDimensions(roomSettings.aspectRatio).width,
+                height: getCanvasDimensions(roomSettings.aspectRatio).height,
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                transformOrigin: '0 0',
+                backgroundImage: 'linear-gradient(to right, rgba(100, 116, 139, 0.22) 1px, transparent 1px), linear-gradient(to bottom, rgba(100, 116, 139, 0.22) 1px, transparent 1px)',
+                backgroundSize: '40px 40px',
+                willChange: 'transform'
               }}
             />
           )}

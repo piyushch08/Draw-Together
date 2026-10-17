@@ -268,6 +268,7 @@ async function startServer() {
       socket.emit("init-room-state", {
         roomId: cleanRoomId,
         users: activeUsersList,
+        userCount: room.users.size,
         placedShapes: room.placedShapes,
         placedTexts: room.placedTexts,
         canvasData: room.canvasData,
@@ -279,7 +280,7 @@ async function startServer() {
         aspectRatio: room.aspectRatio || "16:9"
       });
 
-      socket.to(cleanRoomId).emit("user-joined", user);
+      socket.to(cleanRoomId).emit("user-joined", { user, userCount: room.users.size });
 
       const otherUserIds = Array.from(room.users.keys()).filter(id => id !== socket.id);
       if (otherUserIds.length > 0) {
@@ -339,6 +340,24 @@ async function startServer() {
         const action = room.actions.find((a: any) => a.id === data.actionId);
         if (action) {
           action.undone = true;
+          if (action.type === "text" && action.text) {
+            if (action.textAction === "add") {
+              room.placedTexts = (room.placedTexts || []).filter((t: any) => t.id !== action.text.id);
+            } else if (action.textAction === "delete") {
+              if (!(room.placedTexts || []).some((t: any) => t.id === action.text.id)) {
+                room.placedTexts = [...(room.placedTexts || []), action.text];
+              }
+            }
+          }
+          if (action.type === "shape" && action.shape) {
+            if (action.shapeAction === "add") {
+              room.placedShapes = (room.placedShapes || []).filter((s: any) => s.id !== action.shape.id);
+            } else if (action.shapeAction === "delete") {
+              if (!(room.placedShapes || []).some((s: any) => s.id === action.shape.id)) {
+                room.placedShapes = [...(room.placedShapes || []), action.shape];
+              }
+            }
+          }
         }
         room.lastActivity = Date.now();
       }
@@ -353,6 +372,24 @@ async function startServer() {
         const action = room.actions.find((a: any) => a.id === data.actionId);
         if (action) {
           action.undone = false;
+          if (action.type === "text" && action.text) {
+            if (action.textAction === "add") {
+              if (!(room.placedTexts || []).some((t: any) => t.id === action.text.id)) {
+                room.placedTexts = [...(room.placedTexts || []), action.text];
+              }
+            } else if (action.textAction === "delete") {
+              room.placedTexts = (room.placedTexts || []).filter((t: any) => t.id !== action.text.id);
+            }
+          }
+          if (action.type === "shape" && action.shape) {
+            if (action.shapeAction === "add") {
+              if (!(room.placedShapes || []).some((s: any) => s.id === action.shape.id)) {
+                room.placedShapes = [...(room.placedShapes || []), action.shape];
+              }
+            } else if (action.shapeAction === "delete") {
+              room.placedShapes = (room.placedShapes || []).filter((s: any) => s.id !== action.shape.id);
+            }
+          }
         }
         room.lastActivity = Date.now();
       }
