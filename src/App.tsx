@@ -1820,6 +1820,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const editingTextIdRef = useRef<string | null>(null);
   editingTextIdRef.current = editingTextId;
+  const deleteEditingTextRef = useRef<(id: string) => void>(() => {});
 
   const placedTextsRef = useRef<PlacedText[]>([]);
   placedTextsRef.current = placedTexts;
@@ -1828,6 +1829,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
   const [editingShapeId, setEditingShapeId] = useState<string | null>(null);
   const editingShapeIdRef = useRef<string | null>(null);
   editingShapeIdRef.current = editingShapeId;
+  const deleteEditingShapeRef = useRef<(id: string) => void>(() => {});
   const placedShapesRef = useRef<PlacedShape[]>([]);
   placedShapesRef.current = placedShapes;
   const [selectedShapeIds, setSelectedShapeIds] = useState<string[]>([]);
