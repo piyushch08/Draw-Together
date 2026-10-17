@@ -2656,25 +2656,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       // Delete/Backspace shortcut for active sticker, text, or shape
       if ((e.key === "Delete" || e.key === "Backspace") && !isInputFocused) {
         if (editingTextIdRef.current) {
-          const next = placedTextsRef.current.filter(t => t.id !== editingTextIdRef.current);
-          setPlacedTexts(next);
-          placedTextsRef.current = next;
-          setEditingTextId(null);
-          socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
-          saveToHistory(next);
-          vibrate(15);
-          setTimeout(() => compositeLayers(), 10);
+          deleteEditingTextRef.current(editingTextIdRef.current);
         } else if (editingShapeIdRef.current) {
-          const next = placedShapesRef.current.filter(s => s.id !== editingShapeIdRef.current);
-          setPlacedShapes(next);
-          placedShapesRef.current = next;
-          setEditingShapeId(null);
-          setSelectedShapeIds([]);
-          selectedShapeIdsRef.current = [];
-          socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
-          saveToHistory(undefined, next);
-          vibrate(15);
-          setTimeout(() => compositeLayers(), 10);
+          deleteEditingShapeRef.current(editingShapeIdRef.current);
         }
       }
 
@@ -4051,7 +4035,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           const nextPlacedTexts = [...placedTextsRef.current, newText];
           setPlacedTexts(nextPlacedTexts);
           placedTextsRef.current = nextPlacedTexts;
-          socket?.emit("sync-placed-texts", { roomId, placedTexts: nextPlacedTexts });
+          (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: nextPlacedTexts });
+          setEditingTextId(newText.id);
+          editingTextIdRef.current = newText.id;
           const textAction: CanvasAction = {
             id: `text_act_${newText.id}_${Date.now()}`,
             userId: clientIdRef.current,
@@ -4447,7 +4433,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     if (tool === "shape" || tool === "stamp") {
       if ((drawingState.current as any).isDraggingShape || (drawingState.current as any).isResizingShape) {
         setPlacedShapes(placedShapesRef.current);
-        socket?.emit("sync-placed-shapes", { roomId, placedShapes: placedShapesRef.current });
+        (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: placedShapesRef.current });
         saveToHistory();
       }
       drawingState.current.isCreatingShape = false;
@@ -4464,7 +4450,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         (drawingState.current as any).isResizingText = false;
         (drawingState.current as any).dragTextId = null;
         setPlacedTexts(placedTextsRef.current);
-        socket?.emit("sync-placed-texts", { roomId, placedTexts: placedTextsRef.current });
+        (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: placedTextsRef.current });
         saveToHistory();
       }
       return;
@@ -4604,7 +4590,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         return t;
       });
       setPlacedTexts(next);
-      socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+      placedTextsRef.current = next;
+      (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: next });
 
       // Request redraw after update
       setTimeout(() => compositeLayers(), 10);
@@ -4852,7 +4839,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     placedTextsRef.current = nextTexts;
     setPlacedTexts(nextTexts);
     saveToHistory(nextTexts);
-    socket?.emit("sync-placed-texts", { roomId, placedTexts: nextTexts });
+    (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: nextTexts });
     compositeLayers();
     vibrate(8);
   };
@@ -4869,7 +4856,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     placedTextsRef.current = nextTexts;
     setPlacedTexts(nextTexts);
     saveToHistory(nextTexts);
-    socket?.emit("sync-placed-texts", { roomId, placedTexts: nextTexts });
+    (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: nextTexts });
     compositeLayers();
     vibrate(10);
   };
@@ -5013,16 +5000,19 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     if (action.type === "shape") {
       handleShapeUndoRedo(action, true);
+      (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: placedShapesRef.current });
     } else if (action.type === "text") {
       handleTextUndoRedo(action, true);
+      (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: placedTextsRef.current });
     } else if (action.type === "stroke") {
       redrawCanvasFromActions(action.layerId);
     }
 
     vibrate(12);
 
-    if (socket && roomId) {
-      socket.emit("user-undo", { roomId, actionId, userId: clientIdRef.current });
+    const s = socketRef.current || socket;
+    if (s && roomId) {
+      s.emit("user-undo", { roomId, actionId, userId: clientIdRef.current });
     }
   }, [roomId, socket, syncUndoRedoState, handleShapeUndoRedo, handleTextUndoRedo, redrawCanvasFromActions]);
 
@@ -5039,16 +5029,19 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     if (action.type === "shape") {
       handleShapeUndoRedo(action, false);
+      (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: placedShapesRef.current });
     } else if (action.type === "text") {
       handleTextUndoRedo(action, false);
+      (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: placedTextsRef.current });
     } else if (action.type === "stroke") {
       redrawCanvasFromActions(action.layerId);
     }
 
     vibrate(12);
 
-    if (socket && roomId) {
-      socket.emit("user-redo", { roomId, actionId, userId: clientIdRef.current });
+    const s = socketRef.current || socket;
+    if (s && roomId) {
+      s.emit("user-redo", { roomId, actionId, userId: clientIdRef.current });
     }
   }, [roomId, socket, syncUndoRedoState, handleShapeUndoRedo, handleTextUndoRedo, redrawCanvasFromActions]);
 
@@ -5086,7 +5079,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     setPlacedTexts(next);
     placedTextsRef.current = next;
     setEditingTextId(null);
-    socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+    editingTextIdRef.current = null;
+    (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: next });
     if (deletedText) {
       const textAction: CanvasAction = {
         id: `text_del_${textId}_${Date.now()}`,
@@ -5105,6 +5099,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     vibrate(15);
     setTimeout(() => compositeLayers(), 10);
   };
+  deleteEditingTextRef.current = deleteEditingText;
 
   const deleteEditingShape = (shapeId: string) => {
     const deletedShape = placedShapesRef.current.find(s => s.id === shapeId);
@@ -5112,9 +5107,10 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     setPlacedShapes(next);
     placedShapesRef.current = next;
     setEditingShapeId(null);
+    editingShapeIdRef.current = null;
     setSelectedShapeIds([]);
     selectedShapeIdsRef.current = [];
-    socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+    (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
     if (deletedShape) {
       const shapeAction: CanvasAction = {
         id: `shape_del_${shapeId}_${Date.now()}`,
@@ -5133,6 +5129,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     vibrate(15);
     setTimeout(() => compositeLayers(), 10);
   };
+  deleteEditingShapeRef.current = deleteEditingShape;
 
   // Keep references to undo and redo callbacks up to date
   useEffect(() => {
@@ -5141,6 +5138,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     handleRemoteRedoRef.current = handleRemoteRedo;
     undoRef.current = undo;
     redoRef.current = redo;
+    deleteEditingTextRef.current = deleteEditingText;
+    deleteEditingShapeRef.current = deleteEditingShape;
   });
 
   // Optimized Touch Handlers
@@ -6940,14 +6939,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
                         <button
                           onClick={() => {
-                            const next = placedTextsRef.current.filter(t => t.id !== editingTextId);
-                            setPlacedTexts(next);
-                            placedTextsRef.current = next;
-                            saveToHistory(next);
-                            setEditingTextId(null);
-                            socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
-                            setTimeout(() => compositeLayers(), 10);
-                            vibrate(12);
+                            if (editingTextId) {
+                              deleteEditingText(editingTextId);
+                            }
                           }}
                           className="w-full py-2.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 hover:border-rose-200 text-rose-600 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all active:scale-95"
                         >
