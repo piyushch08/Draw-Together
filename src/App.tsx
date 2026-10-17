@@ -3220,7 +3220,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
         if (editingShapeId && !nextShapes.some(s => s.id === editingShapeId)) {
           setEditingShapeId(null);
         }
-        socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+        (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
         setTimeout(() => compositeLayers(), 5);
       }
     }
@@ -3767,7 +3767,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           setSelectedShapeIds([newStickerId]);
           selectedShapeIdsRef.current = [newStickerId];
 
-          socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+          (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
           const stickerAction: CanvasAction = {
             id: `shape_act_${newStickerId}_${Date.now()}`,
             userId: clientIdRef.current,
@@ -3903,7 +3903,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           setSelectedShapeIds([newShapeId]);
           selectedShapeIdsRef.current = [newShapeId];
 
-          socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextPlacedShapes });
+          (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: nextPlacedShapes });
           const shapeAction: CanvasAction = {
             id: `shape_act_${newShapeId}_${Date.now()}`,
             userId: clientIdRef.current,
@@ -4648,7 +4648,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       });
       setPlacedShapes(next);
       placedShapesRef.current = next;
-      socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+      (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
 
       // Request redraw after update
       setTimeout(() => compositeLayers(), 10);
@@ -4731,7 +4731,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
 
     setPlacedShapes(nextShapes);
     placedShapesRef.current = nextShapes;
-    socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+    (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
     setTimeout(() => compositeLayers(), 10);
     vibrate(10);
   };
@@ -4796,7 +4796,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     placedShapesRef.current = nextShapes;
     setPlacedShapes(nextShapes);
     saveToHistory(undefined, nextShapes);
-    socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+    (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
     compositeLayers();
     vibrate(8);
   };
@@ -4821,7 +4821,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     placedShapesRef.current = nextShapes;
     setPlacedShapes(nextShapes);
     saveToHistory(undefined, nextShapes);
-    socket?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
+    (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: nextShapes });
     compositeLayers();
     vibrate(10);
   };
@@ -6802,7 +6802,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                             const next = placedTextsRef.current.map(t => t.id === editingTextId ? { ...t, size: val } : t);
                             setPlacedTexts(next);
                             placedTextsRef.current = next;
-                            socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+                            (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: next });
                             compositeLayers();
                           }
                         }}
@@ -6825,7 +6825,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                                 setPlacedTexts(next);
                                 placedTextsRef.current = next;
                                 saveToHistory(next);
-                                socket?.emit("sync-placed-texts", { roomId, placedTexts: next });
+                                (socketRef.current || socket)?.emit("sync-placed-texts", { roomId, placedTexts: next });
                                 compositeLayers();
                               }
                               vibrate(8);
@@ -7073,7 +7073,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                             const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, width: val } : s);
                             setPlacedShapes(next);
                             placedShapesRef.current = next;
-                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                             compositeLayers();
                           }
                         }}
@@ -7098,7 +7098,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                             const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, height: val } : s);
                             setPlacedShapes(next);
                             placedShapesRef.current = next;
-                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                             compositeLayers();
                           }
                         }}
@@ -7121,7 +7121,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                                 setPlacedShapes(next);
                                 placedShapesRef.current = next;
                                 saveToHistory(undefined, next);
-                                socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                                (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                                 compositeLayers();
                               }
                               vibrate(8);
@@ -7235,7 +7235,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                             placedShapesRef.current = next;
                             saveToHistory(undefined, next);
                             setEditingShapeId(null);
-                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                             setTimeout(() => compositeLayers(), 10);
                             vibrate(12);
                           }}
@@ -7421,7 +7421,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                                 const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, emoji } : s);
                                 setPlacedShapes(next);
                                 placedShapesRef.current = next;
-                                socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                                (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                                 compositeLayers();
                               }
                             }}
@@ -7448,7 +7448,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                             const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, emoji: val } : s);
                             setPlacedShapes(next);
                             placedShapesRef.current = next;
-                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                             compositeLayers();
                           }
                         }}
@@ -7474,7 +7474,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                             const next = placedShapesRef.current.map(s => s.id === editingShapeId ? { ...s, width: val, height: val } : s);
                             setPlacedShapes(next);
                             placedShapesRef.current = next;
-                            socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                            (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                             compositeLayers();
                           }
                         }}
@@ -7496,7 +7496,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                                 setPlacedShapes(next);
                                 placedShapesRef.current = next;
                                 saveToHistory(undefined, next);
-                                socket?.emit("sync-placed-shapes", { roomId, placedShapes: next });
+                                (socketRef.current || socket)?.emit("sync-placed-shapes", { roomId, placedShapes: next });
                                 compositeLayers();
                               }
                               vibrate(8);
