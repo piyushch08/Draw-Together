@@ -10,6 +10,7 @@ import { createAdapter, setupPrimary } from "@socket.io/cluster-adapter";
 
 interface ConnectedUser {
   id: string;
+  clientId?: string;
   username: string;
   color?: string;
   joinedAt: number;
@@ -44,8 +45,9 @@ interface RoomData {
 
 const PORT = Number(process.env.PORT) || 3000;
 const isProd = process.env.NODE_ENV === "production";
+const enableCluster = isProd && process.env.ENABLE_CLUSTER === "true";
 
-if (isProd && cluster.isPrimary) {
+if (enableCluster && cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
   const httpServer = createServer();
   setupMaster(httpServer, {
@@ -88,7 +90,7 @@ async function startServer() {
     pingTimeout: 5000
   });
 
-  if (isProd) {
+  if (enableCluster) {
     io.adapter(createAdapter());
     setupWorker(io);
   }
@@ -216,6 +218,7 @@ async function startServer() {
       roomId, 
       username, 
       color,
+      clientId,
       isCreator,
       backgroundColor,
       aspectRatio
@@ -223,12 +226,25 @@ async function startServer() {
       roomId: string; 
       username: string; 
       color?: string;
+      clientId?: string;
       isCreator?: boolean;
       backgroundColor?: string;
       aspectRatio?: string;
     }) => {
       const cleanRoomId = (roomId || "default-room").trim().toUpperCase();
       const cleanUsername = (username || "Anonymous Artist").trim();
+
+      // If this socket was already in another room, leave it and notify that room
+      for (const prevRoomId of socket.rooms) {
+        if (prevRoomId !== socket.id && prevRoomId !== cleanRoomId) {
+          socket.leave(prevRoomId);
+          const prevRoom = rooms.get(prevRoomId);
+          if (prevRoom) {
+            prevRoom.users.delete(socket.id);
+            io.to(prevRoomId).emit("user-left", { id: socket.id, userCount: prevRoom.users.size });
+          }
+        }
+      }
 
       socket.join(cleanRoomId);
       const room = getOrCreateRoom(cleanRoomId);
@@ -254,8 +270,23 @@ async function startServer() {
         }
       }
 
+      // If this client refreshed or reconnected, clean up any previous stale socket entry for this clientId
+      if (clientId) {
+        for (const [existingSocketId, existingUser] of room.users.entries()) {
+          if (existingUser.clientId === clientId && existingSocketId !== socket.id) {
+            room.users.delete(existingSocketId);
+            const oldSock = io.sockets.sockets.get(existingSocketId);
+            if (oldSock) {
+              try { oldSock.leave(cleanRoomId); } catch (e) {}
+            }
+          }
+        }
+      }
+
+      const isNewSocket = !room.users.has(socket.id);
       const user: ConnectedUser = {
         id: socket.id,
+        clientId,
         username: cleanUsername,
         color: color || "#6366f1",
         joinedAt: Date.now()
@@ -280,7 +311,11 @@ async function startServer() {
         aspectRatio: room.aspectRatio || "16:9"
       });
 
-      socket.to(cleanRoomId).emit("user-joined", { user, userCount: room.users.size });
+      if (isNewSocket) {
+        socket.to(cleanRoomId).emit("user-joined", { user, userCount: room.users.size });
+      } else {
+        io.to(cleanRoomId).emit("user-updated", { id: socket.id, username: cleanUsername, color: user.color });
+      }
 
       const otherUserIds = Array.from(room.users.keys()).filter(id => id !== socket.id);
       if (otherUserIds.length > 0) {
@@ -540,7 +575,19 @@ async function startServer() {
       });
     });
 
-    socket.on("disconnecting", () => {
+    socket.on("update-username", (data: { roomId: string; username: string }) => {
+      if (!data?.roomId) return;
+      const targetRoom = data.roomId.trim().toUpperCase();
+      const cleanUsername = (data.username || "Anonymous Artist").trim();
+      const room = rooms.get(targetRoom);
+      if (room && room.users.has(socket.id)) {
+        const u = room.users.get(socket.id)!;
+        u.username = cleanUsername;
+        io.to(targetRoom).emit("user-updated", { id: socket.id, username: cleanUsername, color: u.color });
+      }
+    });
+
+    const handleSocketLeave = () => {
       rateLimits.delete(socket.id);
       rateLimits.delete(socket.id + "_draw");
       rateLimits.delete(socket.id + "_laser");
@@ -549,7 +596,7 @@ async function startServer() {
           const room = rooms.get(roomId);
           if (room) {
             room.users.delete(socket.id);
-            socket.to(roomId).emit("user-left", { id: socket.id, userCount: room.users.size });
+            io.to(roomId).emit("user-left", { id: socket.id, userCount: room.users.size });
 
             if (room.users.size === 0) {
               setTimeout(() => {
@@ -563,12 +610,49 @@ async function startServer() {
           }
         }
       }
+    };
+
+    socket.on("leave-room", (data?: { roomId?: string }) => {
+      const targetRoom = (data?.roomId || "").trim().toUpperCase();
+      if (targetRoom) {
+        socket.leave(targetRoom);
+        const room = rooms.get(targetRoom);
+        if (room) {
+          room.users.delete(socket.id);
+          io.to(targetRoom).emit("user-left", { id: socket.id, userCount: room.users.size });
+        }
+      } else {
+        handleSocketLeave();
+      }
     });
+
+    socket.on("disconnecting", handleSocketLeave);
 
     socket.on("disconnect", () => {
       console.log(`[Socket Disconnected] ID: ${socket.id}`);
     });
   });
+
+  // Periodic synchronization (every 10 seconds) to clean dead sockets and keep all clients in exact sync
+  const syncInterval = setInterval(() => {
+    for (const [roomId, room] of rooms.entries()) {
+      if (room.users.size > 0) {
+        let modified = false;
+        for (const socketId of Array.from(room.users.keys())) {
+          const sock = io.sockets.sockets.get(socketId);
+          if (!sock || !sock.connected) {
+            room.users.delete(socketId);
+            modified = true;
+          }
+        }
+        io.to(roomId).emit("room-users-sync", {
+          roomId,
+          userCount: room.users.size,
+          users: Array.from(room.users.values())
+        });
+      }
+    }
+  }, 10000);
 
   if (!isProd) {
     const vite = await createViteServer({
@@ -585,6 +669,10 @@ async function startServer() {
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
-    // In prod, workers don't listen, sticky session master does it
+    if (!enableCluster) {
+      httpServer.listen(PORT, "0.0.0.0", () => {
+        console.log(`✨ Draw Together production server listening on http://0.0.0.0:${PORT}`);
+      });
+    }
   }
 }

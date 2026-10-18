@@ -1873,6 +1873,20 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     })()
   );
 
+  const usernameRef = useRef(username);
+  usernameRef.current = username;
+  const userColorRef = useRef<string>(
+    (() => {
+      const palette = ["#6366f1", "#ec4899", "#8b5cf6", "#10b981", "#f59e0b", "#3b82f6", "#ef4444", "#14b8a6"];
+      let hash = 0;
+      for (let i = 0; i < clientIdRef.current.length; i++) {
+        hash = (hash << 5) - hash + clientIdRef.current.charCodeAt(i);
+        hash |= 0;
+      }
+      return palette[Math.abs(hash) % palette.length];
+    })()
+  );
+
   // Per-User Collaborative Actions & Undo/Redo Stacks
   const actionsRef = useRef<CanvasAction[]>([]);
   const myUndoStackRef = useRef<string[]>([]);
@@ -2719,7 +2733,9 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     const onConnect = () => {
       s.emit("join-room", { 
         roomId, 
-        username,
+        username: usernameRef.current || username,
+        color: userColorRef.current,
+        clientId: clientIdRef.current,
         isCreator: isNewRoom,
         backgroundColor: isNewRoom ? roomSettingsRef.current.backgroundColor : undefined,
         aspectRatio: isNewRoom ? roomSettingsRef.current.aspectRatio : undefined
@@ -2727,9 +2743,6 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     };
 
     s.on("connect", onConnect);
-    s.io.on("reconnect", () => {
-      onConnect();
-    });
     if (s.connected) {
       onConnect();
     }
@@ -2808,14 +2821,14 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
       aspectRatio?: string;
     }) => {
       if (typeof (data as any).userCount === "number") {
-        setLiveUserCount((data as any).userCount);
+        setLiveUserCount(Math.max(1, (data as any).userCount));
       } else if (data.users && Array.isArray(data.users)) {
         setLiveUserCount(Math.max(1, data.users.length));
       }
       if (data.users && Array.isArray(data.users)) {
         const userMap: Record<string, UserPresence> = {};
         data.users.forEach(u => {
-          if (u.id !== s.id) {
+          if (u.id !== s.id && (u as any).clientId !== clientIdRef.current) {
             userMap[u.id] = {
               id: u.id,
               username: u.username,
@@ -2923,11 +2936,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     s.on("user-joined", (data: any) => {
       const incomingUser = data.user || data;
       if (typeof data.userCount === "number") {
-        setLiveUserCount(data.userCount);
+        setLiveUserCount(Math.max(1, data.userCount));
       } else {
         setLiveUserCount(prev => prev + 1);
       }
-      if (incomingUser && incomingUser.id && incomingUser.id !== s.id) {
+      if (incomingUser && incomingUser.id && incomingUser.id !== s.id && incomingUser.clientId !== clientIdRef.current) {
         setUsers(prev => ({
           ...prev,
           [incomingUser.id]: {
@@ -2941,7 +2954,7 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     s.on("user-left", (data: any) => {
       const id = data?.id;
       if (typeof data?.userCount === "number") {
-        setLiveUserCount(data.userCount);
+        setLiveUserCount(Math.max(1, data.userCount));
       } else {
         setLiveUserCount(prev => Math.max(1, prev - 1));
       }
@@ -2951,6 +2964,41 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           delete next[id];
           return next;
         });
+      }
+    });
+
+    s.on("user-updated", (data: { id: string; username: string; color?: string }) => {
+      if (!data?.id) return;
+      setUsers(prev => {
+        if (!prev[data.id]) return prev;
+        return {
+          ...prev,
+          [data.id]: {
+            ...prev[data.id],
+            username: data.username,
+            color: data.color || prev[data.id].color
+          }
+        };
+      });
+    });
+
+    s.on("room-users-sync", (data: { roomId: string; userCount: number; users?: Array<any> }) => {
+      if (typeof data?.userCount === "number") {
+        setLiveUserCount(Math.max(1, data.userCount));
+      }
+      if (data?.users && Array.isArray(data.users)) {
+        const userMap: Record<string, UserPresence> = {};
+        data.users.forEach(u => {
+          if (u.id !== s.id && u.clientId !== clientIdRef.current) {
+            userMap[u.id] = {
+              id: u.id,
+              username: u.username,
+              color: u.color || "#6366f1",
+              lastActiveAt: Date.now()
+            };
+          }
+        });
+        setUsers(userMap);
       }
     });
 
@@ -3059,10 +3107,13 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
     });
 
     return () => {
+      try {
+        s.emit("leave-room", { roomId });
+      } catch (e) {}
       s.disconnect();
       socketRef.current = null;
     };
-  }, [roomId, username]);
+  }, [roomId]);
 
   // Handle Resize
   useEffect(() => {
@@ -5476,9 +5527,11 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 onChange={(e) => {
                   const val = e.target.value.slice(0, 15);
                   setUsername(val);
-                  if (socket) {
-                    socket.emit("join-room", { roomId, username: val });
-                  }
+                  usernameRef.current = val;
+                  try {
+                    localStorage.setItem("draw_together_username", val);
+                  } catch (err) {}
+                  (socketRef.current || socket)?.emit("update-username", { roomId, username: val });
                 }}
                 className="text-xs font-bold text-indigo-600 bg-transparent border-none p-0 m-0 outline-none focus:ring-0 w-20 placeholder-indigo-300 truncate"
                 placeholder="Name"
@@ -5599,8 +5652,8 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
           </Tooltip>
 
           {/* Live Artists Count */}
-          <Tooltip label="Live Artists" side="bottom">
-            <div className="flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default" title="Live Artists">
+          <Tooltip label={`${liveUserCount} ${liveUserCount === 1 ? "Artist" : "Artists"} Online`} side="bottom">
+            <div className="flex items-center gap-1 px-2 py-1.5 bg-white/95 backdrop-blur-md rounded-lg sm:rounded-xl border border-slate-200 shadow-xs shrink-0 cursor-default" title="Live Artists Online">
               <Users size={13} className="text-indigo-500" />
               <span className="text-[10px] font-black tracking-wider text-slate-600">
                 {liveUserCount}
@@ -6654,26 +6707,40 @@ function DrawingRoom({ roomId: rawRoomId, username, setUsername, onLeave, onEnte
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex -space-x-1 flex-1">
-                    {(Object.values(users) as UserPresence[]).slice(0, 5).map((u, i) => {
-                      const isIdle = Date.now() - (u.lastActiveAt || 0) > 60000;
-                      let indicatorColor = "bg-sky-500";
+                    {[
+                      {
+                        id: socket?.id || clientIdRef.current,
+                        username: `${username || "You"} (You)`,
+                        color: userColorRef.current,
+                        lastActiveAt: Date.now(),
+                        isDrawing: false
+                      },
+                      ...(Object.values(users) as UserPresence[])
+                    ].slice(0, 5).map((u, i) => {
+                      const isMe = u.id === (socket?.id || clientIdRef.current);
+                      const isIdle = !isMe && Date.now() - (u.lastActiveAt || 0) > 60000;
+                      let indicatorColor = isMe ? "bg-indigo-500" : "bg-sky-500";
                       if (u.isDrawing) indicatorColor = "bg-green-500 animate-pulse";
                       else if (isIdle) indicatorColor = "bg-amber-500";
 
                       return (
-                        <div key={i} className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[8px] font-black text-slate-600 uppercase relative">
-                          {u.username[0]}
+                        <div 
+                          key={u.id || i} 
+                          className="w-6 h-6 rounded-full border-2 border-white bg-slate-200 flex items-center justify-center text-[8px] font-black text-slate-600 uppercase relative cursor-default"
+                          title={u.username}
+                        >
+                          {(u.username || "A")[0]}
                           <span className={cn("absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full border border-white", indicatorColor)} />
                         </div>
                       );
                     })}
-                    {(Object.values(users) as UserPresence[]).length > 5 && (
+                    {Object.keys(users).length + 1 > 5 && (
                       <div className="w-6 h-6 rounded-full border-2 border-white bg-slate-800 text-white flex items-center justify-center text-[8px] font-black">
-                        +{(Object.values(users) as UserPresence[]).length - 5}
+                        +{(Object.keys(users).length + 1) - 5}
                       </div>
                     )}
                   </div>
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{(Object.values(users) as UserPresence[]).length} Active</span>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{liveUserCount} Active</span>
                 </div>
               </div>
 
