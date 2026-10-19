@@ -1239,7 +1239,7 @@ export function LandingPage({
                 <Linkedin size={17} />
               </a>
               <a
-                href="https://www.instagram.com/piyu5h.08?igsh=MXJvcnlnb2hwZHliMQ%3D%3D"
+                href="https://www.instagram.com/hey_piyu5h?utm_source=qr&mdxt=MnY5MWJ4Znlod2My"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-pink-600 hover:border-pink-500 transition-all shadow-xs active:scale-95"
