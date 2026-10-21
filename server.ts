@@ -214,17 +214,17 @@ async function startServer() {
   io.on("connection", (socket: Socket) => {
     console.log(`[Socket Connected] ID: ${socket.id} on Worker ${isProd ? cluster.worker?.id : "dev"}`);
 
-    socket.on("join-room", ({ 
-      roomId, 
-      username, 
+    socket.on("join-room", ({
+      roomId,
+      username,
       color,
       clientId,
       isCreator,
       backgroundColor,
       aspectRatio
-    }: { 
-      roomId: string; 
-      username: string; 
+    }: {
+      roomId: string;
+      username: string;
       color?: string;
       clientId?: string;
       isCreator?: boolean;
@@ -277,7 +277,7 @@ async function startServer() {
             room.users.delete(existingSocketId);
             const oldSock = io.sockets.sockets.get(existingSocketId);
             if (oldSock) {
-              try { oldSock.leave(cleanRoomId); } catch (e) {}
+              try { oldSock.leave(cleanRoomId); } catch (e) { }
             }
           }
         }
@@ -444,20 +444,20 @@ async function startServer() {
       room.canvasData = data.canvasData;
       // Do not overwrite room.backgroundColor or room.aspectRatio - enforce creator's locked settings
       room.lastActivity = Date.now();
-      socket.to(targetRoom).emit("sync-canvas", { 
-        ...data, 
+      socket.to(targetRoom).emit("sync-canvas", {
+        ...data,
         backgroundColor: room.backgroundColor || "#FFFFFF",
         aspectRatio: room.aspectRatio || "16:9",
-        roomId: targetRoom 
+        roomId: targetRoom
       });
     });
 
-    socket.on("canvas-snapshot-reply", (data: { 
-      requesterId: string; 
-      canvasData: string; 
-      roomId: string; 
-      backgroundColor?: string; 
-      aspectRatio?: string; 
+    socket.on("canvas-snapshot-reply", (data: {
+      requesterId: string;
+      canvasData: string;
+      roomId: string;
+      backgroundColor?: string;
+      aspectRatio?: string;
     }) => {
       if (data.requesterId && data.canvasData) {
         const targetRoom = (data.roomId || "").trim().toUpperCase();
@@ -466,7 +466,7 @@ async function startServer() {
           room.canvasData = data.canvasData;
           // Do not overwrite room.backgroundColor or room.aspectRatio
         }
-        io.to(data.requesterId).emit("sync-canvas", { 
+        io.to(data.requesterId).emit("sync-canvas", {
           canvasData: data.canvasData,
           backgroundColor: room?.backgroundColor || "#FFFFFF",
           aspectRatio: room?.aspectRatio || "16:9",
